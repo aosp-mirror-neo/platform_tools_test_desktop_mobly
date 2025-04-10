@@ -16,7 +16,7 @@
 
 from mobly import base_test
 from mobly import test_runner
-from pasit.lib import passport_host
+from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
 
 

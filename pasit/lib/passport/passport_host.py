@@ -22,7 +22,7 @@ from urllib import parse
 from google.protobuf import json_format
 from mobly import logger as mobly_logger
 
-from pasit.lib import passport_switch_service_client
+from pasit.lib.passport import passport_switch_service_client
 from chromiumos.test.lab.api import pasit_host_pb2
 
 

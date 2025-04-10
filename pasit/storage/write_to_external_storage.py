@@ -22,7 +22,7 @@ import tempfile
 from mobly import asserts
 from mobly import test_runner
 
-from pasit.lib import pasit_file_interface
+from pasit.lib import pasit_file
 from pasit.storage import storage_base_test
 
 
@@ -35,7 +35,7 @@ class WriteToExternalStorageTest(storage_base_test.StorageBaseTest):
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.file_interface = pasit_file_interface.create(self.dut)
+    self.file_interface = self.create(pasit_file)
     self.host_file_content, self.host_file_path = self._create_test_file()
 
   def test_write(self):

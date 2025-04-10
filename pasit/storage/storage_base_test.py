@@ -16,26 +16,26 @@
 
 import logging
 
-from pasit.lib import pasit_base_test
-from pasit.lib import pasit_external_storage_info
+from pasit.lib import pasit_storage
+from pasit.lib import pasit_test
 
 
 _STORAGE_MOUNT_TIMEOUT_PARAM = 'storage_mount_timeout'
 _STORAGE_MOUNT_TIMEOUT_DEFAULT = 5
 
 
-class StorageBaseTest(pasit_base_test.PasitBaseTest):
+class StorageBaseTest(pasit_test.PasitTestClass):
   """Base test for tests that use external storage."""
 
-  removable_storage: pasit_external_storage_info.PasitExternalStorageInfo
+  removable_storage: pasit_storage.PasitStorage
 
   def setup_class(self):
     """Handle the setup for the test.
 
-    Create PasitExternalStorageInfo for the interacting with external storage.
+    Create PasitStorage for the interacting with external storage.
     """
     super().setup_class()
-    self.removable_storage = pasit_external_storage_info.create(self.dut)
+    self.removable_storage = self.create(pasit_storage)
 
   def _plug_in_external_storage(self):
     """Emulate external storage plug in using passport."""

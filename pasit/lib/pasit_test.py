@@ -14,14 +14,17 @@
 
 """Base test class for PASIT Mobly tests."""
 
+import types
+from typing import Any
+
 from mobly import base_test
 
 from pasit.lib import pasit_device
-from pasit.lib import passport_host
+from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
-class PasitBaseTest(base_test.BaseTestClass):
+class PasitTestClass(base_test.BaseTestClass):
   """Base test class for PASIT Mobly tests."""
 
   DEVICE_TYPE_STORAGE = pasit_host_pb2.PasitHost.Device.Type.STORAGE
@@ -44,6 +47,23 @@ class PasitBaseTest(base_test.BaseTestClass):
     """Any PASIT specific teardown steps."""
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
+
+  def create(self, module: types.ModuleType) -> Any:
+    """Create a component utility instance for the test Mobly controller.
+
+    Args:
+      module: The module must have a field named `_registry` which is a
+        dictionary of controller type as the key, and corresponding component
+        utility class as the value.
+
+    Returns:
+      A component utility instance for particular Mobly controller.
+    """
+    controller = self.dut.controller
+    for controller_type, func in module._registry.items():
+      if controller_type == type(controller):
+        return func(controller)
+    raise ValueError(f'Unknown controller type: {type(controller).__name__}')
 
   def _create_passport_controller(self) -> passport_host.PassportHost:
     """Create passport host controller from the testbed configuration."""

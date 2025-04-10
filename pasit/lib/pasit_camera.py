@@ -12,89 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PasitCamera handles camera operations for PASIT testing."""
+"""The module for PASIT camera related imports and types."""
 
-import abc
-from collections.abc import MutableSequence
-from typing import Any
+from mobly.controllers import android_device
 
-from pasit.lib import pasit_device
+from pasit.lib.android import android_pasit_camera
+from pasit.lib.base import base_pasit_camera
 
+PasitCamera = base_pasit_camera.BasePasitCamera
 
-class PasitCamera(metaclass=abc.ABCMeta):
-  """Interface for camera operations for PASIT testing."""
-
-  def __init__(self, controller: Any):
-    """Initializes the PasitCamera."""
-    self.controller = controller
-
-  @abc.abstractmethod
-  def launch_camera_app(self):
-    """Launches the camera app."""
-    raise NotImplementedError()
-
-  @abc.abstractmethod
-  def close_camera_app(self):
-    """Closes the camera app."""
-    raise NotImplementedError()
-
-  @abc.abstractmethod
-  def get_connected_cameras(self) -> MutableSequence[str]:
-    """Finds the connected camera devices."""
-    raise NotImplementedError()
-
-  @abc.abstractmethod
-  def is_camera_app_using_camera(self, camera_device: str) -> bool:
-    """Checks if the camera app is using the camera_device."""
-    raise NotImplementedError()
-
-
-class AndroidPasitCamera(PasitCamera):
-  """PasitCamera for Android devices."""
-
-  def launch_camera_app(self):
-    # Instruct the Activity Manager(am) to start the camera app using the
-    # VIDEO_CAPTURE action. This is a typical way to launch the camera app on
-    # Android devices.
-    self.controller.adb.shell([
-        'am',
-        'start',
-        '-a',
-        'android.media.action.VIDEO_CAPTURE',
-        'com.google.android.desktop.camera',
-    ])
-
-  def close_camera_app(self):
-    # Instruct the Activity Manager(am) to terminate all processes associated
-    # with the camera app (uniquely identified by package name
-    # com.google.android.desktop.camera).
-    self.controller.adb.shell(
-        ['am', 'force-stop', 'com.google.android.desktop.camera']
-    )
-
-  def get_connected_cameras(self) -> MutableSequence[str]:
-    return [
-        item
-        for item in self.controller.adb.shell(['ls', '/dev/video*'])
-        .decode('utf-8')
-        .split('\n')
-        if item
-    ]
-
-  def is_camera_app_using_camera(self, camera_device: str) -> bool:
-    try:
-      output = self.controller.adb.shell(
-          ['lsof', camera_device, '|', 'grep', 'cameraserv']
-      ).decode('utf-8')
-    except pasit_device.AdbError:
-      # The command fails when grep returns empty. Catch the error and return
-      # False.
-      return False
-    return bool(output)
-
-
-def create(device: pasit_device.PasitDevice) -> PasitCamera:
-  """Creates a PasitFileInterface for the given controller."""
-  if device.is_android_device():
-    return AndroidPasitCamera(device.controller)
-  raise ValueError(f'Unsupported controller type: {type(device.controller)}')
+# A dictionary of controller types and the corresponding PasitCamera class.
+# Used in PasitTestClass.create() to get the correct PasitCamera class.
+_registry = {
+    android_device.AndroidDevice: android_pasit_camera.AndroidPasitCamera
+}

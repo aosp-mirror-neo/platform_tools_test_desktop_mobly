@@ -20,11 +20,11 @@ import logging
 from mobly import asserts
 from mobly import test_runner
 
-from pasit.lib import pasit_base_test
 from pasit.lib import pasit_camera
+from pasit.lib import pasit_test
 
 
-class UnplugExternalCameraTest(pasit_base_test.PasitBaseTest):
+class UnplugExternalCameraTest(pasit_test.PasitTestClass):
   """Test unplugging an external camera."""
 
   camera: pasit_camera.PasitCamera
@@ -32,7 +32,7 @@ class UnplugExternalCameraTest(pasit_base_test.PasitBaseTest):
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.camera = pasit_camera.create(self.dut)
+    self.camera = self.create(pasit_camera)
 
   def teardown_test(self):
     """Handle the teardown for the test."""
@@ -51,6 +51,9 @@ class UnplugExternalCameraTest(pasit_base_test.PasitBaseTest):
         internal_camera_devices
     )
     logging.info('External camera devices: %s', external_camera_devices)
+    asserts.assert_greater(
+        len(external_camera_devices), 0, 'No external camera devices found.'
+    )
 
     logging.info('Launching camera app')
     self.camera.launch_camera_app()
