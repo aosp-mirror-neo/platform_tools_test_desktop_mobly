@@ -14,59 +14,21 @@
 
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
+    default_team: "trendy_team_desktop_peripherals",
+}
+
+team {
+    name: "trendy_team_desktop_peripherals",
+
+    // go/trendy/manage/engineers/5858785764933632
+    trendy_team_id: "5858785764933632",
 }
 
 python_defaults {
     name: "PASIT-defaults",
     libs: [
         "mobly",
-        "py-pasit-libs",
-    ],
-    pkg_path: "pasit",
-}
-
-python_test_host {
-    name: "DesktopPASITStorageTests",
-    main: "storage/pasit_storage_suite.py",
-    srcs: [
-        "storage/*.py",
-    ],
-    defaults: ["PASIT-defaults"],
-    test_options: {
-        unit_test: false,
-        runner: "mobly",
-        tags: ["mobly"],
-    },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-    ],
-}
-
-python_test_host {
-    name: "DesktopPASITMiscTests",
-    main: "misc/pasit_misc_suite.py",
-    srcs: ["misc/*.py"],
-    defaults: ["PASIT-defaults"],
-    test_options: {
-        unit_test: false,
-        runner: "mobly",
-        tags: ["mobly"],
-    },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-    ],
-}
-
-python_library_host {
-    name: "py-pasit-libs",
-    srcs: ["lib/*.py"],
-    libs: [
-        "py-grpcio",
-        "libprotobuf-python",
-        "mobly",
-        "py-chromiumos-config-passport",
+        "py-pasit-test",
     ],
     pkg_path: "pasit",
 }
