@@ -21,7 +21,7 @@ from pasit.lib import pasit_test
 
 
 _STORAGE_MOUNT_TIMEOUT_PARAM = 'storage_mount_timeout'
-_STORAGE_MOUNT_TIMEOUT_DEFAULT = 5
+_STORAGE_MOUNT_TIMEOUT_DEFAULT = 10
 
 
 class StorageBaseTest(pasit_test.PasitTestClass):

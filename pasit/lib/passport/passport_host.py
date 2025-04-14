@@ -15,9 +15,13 @@
 """Controller for interacting with PASIT testbed via a Passport API Host."""
 
 from collections.abc import Callable, MutableSequence, Sequence
+import http
 import logging
 from typing import Any
-from urllib import parse
+import urllib.error
+import urllib.parse
+import urllib.request
+
 
 from google.protobuf import json_format
 from mobly import logger as mobly_logger
@@ -114,7 +118,7 @@ class PassportHost:
           ' or via the switch_service_host and switch_service_port configs.'
       )
 
-    host_info = parse.urlsplit('//' + self.address)
+    host_info = urllib.parse.urlsplit('//' + self.address)
     self.log.info(
         'Connecting to Passport API at host: %s, port: %s'
         % (host_info.hostname, host_info.port)
@@ -209,10 +213,23 @@ class PassportHost:
           self._devices[device_id].type
           == pasit_host_pb2.PasitHost.Device.Type.SWITCH_FIXTURE
       ):
+        self.log.debug(
+            'Setting switch %s to %s',
+            device_id,
+            'enabled' if enable else 'disabled',
+        )
         if enable:
           self._client.enable_switch(device_id)
         else:
           self._client.disable_switch(device_id)
+      elif (
+          self._devices[device_id].type
+          == pasit_host_pb2.PasitHost.Device.Type.IP_POWER
+      ):
+        # NOTE: This is a temporary solution to set the IP power state.
+        # Once the passport host proto supports a type of IP_POWER, this should
+        # be updated to use that type instead.
+        self.set_ip_power_state(device_id, enable)
 
   @property
   def address(self) -> str:
@@ -223,6 +240,7 @@ class PassportHost:
     """Resets the PassportHost."""
     if self._client:
       self._client.reset_all_switches()
+    self._reset_ip_power()
 
   def teardown(self):
     """Tears down the PassportHost."""
@@ -249,3 +267,41 @@ class PassportHost:
 
     resp = self._client.get_switches()
     return [switch.id for switch in resp.switches]
+
+  def _reset_ip_power(self):
+    """Resets all connected IP power switches."""
+    for device in self.topology.devices:
+      if device.type == pasit_host_pb2.PasitHost.Device.Type.IP_POWER:
+        self.set_ip_power_state(device.id, False)
+
+  def set_ip_power_state(self, ip_port: str, enable: bool) -> None:
+    """Sets the IP power switch state through URL request directly from the test.
+
+    Args:
+      ip_port: The IP+port of the IP power switch (example: 192.168.1.100:8080).
+      enable: True to power on the IP power switch, False to power off.
+
+    Raises:
+      Error: If the URL request fails.
+    """
+    state = '1' if enable else '0'
+    url = (
+        f'http://{ip_port}/set.cmd?user=admin+pass=12345678+cmd=setpower+p61={state}'
+    )
+    err_msg = (
+        f'Failed to set ip power state to {enable} for {ip_port}, verify that'
+        ' the IP Power switch is connected and reachable from the test host.'
+    )
+    self.log.debug('Setting ip power state to %s: %s', enable, url)
+    try:
+      with urllib.request.urlopen(url) as response:
+        resp_text = response.read()
+        self.log.debug('Response: %s', resp_text)
+        if response.status != http.HTTPStatus.OK:
+          raise Error(
+              err_msg
+              + f'\tResponse status: {response.status}, response text:'
+              f' {resp_text}'
+          )
+    except urllib.error.URLError as e:
+      raise Error(err_msg + f'\n\t{e}') from e
