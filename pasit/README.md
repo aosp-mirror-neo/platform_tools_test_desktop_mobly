@@ -18,27 +18,27 @@ m <PASIT suite build target name>
 # artifacts in
 # ./out/host/linux-x86/nativetest64/<PASIT suite build target name>/<PASIT suite build target name>
 # example:
-m PASITStorageTests
-ls ./out/host/linux-x86/nativetest64/PASITStorageTests/PASITStorageTests
+m DesktopPASITStorageTests
+ls ./out/host/linux-x86/nativetest64/DesktopPASITStorageTests/DesktopPASITStorageTests
 ```
 
 ## Running
 
 You must have the [passport] service setup and running on your test host, and
-have a testbed and `config.yml` for your testbed before you can run PASIT tests.
+have a testbed and `config.yaml` for your testbed before you can run PASIT tests.
 
 ### Running with `atest`
 
 Using `atest` is the simplest method as it will build all the required
 dependencies and execute the test in one command.  Since PASIT uses configurable
 testbeds that vary in the args and setup, you cannot use the generated
-`config.yml` from `atest` and must pass one as an argument.
+`config.yaml` from `atest` and must pass one as an argument.
 
 ```
 # run an entire suite
 atest <PASIT suite build target name> [--iterations <num iterations] -- --config <path to your config> --testbed <name of testbed from config>
 # example
-atest PASITStorageTests --iterations 20 -- --config ~/pasit_local.yml --testbed LocalAndroidTestbed
+atest DesktopPASITStorageTests --iterations 20 -- --config ~/pasit_local.yaml --testbed LocalAndroidTestbed
 ```
 
 When running a PASIT suite you can filter by test case with the syntax
@@ -48,7 +48,7 @@ multiple classes in a single `atest` command.
 
 ```
 # example run a single test case
-atest PASITMiscTests:PassportHostTest#test_get_switches PASITMiscTests:HelloWorldTest -- --config ~/pasit_local.yml --testbed LocalAndroidTestbed
+atest DesktopPASITMiscTests:PassportHostTest#test_get_switches DesktopPASITMiscTests:HelloWorldTest -- --config ~/pasit_local.yaml --testbed LocalAndroidTestbed
 ```
 
 ### Running the test binary directly
@@ -59,7 +59,7 @@ for changes and can execute immediately.
 
 ```
 # ./out/host/linux-x86/nativetest64/<PASIT suite build target name>/<PASIT suite build target name>
-./out/host/linux-x86/nativetest64/PASITStorageTests/PASITStorageTests -c ~/pasit_local.yml
+./out/host/linux-x86/nativetest64/DesktopPASITStorageTests/DesktopPASITStorageTests -c ~/pasit_local.yaml
 ```
 
 Filters can be passed similar to `atest`, using the `--tests` flag. Similar to
@@ -69,7 +69,7 @@ and separating the filters with spaces, allowing filtering of multiple classes
 or test cases.
 
 ```
-./out/host/linux-x86/nativetest64/PASITStorageTests/PASITStorageTests -c ~/pasit_local.yml  --tests EjectExternalStorageTest.test_write
+./out/host/linux-x86/nativetest64/DesktopPASITStorageTests/DesktopPASITStorageTests -c ~/pasit_local.yaml  --tests EjectExternalStorageTest.test_write
 ```
 
 Note if you have only one testbed config in your config file you do not need to
