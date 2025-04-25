@@ -30,5 +30,8 @@ python_defaults {
         "mobly",
         "py-pasit-test",
     ],
+    test_suites: [
+        "general-tests",
+    ],
     pkg_path: "pasit",
 }
