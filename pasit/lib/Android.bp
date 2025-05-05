@@ -38,6 +38,21 @@ python_library_host {
     exclude_srcs: ["passport/*"],
     libs: [
         "mobly",
+        "py-pasit-utils",
+        "py-pasit-servo-client",
+    ],
+    pkg_path: "pasit/lib",
+}
+
+python_library_host {
+    name: "py-pasit-display",
+    srcs: [
+        "*/*display.py",
+        "*display.py",
+    ],
+    exclude_srcs: ["passport/*"],
+    libs: [
+        "mobly",
     ],
     pkg_path: "pasit/lib",
 }
@@ -49,6 +64,17 @@ python_library_host {
         "*file.py",
     ],
     exclude_srcs: ["passport/*"],
+    libs: [
+        "mobly",
+    ],
+    pkg_path: "pasit/lib",
+}
+
+python_library_host {
+    name: "py-pasit-servo-client",
+    srcs: [
+        "base/servo_client.py",
+    ],
     libs: [
         "mobly",
     ],
@@ -79,6 +105,14 @@ python_library_host {
         "mobly",
         "py-pasit-device",
         "py-passport",
+    ],
+    pkg_path: "pasit/lib",
+}
+
+python_library_host {
+    name: "py-pasit-utils",
+    srcs: [
+        "pasit_utils.py",
     ],
     pkg_path: "pasit/lib",
 }
