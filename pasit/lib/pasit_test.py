@@ -14,9 +14,11 @@
 
 """Base test class for PASIT Mobly tests."""
 
+import enum
 import types
 from typing import Any
 
+from mobly import asserts
 from mobly import base_test
 
 from pasit.lib import pasit_device
@@ -24,29 +26,36 @@ from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
+@enum.unique
+class DutState(enum.Enum):
+  POWER_ON = 'on'
+  POWER_OFF = 'off'
+  SUSPEND = 'suspended'
+
+
 class PasitTestClass(base_test.BaseTestClass):
   """Base test class for PASIT Mobly tests."""
 
   DEVICE_TYPE_STORAGE = pasit_host_pb2.PasitHost.Device.Type.STORAGE
   DEVICE_TYPE_CAMERA = pasit_host_pb2.PasitHost.Device.Type.CAMERA
+  DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
 
   dut: pasit_device.PasitDevice
+  requires_servo: bool = False
 
   def setup_class(self):
-    """Handle PASIT specific setup for the test.
-
-    Create PasitDevice controller for the DUT, Passport controller for Passport
-    host.
-    """
-    self.dut = pasit_device.create(self)
+    """Setup steps before any test is executed."""
+    self.dut = pasit_device.create(self, self.requires_servo)
 
     self.passport_host = self._create_passport_controller()
     self.passport_host.reset()
 
   def teardown_test(self):
-    """Any PASIT specific teardown steps."""
+    """Teardown steps after each test is executed."""
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
+    if self.dut.power_on_if_offline():
+      asserts.fail('DUT is offline after test.')
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.

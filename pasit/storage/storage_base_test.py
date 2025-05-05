@@ -27,7 +27,7 @@ _STORAGE_MOUNT_TIMEOUT_DEFAULT = 10
 class StorageBaseTest(pasit_test.PasitTestClass):
   """Base test for tests that use external storage."""
 
-  removable_storage: pasit_storage.PasitStorage
+  storage: pasit_storage.PasitStorage
 
   def setup_class(self):
     """Handle the setup for the test.
@@ -35,7 +35,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     Create PasitStorage for the interacting with external storage.
     """
     super().setup_class()
-    self.removable_storage = self.create(pasit_storage)
+    self.storage = self.create(pasit_storage)
 
   def _plug_in_external_storage(self):
     """Emulate external storage plug in using passport."""
@@ -60,12 +60,12 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     logging.info('Waiting for external storage to mount')
     storage_mount_timeout = self._get_storage_mount_timeout()
     try:
-      mount_point = self.removable_storage.wait_for_external_mount_point(
+      mount_point = self.storage.wait_for_external_mount_point(
           storage_mount_timeout
       )
     except TimeoutError as e:
       logging.info('External storage not mounted, formatting and trying again.')
-      if not self.removable_storage.format_external_storage():
+      if not self.storage.format_external_storage():
         raise ValueError(
             'No USB storage device found, ensure that external storage is'
             ' plugged in and connected to the DUT through switch.'
@@ -75,7 +75,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
       # mounted after formatting.
       self._unplug_external_storage()
       self._plug_in_external_storage()
-      mount_point = self.removable_storage.wait_for_external_mount_point(
+      mount_point = self.storage.wait_for_external_mount_point(
           storage_mount_timeout
       )
     return mount_point

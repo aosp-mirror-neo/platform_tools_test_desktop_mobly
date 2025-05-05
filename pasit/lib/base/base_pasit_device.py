@@ -12,31 +12,143 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PasitDevice handles the setup of a device for PASIT testing."""
+"""Interface for device operations for PASIT testing."""
 
 import abc
-from typing import Any, Iterable
+from collections.abc import Iterable
+import logging
+from typing import Any
+
+from pasit.lib.base import servo_client
+
+
+class ShellError(Exception):
+  """Raised when a shell command fails.
+
+    Attributes:
+      command: The command that was executed.
+      return_code: The return code of the command.
+      stdout: The stdout of the command.
+      stderr: The stderr of the command.
+      device_uri: The uri of the device.
+  """
+
+  def __init__(
+      self,
+      command: str,
+      return_code: int,
+      stdout: bytes,
+      stderr: bytes,
+      device_uri: str,
+  ):
+    self.command = command
+    self.return_code = return_code
+    self.stdout = stdout
+    self.stderr = stderr
+    self.device_uri = device_uri
+
+
+class ServoError(Exception):
+  """Error when trying to connect to Servo."""
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
   """Base class for PASIT device."""
 
   controller: Any
+  _use_servo: bool = False
+  _servo: servo_client.ServoClient
 
-  def __init__(self, controller: Any):
+  def __init__(self, controller: Any, servo_uri: str):
     """Initializes the PasitDevice.
 
     Args:
       controller: The controller to use for the PASIT device.
+      servo_uri: The URI of Servo. If not empty, the device will be able to
+        power cycle.
+    Raises:
+      ServoError: If failed to connect to Servo.
     """
     self.controller = controller
+    if servo_uri:
+      self._use_servo = True
+      try:
+        self._servo = servo_client.ServoClient(servo_uri)
+      except Exception as e:
+        raise ServoError(
+            f'Test setup error, failed to connect to Servo at {servo_uri}: {e}'
+        ) from e
 
   @abc.abstractmethod
-  def shell(self, params: Iterable[str]):
-    """Sends the given parameters to the console."""
+  def shell(self, params: Iterable[str]) -> bytes:
+    """Sends the given parameters to the console.
+
+    Args:
+      params: The command to execute, e.g. ['ls', '-la'], as a list of
+        strings, each string being a token after splitting the command by
+        spaces.
+
+    Returns:
+      The output of the command as bytes.
+
+    Raises:
+      ShellError: If the command fails.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod
   def reboot(self):
     """Reboots the device."""
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def power_on(self):
+    """Powers on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def power_off(self):
+    """Powers off the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def suspend(self):
+    """Suspends the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def is_device_online(self, timeout: int) -> bool:
+    """Checks if the device is online."""
+    raise NotImplementedError
+
+  def power_on_if_offline(self, timeout: int = 5) -> bool:
+    """Powers on the device if it is offline.
+
+    Args:
+      timeout: The timeout in seconds to wait for the device to be online.
+
+    Returns:
+      True if device was offline.
+    """
+    if not self.is_device_online(timeout):
+      if self._use_servo:
+        logging.debug('Device is offline, powering on...')
+        self.power_on()
+      return True
+    return False
+
+  def _request_power_on(self):
+    """Requests the device to power on via Servo."""
+    if not self._use_servo:
+      raise ValueError(
+          'Failed to request power on device: servo is not configured.'
+      )
+    self._servo.set_power_state(servo_client.PowerState.ON)
+
+  def _request_power_off(self):
+    """Requests the device to power off via Servo."""
+    if not self._use_servo:
+      raise ValueError(
+          'Failed to request power off device: servo is not configured.'
+      )
+    self._servo.set_power_state(servo_client.PowerState.OFF)

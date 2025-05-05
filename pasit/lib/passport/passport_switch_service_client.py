@@ -20,19 +20,41 @@ from chromiumos.test.lab.api.passport import switch_service_pb2
 from chromiumos.test.lab.api.passport import switch_service_pb2_grpc
 
 
+class PassportSwitchBaseError(Exception):
+  """Base error class for PassportSwitchServiceClient."""
+
+
+class PassportSwitchError(PassportSwitchBaseError):
+  """Switch service RPC error for requests that modify switch state."""
+
+  def __init__(self, switch_id: str, state: switch_service_pb2.SwitchPortState):
+    super().__init__()
+    self.switch_id = switch_id
+    self.state_str = switch_service_pb2.SwitchPortState.Name(state)
+
+  def __str__(self):
+    return (
+        f'Failed to set switch {self.switch_id} to state {self.state_str}'
+    )
+
+
+class PassportSwitchClientError(PassportSwitchBaseError):
+  """Switch service RPC error for non-state-modifying requests."""
+
+
 class PassportSwitchServiceClient:
   """Client for the Passport API handling the Switch Service functionality."""
 
-  def __init__(self, host: str, port: int):
+  def __init__(self, server_address: str):
     """Initializes the PassportSwitchServiceClient.
 
     Args:
-      host: The host for the Passport server.
-      port: The port for the Passport server.
+      server_address: The address of the Passport API server, e.g.
+        'localhost:8300'.
     """
 
     # instantiate the channel
-    self.channel = grpc.insecure_channel(f'{host}:{port}')
+    self.channel = grpc.insecure_channel(server_address)
 
     # bind the client and the server
     self.stub = switch_service_pb2_grpc.SwitchServiceStub(self.channel)
@@ -42,24 +64,56 @@ class PassportSwitchServiceClient:
     self.channel.close()
 
   def get_switches(self) -> switch_service_pb2.GetSwitchesResponse:
-    """Gets the switches connected to the host."""
+    """Gets the switches connected to the host.
 
-    return self.stub.GetSwitches(switch_service_pb2.GetSwitchesRequest())
+    Returns:
+      The GetSwitchesResponse from the Passport server with the list of attached
+      switches.
+    Raises:
+      PassportSwitchClientError: If the RPC fails.
+    """
+    try:
+      return self.stub.GetSwitches(switch_service_pb2.GetSwitchesRequest())
+    except grpc.RpcError as e:
+      raise PassportSwitchClientError(
+          'Failed to get switches from Passport.'
+      ) from e
 
   def reset_all_switches(self):
-    """Re-initializes all found switches and sets them to the "disabled" state."""
+    """Re-initializes all found switches and sets them to the "disabled" state.
 
-    self.stub.ResetAllSwitches(switch_service_pb2.ResetAllSwitchesRequest())
+    Raises:
+      PassportSwitchClientError: If the RPC fails.
+    """
+    try:
+      self.stub.ResetAllSwitches(switch_service_pb2.ResetAllSwitchesRequest())
+    except grpc.RpcError as e:
+      raise PassportSwitchClientError(
+          'Failed to reset all switches from Passport.'
+      ) from e
 
   def disable_switch(self, switch_id: str):
-    """Disables the switch with the given ID."""
+    """Disables the switch with the given ID.
 
+    Args:
+      switch_id: The ID of the switch to disable.
+
+    Raises:
+      PassportSwitchError: If the switch state could not be set.
+    """
     self.configure_switch_port(
         switch_id, switch_service_pb2.SwitchPortState.SWITCH_PORT_DISABLED
     )
 
   def enable_switch(self, switch_id: str):
-    """Enables the switch with the given ID."""
+    """Enables the switch with the given ID.
+
+    Args:
+      switch_id: The ID of the switch to enable.
+
+    Raises:
+      PassportSwitchError: If the switch state could not be set.
+    """
 
     self.configure_switch_port(
         switch_id, switch_service_pb2.SwitchPortState.SWITCH_PORT_ENABLED
@@ -68,11 +122,21 @@ class PassportSwitchServiceClient:
   def configure_switch_port(
       self, switch_id: str, state: switch_service_pb2.SwitchPortState
   ):
-    """Configures the switch port with the given ID and state."""
+    """Configures the switch port with the given ID and state.
+
+    Args:
+      switch_id: The ID of the switch to configure.
+      state: The state to set the switch to.
+
+    Raises:
+      PassportSwitchError: If the switch state could not be set.
+    """
 
     request = switch_service_pb2.ConfigureSwitchPortRequest(
         switch_id=switch_id,
         state=state,
     )
-
-    self.stub.ConfigureSwitchPort(request)
+    try:
+      self.stub.ConfigureSwitchPort(request)
+    except grpc.RpcError as e:
+      raise PassportSwitchError(switch_id, state) from e

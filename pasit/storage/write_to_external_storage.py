@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test writing to a file in external storage."""
+"""Test external storage operability after basic operations like plugging in/out."""
 
 import logging
 import random
@@ -23,14 +23,25 @@ from mobly import asserts
 from mobly import test_runner
 
 from pasit.lib import pasit_file
+from pasit.lib import pasit_test
 from pasit.storage import storage_base_test
 
 
 class WriteToExternalStorageTest(storage_base_test.StorageBaseTest):
   """Test writing to a file in external storage."""
 
+  # Test arguments: a list of tuples
+  # (DutState state_when_plug_storage, ...<add more test arguments>)
+  test_arguments = [
+      (pasit_test.DutState.POWER_ON,),
+      (pasit_test.DutState.POWER_OFF,),
+      (pasit_test.DutState.SUSPEND,),
+  ]
+
   HOST_COPY_FILE_PATH = '/tmp/write_to_external_storage_copy.txt'
   DUT_FILE_NAME = 'write_to_external_storage.txt'
+
+  requires_servo = True
 
   def setup_class(self):
     """Handle the setup for the test."""
@@ -38,9 +49,37 @@ class WriteToExternalStorageTest(storage_base_test.StorageBaseTest):
     self.file_interface = self.create(pasit_file)
     self.host_file_content, self.host_file_path = self._create_test_file()
 
-  def test_write(self):
-    """Run the test."""
+  def pre_run(self):
+    """Generate tests for each test case."""
+    self.generate_tests(
+        test_logic=self.write_test_logic,
+        name_func=self.write_test_name,
+        arg_sets=self.test_arguments,
+    )
+
+  def write_test_name(
+      self, state_when_plug_storage: pasit_test.DutState
+  ) -> str:
+    """Get the test name for the given test args."""
+    return f'test_plug_storage_when_dut_{state_when_plug_storage.value}'
+
+  def write_test_logic(self, state_when_plug_storage: pasit_test.DutState):
+    """Write to external storage after plugging it in when DUT is in a specific state."""
+    if state_when_plug_storage == pasit_test.DutState.POWER_OFF:
+      logging.info('Powering off DUT')
+      self.dut.power_off()
+    elif state_when_plug_storage == pasit_test.DutState.SUSPEND:
+      logging.info('Suspending DUT')
+      self.dut.suspend()
+
     self._plug_in_external_storage()
+
+    if (
+        state_when_plug_storage == pasit_test.DutState.POWER_OFF
+        or state_when_plug_storage == pasit_test.DutState.SUSPEND
+    ):
+      logging.info('Powering on DUT')
+      self.dut.power_on()
 
     external_storage_path = self._wait_to_mount_or_reformat_external_storage()
     logging.info('Using external storage with path: %s', external_storage_path)

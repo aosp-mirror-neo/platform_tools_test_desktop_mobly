@@ -12,30 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PASIT Misc Suite."""
+"""The module for PASIT display related imports and types."""
 
-from mobly import base_suite
-from mobly import config_parser
-from mobly import suite_runner
+from mobly.controllers import android_device
 
-from pasit.misc import hello_world_test
-from pasit.misc import passport_host_test
+from pasit.lib.android import android_pasit_display
+from pasit.lib.base import base_pasit_display
 
+PasitDisplay = base_pasit_display.BasePasitDisplay
 
-class PasitMiscSuite(base_suite.BaseSuite):
-  """PASIT Misc Suite."""
-
-  def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(
-        hello_world_test.HelloWorldTest,
-    )
-    self.add_test_class(
-        passport_host_test.PassportHostTest,
-    )
-
-
-def main() -> None:
-  suite_runner.run_suite_class()
-
-if __name__ == '__main__':
-  main()
+# A dictionary of controller types and the corresponding PasitDisplay class.
+# Used in PasitTestClass.create() to get the correct PasitDisplay class.
+_registry = {
+    android_device.AndroidDevice: android_pasit_display.AndroidPasitDisplay
+}

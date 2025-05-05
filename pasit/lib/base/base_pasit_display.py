@@ -12,24 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A sample test demonstrating how to run a test on both Android and ChromeOS."""
+"""Interface for display operations for PASIT testing."""
 
-from mobly import base_test
-from mobly import test_runner
-
-from pasit.lib import pasit_device
+import abc
+from typing import Any
 
 
-class HelloWorldTest(base_test.BaseTestClass):
+class BasePasitDisplay(metaclass=abc.ABCMeta):
+  """Interface for display operations for PASIT testing."""
 
-  dut: pasit_device.PasitDevice
+  def __init__(self, controller: Any):
+    """Initializes the PasitDisplay."""
+    self.controller = controller
 
-  def setup_class(self):
-    self.dut = pasit_device.create(self)
+  @abc.abstractmethod
+  def get_display_count(self) -> int:
+    """Returns the number of connected displays."""
+    raise NotImplementedError()
 
-  def test_hello(self):
-    self.dut.shell(['echo', 'Hello', 'World!'])
-
-
-if __name__ == '__main__':
-  test_runner.main()

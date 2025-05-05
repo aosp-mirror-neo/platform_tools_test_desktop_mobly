@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PasitCamera handles camera operations for PASIT testing."""
+"""Interface for camera operations for PASIT testing."""
 
 import abc
 from collections.abc import MutableSequence

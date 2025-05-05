@@ -53,18 +53,20 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
       logging.info('Rebooting DUT')
       self.dut.reboot()
       logging.info('DUT rebooted')
+      asserts.assert_true(
+          self._is_external_storage_mounted(),
+          'External storage not mounted after reboot.',
+      )
 
     # Eject the external storage will fail if the storage is not mounted.
     logging.info('Ejecting external storage')
     asserts.assert_true(
-        self.removable_storage.eject_external_storage(),
+        self.storage.eject_external_storage(),
         'Failed to eject external storage after reboot.',
     )
 
     asserts.assert_false(
-        _is_external_storage_mounted(
-            self.removable_storage, self._get_storage_mount_timeout()
-        ),
+        self._is_external_storage_mounted(),
         'External storage not unmounted after ejecting.',
     )
     logging.info('External storage unmounted.')
@@ -73,19 +75,18 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
     self._plug_in_external_storage()
 
     asserts.assert_true(
-        _is_external_storage_mounted(
-            self.removable_storage, self._get_storage_mount_timeout()
-        ),
+        self._is_external_storage_mounted(),
         'External storage not mounted after re-plugging.',
     )
 
-
-def _is_external_storage_mounted(removable_storage, timeout: int) -> bool:
-  try:
-    removable_storage.wait_for_external_mount_point(timeout)
-  except TimeoutError:
-    return False
-  return True
+  def _is_external_storage_mounted(self) -> bool:
+    try:
+      self.storage.wait_for_external_mount_point(
+          self._get_storage_mount_timeout()
+      )
+    except TimeoutError:
+      return False
+    return True
 
 
 if __name__ == '__main__':

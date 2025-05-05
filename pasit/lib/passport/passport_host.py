@@ -15,6 +15,7 @@
 """Controller for interacting with PASIT testbed via a Passport API Host."""
 
 from collections.abc import Callable, MutableSequence, Sequence
+import enum
 import http
 import logging
 from typing import Any
@@ -22,27 +23,72 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-
 from google.protobuf import json_format
 from mobly import logger as mobly_logger
 
 from pasit.lib.passport import passport_switch_service_client
+from pasit.lib.passport import passport_usb_service_client
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
 MOBLY_CONTROLLER_CONFIG_NAME = 'PassportHost'
 
 
-class Error(Exception):
-  """Error class for the PassportHost controller."""
+class PassportBaseError(Exception):
+  """Base error class for PassportHost."""
+
+
+class DevicePathNotFoundError(PassportBaseError):
+  """Error when trying to look up the path to a device."""
+
+
+class PassportServiceConnectionError(PassportBaseError):
+  """Error when trying to connect to the Passport API Service."""
+
+
+class PassportConfigError(PassportBaseError):
+  """Error class for the PassportHost controller configuration."""
+
+
+class PowerState(enum.IntEnum):
+  """Power state of a device."""
+
+  ON = 1
+  OFF = 0
+
+
+class PassportIPPowerError(PassportBaseError):
+  """Error class for controlling IP power."""
+
+  def __init__(self, message: str, address: str, power_state: PowerState):
+    """Initializes the error with a message, address, and power_state state.
+
+    Args:
+      message: The error message.
+      address: The address of the IP power switch.
+      power_state: The state that was attempted to be set.
+    """
+    super().__init__(message)
+    self.message = message
+    self.power_state = power_state
+    self.address = address
+
+  def __str__(self):
+    return (
+        f'Failed to set IP power state to {self.power_state.name} for'
+        f' {self.address}, verify that the IP Power switch is connected and'
+        f' reachable from the test host. {self.message}'
+    )
 
 
 def create(configs: list[dict[str, Any]]) -> list['PassportHost']:
   """Creates Passport device instances."""
   if not configs:
-    raise Error(f'Missing configuration {configs!r}.')
+    raise PassportConfigError(f'Missing configuration {configs!r}.')
   if len(configs) > 1:
-    raise Error(f'Multiple PassportHost configs are not supported: {configs!r}')
+    raise PassportConfigError(
+        f'Multiple PassportHost configs are not supported: {configs!r}'
+    )
   return [PassportHost(config) for config in configs]
 
 
@@ -62,9 +108,11 @@ class PassportHost:
     topology: The topology of the Pasit Testbed.
     address: The address of the PassportHost (in the form of hostname:port).
     log: The logger for the PassportHost.
+    usb_tester_client: The client for the USB tester service.
   """
 
-  _client = None
+  usb_tester_client: passport_usb_service_client.PassportUsbServiceClient = None
+  _switch_client: passport_switch_service_client.PassportSwitchServiceClient
   _dut_id = None
   _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
   _connections: dict[
@@ -93,38 +141,51 @@ class PassportHost:
           topology, pasit_host_pb2.PasitHost()
       )
 
-    switch_host = self._config.get('switch_service_host', None)
-    switch_port = self._config.get('switch_service_port', None)
-    if switch_host is not None and switch_port is not None:
-      # If the switch host and port are set, override the hostname in the
+    service_host = self._config.get('service_host', None)
+    service_port = self._config.get('service_port', None)
+
+    if service_host is None and service_port is None:
+      # If the service host and port are not set, read from
+      # 'switch_service_host'/'switch_service_port' for backwards compatibility.
+      service_host = self._config.get('switch_service_host', None)
+      service_port = self._config.get('switch_service_port', None)
+
+    if service_host is not None and service_port is not None:
+      # If the passport host and port are set, override the hostname in the
       # passport device.
       self.log.info(
           'Overriding hostname "%s" with switch host and port: %s:%s',
           self.topology.hostname,
-          switch_host,
-          switch_port,
+          service_host,
+          service_port,
       )
-      self.topology.hostname = f'{switch_host}:{switch_port}'
+      self.topology.hostname = f'{service_host}:{service_port}'  # pylint: disable=bad-whitespace
 
     self.log.info('PassportHost topology: %s' % self.topology)
     self._connect_to_service()
     self._parse_topology()
 
+  def _ensure_passport_connected(self):
+    """Ensures the Passport API Service is connected."""
+    if not self._switch_client:
+      raise PassportServiceConnectionError(
+          'Cannot perform operation, Pasport client is not connected.'
+      )
+
   def _connect_to_service(self):
     """Connects to the Passport API Service."""
     if not self.address:
-      raise Error(
+      raise PassportConfigError(
           'PassportHost address is not set, expected to be set in the topology'
-          ' or via the switch_service_host and switch_service_port configs.'
+          ' or via the service_host and service_port configs.'
       )
 
-    host_info = urllib.parse.urlsplit('//' + self.address)
-    self.log.info(
-        'Connecting to Passport API at host: %s, port: %s'
-        % (host_info.hostname, host_info.port)
+    self.log.info('Connecting to Passport API at address: %s' % self.address)
+    self._switch_client = (
+        passport_switch_service_client.PassportSwitchServiceClient(self.address)
     )
-    self._client = passport_switch_service_client.PassportSwitchServiceClient(
-        host_info.hostname, host_info.port
+    self.usb_tester_client = (
+        passport_usb_service_client.PassportUsbServiceClient(self.address)
     )
 
   def _parse_topology(self):
@@ -144,11 +205,18 @@ class PassportHost:
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
   ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
     """Returns the path to the device with the given device type."""
-    devices = self._path_to_device(lambda device: device.type == device_type)
+    devices = self._path_to_device(
+        lambda device: device.type == device_type,
+        'Passport was unable to find any connections to any devices of type:'
+        f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)} in the'
+        ' topology.',
+    )
     return self._connections_in_path(devices)
 
   def _path_to_device(
-      self, target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool]
+      self,
+      target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
+      error_message: str,
   ) -> MutableSequence[str]:
     """Returns the path to the device that matches the given function."""
     current_path = []
@@ -177,7 +245,7 @@ class PassportHost:
         children.setdefault(current, 0)
         children[current] -= 1
 
-    raise Error('No device found')
+    raise DevicePathNotFoundError(error_message)
 
   def _connections_in_path(
       self, path: Sequence[str]
@@ -197,9 +265,7 @@ class PassportHost:
       self, device_type: pasit_host_pb2.PasitHost.Device.Type, enable: bool
   ) -> None:
     """Activates or deactivates the device with the given device type."""
-    if not self._client:
-      raise Error('Client is not connected.')
-
+    self._ensure_passport_connected()
     connections = self._connections_to_device_by_type(device_type)
     device_path = [connection.parent_id for connection in connections]
     self.log.info(
@@ -207,7 +273,7 @@ class PassportHost:
         f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)}, path to'
         f' device: {device_path}',
     )
-
+    device_id = None
     for device_id in device_path:
       if (
           self._devices[device_id].type
@@ -219,17 +285,19 @@ class PassportHost:
             'enabled' if enable else 'disabled',
         )
         if enable:
-          self._client.enable_switch(device_id)
+          self._switch_client.enable_switch(device_id)
         else:
-          self._client.disable_switch(device_id)
+          self._switch_client.disable_switch(device_id)
       elif (
           self._devices[device_id].type
           == pasit_host_pb2.PasitHost.Device.Type.IP_POWER
       ):
         # NOTE: This is a temporary solution to set the IP power state.
-        # Once the passport host proto supports a type of IP_POWER, this should
-        # be updated to use that type instead.
-        self.set_ip_power_state(device_id, enable)
+        # Once the passport host proto supports a type of IP_POWER, this
+        # should be updated to use that type instead.
+        self.set_ip_power_state(
+            device_id, PowerState.ON if enable else PowerState.OFF
+        )
 
   @property
   def address(self) -> str:
@@ -237,71 +305,110 @@ class PassportHost:
     return self.topology.hostname
 
   def reset(self):
-    """Resets the PassportHost."""
-    if self._client:
-      self._client.reset_all_switches()
+    """Resets the PassportHost.
+
+    Raises:
+      DevicePathNotFoundError: If the Passport was unable to reset the connected
+        switches.
+      PassportIPPowerError: If the Passport was unable to reset the IP power
+        switches.
+    """
+    if self._switch_client:
+      self._switch_client.reset_all_switches()
+    if self.usb_tester_client and self.usb_tester_client.is_open():
+      self.usb_tester_client.replug_usb_tester()
     self._reset_ip_power()
 
   def teardown(self):
     """Tears down the PassportHost."""
-    if self._client:
-      self._client.close()
-      self._client = None
+    if self._switch_client:
+      self._switch_client.close()
+      self._switch_client = None
+
+    if self.usb_tester_client and self.usb_tester_client.is_open():
+      self.usb_tester_client.close_usb_tester()
+      self.usb_tester_client = None
 
   def activate_device_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
   ) -> None:
-    """Activates the device with the given device type."""
+    """Activates the device with the given device type.
+
+    Args:
+      device_type: The device type to activate.
+
+    Raises:
+      DevicePathNotFoundError: If the Passport was unable to find the device
+        with the given device type.
+      PassportIPPowerError: If the Passport was unable to set the IP power
+        switch state.
+      PassportSwitchError: If the Passport was unable to set the switch state.
+    """
     self._set_device_enabled_state_by_type(device_type, True)
 
   def deactivate_device_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
   ) -> None:
-    """Deactivates the device with the given device type."""
+    """Deactivates the device with the given device type.
+
+    Args:
+      device_type: The device type to deactivate.
+
+    Raises:
+      DevicePathNotFoundError: If the Passport was unable to find the device
+        with the given device type.
+      PassportIPPowerError: If the Passport was unable to set the IP power
+        switch state.
+      PassportSwitchError: If the Passport was unable to set the switch state.
+    """
     self._set_device_enabled_state_by_type(device_type, False)
 
   def get_switch_ids(self) -> MutableSequence[str]:
-    """Returns the switch IDs connected to the PassportHost."""
-    if not self._client:
-      raise Error('Client is not connected.')
+    """Returns the switch IDs connected to the PassportHost.
 
-    resp = self._client.get_switches()
+    Raises:
+      PassportSwitchClientError: If the Passport was unable to get the switches.
+    """
+    self._ensure_passport_connected()
+
+    resp = self._switch_client.get_switches()
     return [switch.id for switch in resp.switches]
 
   def _reset_ip_power(self):
     """Resets all connected IP power switches."""
     for device in self.topology.devices:
       if device.type == pasit_host_pb2.PasitHost.Device.Type.IP_POWER:
-        self.set_ip_power_state(device.id, False)
+        self.set_ip_power_state(device.id, PowerState.OFF)
 
-  def set_ip_power_state(self, ip_port: str, enable: bool) -> None:
+  def set_ip_power_state(self, address: str, power_state: PowerState) -> None:
     """Sets the IP power switch state through URL request directly from the test.
 
     Args:
-      ip_port: The IP+port of the IP power switch (example: 192.168.1.100:8080).
-      enable: True to power on the IP power switch, False to power off.
+      address: The IP+port of the IP power switch (example: 192.168.1.100:8080).
+      power_state: PowerState to set the IP power switch to.
 
     Raises:
-      Error: If the URL request fails.
+      PassportIPPowerError: If the URL request fails or the response is not as
+        expected.
     """
-    state = '1' if enable else '0'
-    url = (
-        f'http://{ip_port}/set.cmd?user=admin+pass=12345678+cmd=setpower+p61={state}'
-    )
-    err_msg = (
-        f'Failed to set ip power state to {enable} for {ip_port}, verify that'
-        ' the IP Power switch is connected and reachable from the test host.'
-    )
-    self.log.debug('Setting ip power state to %s: %s', enable, url)
+    set_string = f'p61={power_state}'
+    url = f'http://{address}/set.cmd?user=admin+pass=12345678+cmd=setpower+{set_string}'
+
+    self.log.debug('Setting IP power state to %s: %s', power_state.name, url)
     try:
       with urllib.request.urlopen(url) as response:
         resp_text = response.read()
         self.log.debug('Response: %s', resp_text)
-        if response.status != http.HTTPStatus.OK:
-          raise Error(
-              err_msg
-              + f'\tResponse status: {response.status}, response text:'
-              f' {resp_text}'
+        if (
+            response.status != http.HTTPStatus.OK
+            or set_string.encode('utf-8') not in resp_text
+        ):
+          raise PassportIPPowerError(
+              f'Response status: {response.status}, response text: {resp_text}',
+              address,
+              power_state,
           )
-    except urllib.error.URLError as e:
-      raise Error(err_msg + f'\n\t{e}') from e
+    except (urllib.error.URLError, http.client.BadStatusLine) as e:
+      raise PassportIPPowerError(
+          'URL request failed.', address, power_state
+      ) from e

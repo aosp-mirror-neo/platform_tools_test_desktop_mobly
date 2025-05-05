@@ -14,8 +14,8 @@
 
 _pasit_full_topology: &pasit_full_topology
   PassportHost:
-  - switch_service_host: "localhost"
-    switch_service_port: 8300
+  - service_host: "localhost"
+    service_port: 8300
     host_topology:
       connections:
       - parent_id: 'local_dut'
@@ -87,8 +87,14 @@ _android_device: &android_device
 
 
 
+_servo_params: &servo_params
+  servo_host: "localhost"
+  servo_port: 9999
+
 TestBeds:
 - Name: pasit-full-android
+  TestParams:
+    <<: *servo_params
   Controllers:
     <<: *android_device
     <<: *pasit_full_topology
