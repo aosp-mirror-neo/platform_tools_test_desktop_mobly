@@ -34,6 +34,7 @@ python_library_host {
     srcs: [
         "*/*device.py",
         "*device.py",
+        "dut_state_manager.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [
