@@ -32,7 +32,7 @@ class PasitDeviceTest(base_test.BaseTestClass):
   dut: pasit_device.PasitDevice
 
   def setup_class(self):
-    self.dut = pasit_device.create(self, requires_servo=True)
+    self.dut = pasit_device.create(self)
 
   def teardown_test(self):
     if self.dut.power_on_if_offline():
@@ -46,12 +46,18 @@ class PasitDeviceTest(base_test.BaseTestClass):
     self.dut.reboot()
 
   def test_power_on_off_via_servo(self):
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
     logging.info('Powering off device...')
     self.dut.power_off()
     logging.info('Powering on device...')
     self.dut.power_on()
 
   def test_suspend(self):
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
     logging.info('Suspending device...')
     self.dut.suspend()
     logging.info('Resuming device...')

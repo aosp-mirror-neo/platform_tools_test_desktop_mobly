@@ -20,6 +20,7 @@ from typing import Any
 from mobly import asserts
 from mobly import base_test
 
+from pasit.lib import dut_state_manager
 from pasit.lib import pasit_device
 from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
@@ -33,7 +34,6 @@ class PasitTestClass(base_test.BaseTestClass):
   DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
 
   dut: pasit_device.PasitDevice
-  requires_servo: bool = False
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
 
   def setup_class(self):
@@ -48,7 +48,7 @@ class PasitTestClass(base_test.BaseTestClass):
         f'{pasit_host_pb2.PasitHost.Device.Type.Name(self.requires_device_type)}'
         ' not found in topology.',
     )
-    self.dut = pasit_device.create(self, self.requires_servo)
+    self.dut = pasit_device.create(self)
     self.passport_host.reset()
 
   def teardown_test(self):
@@ -84,3 +84,13 @@ class PasitTestClass(base_test.BaseTestClass):
           'No PassportHost found for controller config:'
           f' {self.controller_configs}'
       )
+
+  def _requires_servo(
+      self,
+      dut_state: dut_state_manager.PowerState,
+  ) -> bool:
+    """Returns True if servo is required for the dut to enter the given state."""
+    return dut_state in [
+        dut_state_manager.PowerState.OFF,
+        dut_state_manager.PowerState.SUSPEND,
+    ]

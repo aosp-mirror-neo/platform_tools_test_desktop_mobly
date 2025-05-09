@@ -35,8 +35,6 @@ _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
 class UnplugExternalStorageTest(storage_base_test.StorageBaseTest):
   """Test external storage operability after unplugging and replugging."""
 
-  requires_servo = True
-
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
@@ -73,6 +71,12 @@ class UnplugExternalStorageTest(storage_base_test.StorageBaseTest):
     Write to external storage after unplugging it when DUT is in a specific
     state and then replugging it.
     """
+    asserts.skip_if(
+        self._requires_servo(state_when_unplug_storage)
+        and not self.dut.is_servo_configured(),
+        'Servo is not configured.',
+    )
+
     self._plug_in_external_storage()
     self._wait_to_mount_or_reformat_external_storage()
 

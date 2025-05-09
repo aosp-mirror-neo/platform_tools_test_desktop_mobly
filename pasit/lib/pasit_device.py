@@ -32,20 +32,13 @@ def create_controller(
   return test_class.register_controller(controller_module)[0]
 
 
-def create(
-    test_class: base_test.BaseTestClass, requires_servo: bool = False
-) -> PasitDevice:
+def create(test_class: base_test.BaseTestClass) -> PasitDevice:
   """Creates a PasitDevice for the given test class."""
   servo_uri = ''
   if test_class.user_params.get('servo_host') and test_class.user_params.get(
       'servo_port'
   ):
     servo_uri = f'http://{test_class.user_params["servo_host"]}:{test_class.user_params["servo_port"]}'  # pylint: disable=bad-whitespace
-  elif requires_servo:
-    raise ValueError(
-        'Servo host and port are not provided, but servo is required for this'
-        ' test class.'
-    )
 
   if 'AndroidDevice' in test_class.controller_configs:
     return android_pasit_device.AndroidPasitDevice(

@@ -25,12 +25,12 @@ from pasit.lib.base import servo_client
 class ShellError(Exception):
   """Raised when a shell command fails.
 
-    Attributes:
-      command: The command that was executed.
-      return_code: The return code of the command.
-      stdout: The stdout of the command.
-      stderr: The stderr of the command.
-      device_uri: The uri of the device.
+  Attributes:
+    command: The command that was executed.
+    return_code: The return code of the command.
+    stdout: The stdout of the command.
+    stderr: The stderr of the command.
+    device_uri: The uri of the device.
   """
 
   def __init__(
@@ -48,8 +48,12 @@ class ShellError(Exception):
     self.device_uri = device_uri
 
 
-class ServoError(Exception):
+class ServoConnectionError(Exception):
   """Error when trying to connect to Servo."""
+
+
+class ServoNotConfiguredError(Exception):
+  """Error when Servo is not configured."""
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
@@ -66,19 +70,18 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       controller: The controller to use for the PASIT device.
       servo_uri: The URI of Servo. If not empty, the device will be able to
         power cycle.
+
     Raises:
-      ServoError: If failed to connect to Servo.
+      ServoConnectionError: If failed to connect to Servo.
     """
     self.controller = controller
-    self._use_servo: bool = False
     self._servo: servo_client.ServoClient = None
 
     if servo_uri:
-      self._use_servo = True
       try:
         self._servo = servo_client.ServoClient(servo_uri)
       except Exception as e:
-        raise ServoError(
+        raise ServoConnectionError(
             f'Test setup error, failed to connect to Servo at {servo_uri}: {e}'
         ) from e
 
@@ -87,9 +90,8 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Sends the given parameters to the console.
 
     Args:
-      params: The command to execute, e.g. ['ls', '-la'], as a list of
-        strings, each string being a token after splitting the command by
-        spaces.
+      params: The command to execute, e.g. ['ls', '-la'], as a list of strings,
+        each string being a token after splitting the command by spaces.
 
     Returns:
       The output of the command as bytes.
@@ -134,24 +136,32 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       True if device was offline.
     """
     if not self.is_device_online(timeout):
-      if self._use_servo:
+      if self._servo:
         logging.debug('Device is offline, powering on...')
         self.power_on()
       return True
     return False
 
+  def is_servo_configured(self) -> bool:
+    """Returns True if Servo is configured."""
+    return self._servo is not None
+
   def _request_power_on(self):
-    """Requests the device to power on via Servo."""
-    if not self._use_servo:
-      raise ValueError(
-          'Failed to request power on device: servo is not configured.'
-      )
+    """Requests the device to power on via Servo.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to request power on device.')
     self._servo.set_power_state(servo_client.PowerState.ON)
 
   def _request_power_off(self):
-    """Requests the device to power off via Servo."""
-    if not self._use_servo:
-      raise ValueError(
-          'Failed to request power off device: servo is not configured.'
-      )
+    """Requests the device to power off via Servo.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to request power off device.')
     self._servo.set_power_state(servo_client.PowerState.OFF)
