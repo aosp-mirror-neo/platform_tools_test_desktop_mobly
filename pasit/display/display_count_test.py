@@ -27,6 +27,7 @@ class DisplayCountTest(pasit_test.PasitTestClass):
   """Test that counts the number of displays on the DUT."""
 
   display: pasit_display.PasitDisplay
+  requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
 
   def setup_class(self):
     """Handle the setup for the test.

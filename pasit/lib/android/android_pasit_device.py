@@ -16,6 +16,7 @@
 
 from collections.abc import Iterable
 import logging
+import time
 
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
@@ -97,6 +98,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def power_on(self):
     self._request_power_on()
+    # TODO: b/414995167 - better way to reduce falkiness
+    time.sleep(2)
     self.controller.wait_for_boot_completion(
         timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
     )
@@ -120,7 +123,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def suspend(self):
     logging.debug('Stopping services...')
     self.controller.services.stop_all()
-    self.controller.adb.shell(['input', 'keyevent', 'KEYCODE_SLEEP'])
+    self.controller.adb.shell(['cmd', 'power', 'sleep'])
     logging.debug('Waiting for device to suspend...')
     try:
       self._wait_for_device_offline()
@@ -138,7 +141,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         logging.debug('Device detected as offline.')
         return False
       raise AndroidDeviceError(
-          'Unexpected error while checking if device is offline.'
+          'Unexpected error while checking if device is offline, assuming'
+          ' device is online.'
       ) from e
     return True
 

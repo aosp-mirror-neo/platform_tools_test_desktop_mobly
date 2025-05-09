@@ -28,6 +28,7 @@ class UnplugExternalCameraTest(pasit_test.PasitTestClass):
   """Test unplugging an external camera."""
 
   camera: pasit_camera.PasitCamera
+  requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
 
   def setup_class(self):
     """Handle the setup for the test."""

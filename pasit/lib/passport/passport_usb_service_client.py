@@ -161,6 +161,87 @@ class PassportUsbServiceClient:
     )
     return ret.power_role
 
+  def get_data_role(self) -> usb_tester_service_pb2.DataRole:
+    """Gets the data role of the USB tester with the given ID."""
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.Capability.DATA_ROLE
+    )
+    return ret.data_role
+
+  def set_data_role_to_ufp(self) -> None:
+    """Sets the data role of the USB tester with the given ID to be the upstream facing port."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.DATA_ROLE,
+            data_role=usb_tester_service_pb2.DATA_UFP,
+        )
+    )
+
+  def set_data_role_to_dfp(self) -> None:
+    """Sets the data role of the USB tester with the given ID to be the downstream facing port."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.DATA_ROLE,
+            data_role=usb_tester_service_pb2.DATA_DFP,
+        )
+    )
+
+  def get_usb_mode(self) -> usb_tester_service_pb2.UsbChannel:
+    """Gets the USB mode of the USB tester with the given ID."""
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.Capability.USB_CHANNEL
+    )
+    return ret.usb_channel
+
+  def set_usb2_mode(self) -> None:
+    """Sets the USB mode of the USB tester with the given ID to be USB 2.0."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.USB_CHANNEL,
+            usb_channel=usb_tester_service_pb2.USB_2_HS,
+        )
+    )
+
+  def set_usb3_mode(self) -> None:
+    """Sets the USB mode of the USB tester with the given ID to be USB 3.2."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.USB_CHANNEL,
+            usb_channel=usb_tester_service_pb2.USB_3_AND_2_HS,
+        )
+    )
+
+  def get_pd_init_state(self) -> usb_tester_service_pb2.InitPdState:
+    """Gets the PD init state of the USB tester with the given ID."""
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.Capability.INIT_PD_STATE
+    )
+    return ret.init_pd_state
+
+  def set_pd_init_state_to_dfp(self) -> None:
+    """Sets the PD init state of the USB tester with the given ID to be DFP."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.INIT_PD_STATE,
+            init_pd_state=usb_tester_service_pb2.PD_DFP,
+        )
+    )
+
+  def set_pd_init_state_to_ufp(self) -> None:
+    """Sets the PD init state of the USB tester with the given ID to be UFP."""
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            id=self._tester_serial,
+            capability=usb_tester_service_pb2.INIT_PD_STATE,
+            init_pd_state=usb_tester_service_pb2.PD_UFP,
+        )
+    )
+
   def is_open(self) -> bool:
     """Returns True if the USB tester is open, False otherwise."""
     return self._tester_serial is not None

@@ -28,6 +28,7 @@ from mobly import logger as mobly_logger
 
 from pasit.lib.passport import passport_switch_service_client
 from pasit.lib.passport import passport_usb_service_client
+from pasit.lib.passport import passport_video_service_client
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
@@ -109,9 +110,13 @@ class PassportHost:
     address: The address of the PassportHost (in the form of hostname:port).
     log: The logger for the PassportHost.
     usb_tester_client: The client for the USB tester service.
+    video_tester_client: The client for the video tester service.
   """
 
   usb_tester_client: passport_usb_service_client.PassportUsbServiceClient = None
+  video_tester_client: (
+      passport_video_service_client.PassportVideoServiceClient | None
+  ) = None
   _switch_client: passport_switch_service_client.PassportSwitchServiceClient
   _dut_id = None
   _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
@@ -144,12 +149,6 @@ class PassportHost:
     service_host = self._config.get('service_host', None)
     service_port = self._config.get('service_port', None)
 
-    if service_host is None and service_port is None:
-      # If the service host and port are not set, read from
-      # 'switch_service_host'/'switch_service_port' for backwards compatibility.
-      service_host = self._config.get('switch_service_host', None)
-      service_port = self._config.get('switch_service_port', None)
-
     if service_host is not None and service_port is not None:
       # If the passport host and port are set, override the hostname in the
       # passport device.
@@ -164,6 +163,7 @@ class PassportHost:
     self.log.info('PassportHost topology: %s' % self.topology)
     self._connect_to_service()
     self._parse_topology()
+    self._validate_topology_switches()
 
   def _ensure_passport_connected(self):
     """Ensures the Passport API Service is connected."""
@@ -187,6 +187,9 @@ class PassportHost:
     self.usb_tester_client = (
         passport_usb_service_client.PassportUsbServiceClient(self.address)
     )
+    self.video_tester_client = (
+        passport_video_service_client.PassportVideoServiceClient(self.address)
+    )
 
   def _parse_topology(self):
     """Parses the topology and stores the devices and connections."""
@@ -196,10 +199,36 @@ class PassportHost:
         self._dut_id = device.id
     for connection in self.topology.connections:
       for key in [connection.parent_id, connection.child_id]:
+        if key not in self._devices:
+          raise PassportConfigError(
+              f'Connection {connection} has a parent or child device "{key}"'
+              ' that is not in the topology.'
+          )
         if key in self._connections:
           self._connections[key].append(connection)
         else:
           self._connections[key] = [connection]
+
+  def _validate_topology_switches(self):
+    """Validates the topology switches."""
+    connected_switches = self.get_switch_ids()
+    for switch in connected_switches:
+      if not any(
+          device.id.casefold() == switch.casefold()
+          for device in self.topology.devices
+      ):
+        logging.warning(
+            'Switch %s is connected, but is not in the topology.', switch
+        )
+    for device in self.topology.devices:
+      if device.type == pasit_host_pb2.PasitHost.Device.Type.SWITCH_FIXTURE:
+        if not any(
+            device.id.casefold() == switch.casefold()
+            for switch in connected_switches
+        ):
+          raise PassportConfigError(
+              f'Switch {device.id} is not connected, but is in the topology.'
+          )
 
   def _connections_to_device_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
@@ -260,6 +289,16 @@ class PassportHost:
           connections.append(connection)
           break
     return connections
+
+  def is_device_type_present(
+      self, device_type: pasit_host_pb2.PasitHost.Device.Type
+  ) -> bool:
+    """Returns True if the device type is present in the topology."""
+    try:
+      self._connections_to_device_by_type(device_type)
+      return True
+    except DevicePathNotFoundError:
+      return False
 
   def _set_device_enabled_state_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type, enable: bool

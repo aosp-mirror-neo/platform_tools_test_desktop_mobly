@@ -21,19 +21,20 @@ from mobly import test_runner
 
 from pasit.storage import storage_base_test
 
+# Each tuple is a list of arguments for a test case. The first argument is a
+# boolean indicating whether to reboot the DUT before ejecting the storage.
+_TEST_ARGUMENTS: tuple[tuple[bool, ...], ...] = ((False,), (True,))
+
 
 class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
   """Test ejecting and re-inserting external storage after a reboot."""
-
-  # Test arguments: a list of tuples (bool reboot, ...<add more test arguments>)
-  test_arguments = [(False,), (True,)]  # type: list[tuple[bool]]
 
   def pre_run(self):
     """Generate tests for each test case."""
     self.generate_tests(
         test_logic=self.eject_test_logic,
         name_func=self.eject_test_name,
-        arg_sets=self.test_arguments,
+        arg_sets=_TEST_ARGUMENTS,
     )
 
   def eject_test_name(self, reboot: bool) -> str:
@@ -78,15 +79,6 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
         self._is_external_storage_mounted(),
         'External storage not mounted after re-plugging.',
     )
-
-  def _is_external_storage_mounted(self) -> bool:
-    try:
-      self.storage.wait_for_external_mount_point(
-          self._get_storage_mount_timeout()
-      )
-    except TimeoutError:
-      return False
-    return True
 
 
 if __name__ == '__main__':

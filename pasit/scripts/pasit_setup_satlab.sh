@@ -47,9 +47,12 @@ function usage() {
   echo "  -s|--satlab_ip: The IP of the Satlab to use for testing."
   echo "  -p|--provision: Provision the DUT before leasing (will only run if"
   echo "                  the DUT is not already leased)."
+  echo "  -m|--minutes: The number of minutes to lease the DUT for."
+  echo "  -c|--config-generate: Generate the config yaml file for the DUT using"
+  echo "                  data from shivas pasit topology."
   echo ""
   echo "Example:"
-  echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP>"
+  echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
   exit 1
 }
 
@@ -204,6 +207,29 @@ function adb_connect_and_dut_info() {
   adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint
 }
 
+function generate_config() {
+  if [[ -z "${CONFIG_OUTPUT_FILE}" ]]; then
+    return
+  fi
+  echo -e "\n\nGenerating config yaml file for ${DUT_HOSTNAME}..."
+  SHIVAS_JSON_FILE="$(mktemp --suffix .json)"
+  if ! shivas get peripheral-pasit-host -dut "${DUT_HOSTNAME}" -json > "${SHIVAS_JSON_FILE}"; then
+    echo -e "\n\nFailed to get pasit topology info from shivas for ${DUT_HOSTNAME}"
+    exit 1
+  fi
+  if [[ "$(wc -l "${SHIVAS_JSON_FILE}")" -lt 6 ]]; then
+    echo -e "\n\Not enough data in shivas pasit topology for ${DUT_HOSTNAME}"
+    cat "${SHIVAS_JSON_FILE}"
+    exit 1
+  fi
+
+  if ! topology_converter convert -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
+    echo -e "\n\nFailed to generate config yaml file for ${DUT_HOSTNAME}"
+    exit 1
+  fi
+  rm "${SHIVAS_JSON_FILE}"
+}
+
 # parse the arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -221,6 +247,14 @@ while [[ $# -gt 0 ]]; do
     -p|--provision)
       PROVISION=true
       shift
+      ;;
+    -m|--minutes)
+      DUT_LEASE_MINUTES="$2"
+      shift; shift
+      ;;
+    -c|--config-generate)
+      CONFIG_OUTPUT_FILE="$2"
+      shift; shift
       ;;
     *)
       echo "Unknown option: $1"
@@ -273,9 +307,10 @@ if ! crosfleet dut leases | grep -q "${DUT_HOSTNAME}"; then
     sleep 180
   fi
   echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, leasing now..."
-  crosfleet dut lease -minutes ${DUT_LEASE_MINUTES} -host "${DUT_HOSTNAME}"
+  crosfleet dut lease -minutes "${DUT_LEASE_MINUTES}" -host "${DUT_HOSTNAME}"
 fi
 
+generate_config
 start_passport
 setup_servo
 setup_tunnel

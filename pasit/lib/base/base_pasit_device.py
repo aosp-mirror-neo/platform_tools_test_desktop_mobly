@@ -53,11 +53,11 @@ class ServoError(Exception):
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
-  """Base class for PASIT device."""
+  """Represents a device being tested by PASIT.
 
-  controller: Any
-  _use_servo: bool = False
-  _servo: servo_client.ServoClient
+  Attributes:
+    controller: Mobly controller instance for the tested device.
+  """
 
   def __init__(self, controller: Any, servo_uri: str):
     """Initializes the PasitDevice.
@@ -70,6 +70,9 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       ServoError: If failed to connect to Servo.
     """
     self.controller = controller
+    self._use_servo: bool = False
+    self._servo: servo_client.ServoClient = None
+
     if servo_uri:
       self._use_servo = True
       try:

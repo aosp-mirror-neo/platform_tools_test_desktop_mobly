@@ -14,7 +14,6 @@
 
 """Base test class for PASIT Mobly tests."""
 
-import enum
 import types
 from typing import Any
 
@@ -26,13 +25,6 @@ from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
-@enum.unique
-class DutState(enum.Enum):
-  POWER_ON = 'on'
-  POWER_OFF = 'off'
-  SUSPEND = 'suspended'
-
-
 class PasitTestClass(base_test.BaseTestClass):
   """Base test class for PASIT Mobly tests."""
 
@@ -42,12 +34,21 @@ class PasitTestClass(base_test.BaseTestClass):
 
   dut: pasit_device.PasitDevice
   requires_servo: bool = False
+  requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
 
   def setup_class(self):
     """Setup steps before any test is executed."""
-    self.dut = pasit_device.create(self, self.requires_servo)
-
     self.passport_host = self._create_passport_controller()
+    asserts.abort_class_if(
+        self.requires_device_type
+        and not self.passport_host.is_device_type_present(
+            self.requires_device_type
+        ),
+        'Device type '
+        f'{pasit_host_pb2.PasitHost.Device.Type.Name(self.requires_device_type)}'
+        ' not found in topology.',
+    )
+    self.dut = pasit_device.create(self, self.requires_servo)
     self.passport_host.reset()
 
   def teardown_test(self):
