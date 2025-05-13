@@ -22,6 +22,7 @@ from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
 from mobly.controllers.android_device_lib import snippet_client_v2
+from snippet_uiautomator import uiautomator
 
 from pasit.lib import pasit_utils
 from pasit.lib.base import base_pasit_device
@@ -31,6 +32,18 @@ import sys
 
 class AndroidDeviceError(Exception):
   """Error when trying performing an action on an Android device."""
+
+
+class UnexpectedActivePackageError(Exception):
+  """Error when the active package is not the expected package."""
+
+  def __init__(self, expected_package: str, actual_package: str):
+    super().__init__(
+        f'Expected package {expected_package} to be active, but'
+        f' {actual_package} is active.'
+    )
+    self.expected_package = expected_package
+    self.actual_package = actual_package
 
 
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
@@ -44,10 +57,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   OFFLINE_TIMEOUT_SECONDS = 5
 
+  LOGIN_SCREEN_PACKAGE_NAME = 'com.google.android.desktop.identity.login'
+  LAUNCHER_PACKAGE_NAME = 'com.google.android.apps.nexuslauncher'
   # snippet apk is in same directory as this mobly executable
   SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
       'mobly-bundled-snippets.apk',
+  )
+  UIAUTOMATOR_APK_PATH = os.path.join(
+      os.path.dirname(os.path.abspath(sys.argv[0])),
+      'snippet-uiautomator.apk',
   )
 
   def __init__(self, controller: android_device.AndroidDevice, servo_uri: str):
@@ -55,10 +74,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._test_settings()
     self._install_mbs()
     self._load_mbs()
+    self._register_uiautomator()
     self.controller.root_adb()
     self._skip_oobe()
-    # Bypass the login screen.
-    self._switch_user(self.LOGGED_IN_USER_ID)
+    self._bypass_login_screen()
 
   def _test_settings(self):
     # settings are same settings set by tradefed for GoogleDeviceSetup
@@ -95,6 +114,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def reboot(self):
     self.controller.reboot()
+    self._bypass_login_screen()
+
+  def _bypass_login_screen(self):
+    self._switch_user(self.LOGGED_IN_USER_ID)
 
   def power_on(self):
     self._request_power_on()
@@ -109,6 +132,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.root_adb()
     logging.debug('Starting services...')
     self.controller.services.start_all()
+    self._bypass_login_screen()
 
   def power_off(self):
     logging.debug('Stopping services...')
@@ -155,6 +179,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         user_id=self.LOGIN_SCREEN_USER_ID,
     )
 
+  def _register_uiautomator(self):
+    """Installs UI Automator."""
+    snippet = uiautomator.Snippet()
+    snippet.file_path = str(self.UIAUTOMATOR_APK_PATH)
+    self.controller.services.register(
+        uiautomator.ANDROID_SERVICE_NAME,
+        uiautomator.UiAutomatorService,
+        configs=uiautomator.UiAutomatorConfigs(snippet=snippet),
+    )
+
   def _load_mbs(self):
     self.controller.load_snippet(
         'mbs',
@@ -180,7 +214,43 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _switch_user(self, user_id: int):
     """Switches the user on the device."""
+    if user_id == self.controller.adb.current_user_id:
+      logging.debug('Device is already logged in as user %s.', user_id)
+      return
+    if user_id == self.LOGGED_IN_USER_ID:
+      # if switching to the logged in user ensure that login screen is shown
+      # before attempting to switch users
+      pasit_utils.retry_function(
+          self.controller.log,
+          self._ui_active_package_is,
+          func_args=(self.LOGIN_SCREEN_PACKAGE_NAME,),
+          max_tries=10,
+          delay_seconds=1,
+          exceptions=(UnexpectedActivePackageError,),
+      )
     self.controller.adb.shell(['am', 'switch-user', str(user_id)])
+    # wait for the launcher to be active before proceeding
+    pasit_utils.retry_function(
+        self.controller.log,
+        self._ui_active_package_is,
+        func_args=(self.LAUNCHER_PACKAGE_NAME,),
+        max_tries=10,
+        delay_seconds=1,
+        exceptions=(UnexpectedActivePackageError,),
+    )
+    # ensure that the user switch was successful
+    if user_id != self.controller.adb.current_user_id:
+      raise AndroidDeviceError(
+          f'Failed to switch user to {user_id}, current user is'
+          f' {self.controller.adb.current_user_id}.'
+      )
+
+  def _ui_active_package_is(self, expected_package: str):
+    """Checks if the active package is the expected package."""
+    if self.controller.ui.package_name != expected_package:
+      raise UnexpectedActivePackageError(
+          expected_package, self.controller.ui.package_name
+      )
 
   def _wait_for_device_offline(
       self, interval: int = 2, max_retries: int = 10

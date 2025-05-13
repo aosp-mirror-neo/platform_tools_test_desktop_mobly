@@ -26,6 +26,16 @@ from pasit.lib.passport import passport_host
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
+def get_device_type_name(
+    device_type: pasit_host_pb2.PasitHost.Device.Type,
+) -> str:
+  return (
+      pasit_host_pb2.PasitHost.Device.Type.Name(device_type)
+      if device_type
+      else ''
+  )
+
+
 class PasitTestClass(base_test.BaseTestClass):
   """Base test class for PASIT Mobly tests."""
 
@@ -45,7 +55,7 @@ class PasitTestClass(base_test.BaseTestClass):
             self.requires_device_type
         ),
         'Device type '
-        f'{pasit_host_pb2.PasitHost.Device.Type.Name(self.requires_device_type)}'
+        f'{get_device_type_name(self.requires_device_type)}'
         ' not found in topology.',
     )
     self.dut = pasit_device.create(self)

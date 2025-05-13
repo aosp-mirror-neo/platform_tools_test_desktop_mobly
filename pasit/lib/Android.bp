@@ -41,6 +41,7 @@ python_library_host {
         "mobly",
         "py-pasit-utils",
         "py-pasit-servo-client",
+        "py-snippet-uiautomator",
     ],
     pkg_path: "pasit/lib",
 }

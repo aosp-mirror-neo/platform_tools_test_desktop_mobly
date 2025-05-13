@@ -29,6 +29,7 @@ python_test_host {
     device_common_data: [
         // test APK module
         ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
     ],
     pkg_path: "pasit/smoke",
 }

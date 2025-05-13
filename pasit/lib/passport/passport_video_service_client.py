@@ -15,8 +15,10 @@
 """Passport Video service client."""
 
 import logging
+
 import grpc
 
+from pasit.lib import pasit_utils
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from chromiumos.test.lab.api.passport import video_tester_service_pb2_grpc
 
@@ -125,16 +127,6 @@ class PassportVideoServiceClient:
     )
     return response.success
 
-  # TODO: b/415014547 - Implement this when the backend is ready.
-  def are_displays_attached(self) -> bool:
-    """Checks if the open video tester is attached to the DUT."""
-    return False
-
-  # TODO: b/415014547 - Implement this when the backend is ready.
-  def get_configured_displays_count(self) -> int:
-    """Gets the number of configured displays for the open video tester."""
-    return 0
-
   def load_edid_at_stream(
       self,
       edid: bytes,
@@ -159,19 +151,37 @@ class PassportVideoServiceClient:
 
   def get_stream_info_for_all_streams(
       self,
+      timeout_sec: int = 20,
   ) -> list[video_tester_service_pb2.StreamInfoVideoTester]:
     """Gets the stream information for the open video tester.
+
+    Stream info might not be available between attach states, raising an
+    exception in that case, so this method waits for the stream info to be
+    available or the timeout is reached.
+
+    Args:
+        timeout_sec: Maximum time to wait for stream info to be available.
 
     Returns:
         A list of active video stream information objects.
     """
     self._ensure_tester_open()
-    response = self._stub.GetStreamInfoVideoTester(
-        video_tester_service_pb2.GetStreamInfoVideoTesterRequest(
-            id=self._tester_id
-        )
+
+    def _get_stream_info():
+      response = self._stub.GetStreamInfoVideoTester(
+          video_tester_service_pb2.GetStreamInfoVideoTesterRequest(
+              id=self._tester_id
+          )
+      )
+      return list(response.streams)
+
+    return pasit_utils.retry_function(
+        logging.getLogger(__name__),
+        _get_stream_info,
+        max_tries=timeout_sec,
+        delay_seconds=0,
+        exceptions=(grpc.RpcError,),
     )
-    return list(response.streams)
 
   def get_screenshot_at_stream(
       self,
@@ -291,6 +301,29 @@ class PassportVideoServiceClient:
     except grpc.RpcError:
       logging.exception("Error sending HPD pulse")
       return False
+
+  def run_compliance_tests(
+      self,
+      tests: list[video_tester_service_pb2.ComplianceTestVideoTester],
+  ) -> tuple[
+      list[video_tester_service_pb2.ComplianceTestResultVideoTester], str
+  ]:
+    """Runs a set of compliance tests identified by their reference numbers.
+
+    Args:
+        tests: A list of ComplianceTestVideoTester objects.
+
+    Returns:
+        A tuple containing:
+          - A list of compliance test results.
+          - A string containing the HTML report of the tests.
+    """
+    self._ensure_tester_open()
+    request = video_tester_service_pb2.RunComplianceTestRequest(
+        id=self._tester_id, tests=tests
+    )
+    response = self._stub.RunComplianceTest(request)
+    return response.results, response.results_html
 
   def __del__(self):
     """Closes the tester (if open) and the gRPC channel."""
