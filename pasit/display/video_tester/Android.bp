@@ -17,7 +17,7 @@ package {
 }
 
 python_test_host {
-    name: "DesktopPASITUCDComplianceTests",
+    name: "DesktopUCDComplianceTests",
     main: "compliance_test.py",
     srcs: ["compliance_test.py"],
     defaults: ["PASIT-defaults"],
