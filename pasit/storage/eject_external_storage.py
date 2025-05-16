@@ -66,8 +66,8 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
         'Failed to eject external storage after reboot.',
     )
 
-    asserts.assert_false(
-        self._is_external_storage_mounted(),
+    asserts.assert_true(
+        self._is_external_storage_unmounted(),
         'External storage not unmounted after ejecting.',
     )
     logging.info('External storage unmounted.')

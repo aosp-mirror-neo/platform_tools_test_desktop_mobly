@@ -24,8 +24,8 @@ from mobly.controllers.android_device_lib import apk_utils
 from mobly.controllers.android_device_lib import snippet_client_v2
 from snippet_uiautomator import uiautomator
 
-from pasit.lib import pasit_utils
 from pasit.lib.base import base_pasit_device
+from pasit.lib.utils import retry
 import os
 import sys
 
@@ -139,20 +139,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.services.stop_all()
     self._request_power_off()
     logging.debug('Waiting for device to power off...')
-    try:
-      self._wait_for_device_offline()
-    except AndroidDeviceError as e:
-      raise AndroidDeviceError('DUT failed to power off.') from e
+    if not self._wait_for_device_offline():
+      raise AndroidDeviceError('DUT failed to power off.')
 
   def suspend(self):
     logging.debug('Stopping services...')
     self.controller.services.stop_all()
     self.controller.adb.shell(['cmd', 'power', 'sleep'])
     logging.debug('Waiting for device to suspend...')
-    try:
-      self._wait_for_device_offline()
-    except AndroidDeviceError as e:
-      raise AndroidDeviceError('DUT failed to suspend.') from e
+    if not self._wait_for_device_offline():
+      raise AndroidDeviceError('DUT failed to suspend.')
 
   def is_device_online(self, timeout: int) -> bool:
     try:
@@ -165,8 +161,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         logging.debug('Device detected as offline.')
         return False
       raise AndroidDeviceError(
-          'Unexpected error while checking if device is offline, assuming'
-          ' device is online.'
+          'Unexpected error while checking if device is offline.'
       ) from e
     return True
 
@@ -220,22 +215,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     if user_id == self.LOGGED_IN_USER_ID:
       # if switching to the logged in user ensure that login screen is shown
       # before attempting to switch users
-      pasit_utils.retry_function(
-          self.controller.log,
-          self._ui_active_package_is,
-          func_args=(self.LOGIN_SCREEN_PACKAGE_NAME,),
+      retry.retry(
+          lambda: self._ui_active_package_is(self.LOGIN_SCREEN_PACKAGE_NAME),
           max_tries=10,
-          delay_seconds=1,
           exceptions=(UnexpectedActivePackageError,),
       )
     self.controller.adb.shell(['am', 'switch-user', str(user_id)])
     # wait for the launcher to be active before proceeding
-    pasit_utils.retry_function(
-        self.controller.log,
-        self._ui_active_package_is,
-        func_args=(self.LAUNCHER_PACKAGE_NAME,),
+    retry.retry(
+        lambda: self._ui_active_package_is(self.LAUNCHER_PACKAGE_NAME),
         max_tries=10,
-        delay_seconds=1,
         exceptions=(UnexpectedActivePackageError,),
     )
     # ensure that the user switch was successful
@@ -254,30 +243,19 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _wait_for_device_offline(
       self, interval: int = 2, max_retries: int = 10
-  ) -> None:
-    """Waits for the device to be offline."""
-    pasit_utils.retry_function(
-        self.controller.log,
-        self._expect_device_offline,
-        max_tries=max_retries,
-        delay_seconds=interval,
-        exceptions=(AndroidDeviceError,),
-    )
+  ) -> bool:
+    """Waits for the device to be offline.
 
-  def _expect_device_offline(self) -> None:
-    """Checks if the device is offline.
-
-    If the device is offline, it is not adb detectable and an exception is
-    raised.
+    Args:
+      interval: The interval between retries.
+      max_retries: The maximum number of retries.
 
     Returns:
-      None if the device is online.
-
-    Raises:
-      AndroidDeviceError: If the device is still detectable as online.
+      True if the device is offline, False if the device is online.
     """
-
-    if self.is_device_online(self.OFFLINE_TIMEOUT_SECONDS):
-      raise AndroidDeviceError(
-          'Device is still adb detectable. Waiting for device offline complete.'
-      )
+    return retry.retry(
+        lambda: not self.is_device_online(self.OFFLINE_TIMEOUT_SECONDS),
+        until=lambda is_offline: is_offline,
+        max_tries=max_retries,
+        delay_seconds=interval,
+    )

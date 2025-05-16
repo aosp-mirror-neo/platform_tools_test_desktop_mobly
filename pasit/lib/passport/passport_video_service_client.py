@@ -18,7 +18,7 @@ import logging
 
 import grpc
 
-from pasit.lib import pasit_utils
+from pasit.lib.utils import retry
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from chromiumos.test.lab.api.passport import video_tester_service_pb2_grpc
 
@@ -175,8 +175,7 @@ class PassportVideoServiceClient:
       )
       return list(response.streams)
 
-    return pasit_utils.retry_function(
-        logging.getLogger(__name__),
+    return retry.retry(
         _get_stream_info,
         max_tries=timeout_sec,
         delay_seconds=0,
@@ -229,7 +228,7 @@ class PassportVideoServiceClient:
     if mst_sink_count is not None:
       request.mst_sink_count = mst_sink_count
     if scrambler_seed is not None:
-      request.scambler_seed = scrambler_seed
+      request.scrambler_seed = scrambler_seed
     if max_lane is not None:
       request.max_lane = max_lane
 

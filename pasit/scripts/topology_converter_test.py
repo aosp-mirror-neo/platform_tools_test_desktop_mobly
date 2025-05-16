@@ -20,6 +20,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+from google.protobuf import json_format
+
 import topology_converter
 
 TEST_DATA = [
@@ -278,7 +280,8 @@ class TopologyConverterTest(unittest.TestCase):
         with open(self.test_json_file, 'w') as f:
           f.write(json_data)
         outfile = os.path.join(self.temp_dir, 'test_topology_output.yaml')
-        topology_converter.convert_json_to_yaml(self.test_json_file, outfile)
+        topology = topology_converter.parse_json(self.test_json_file)
+        topology_converter.write_to_mobly_yaml(topology, outfile)
         self.assertTrue(os.path.exists(outfile))
         with open(outfile, 'r') as f:
           data = f.read()
@@ -297,7 +300,9 @@ class TopologyConverterTest(unittest.TestCase):
           f.write(json_data)
         # test conversion from yaml to json
         outfile = os.path.join(self.temp_dir, 'test_topology_output.json')
-        topology_converter.convert_yaml_to_json(self.test_yaml_file, outfile)
+        topology = topology_converter.parse_yaml(self.test_yaml_file)
+        with open(outfile, 'w') as f:
+          f.write(json_format.MessageToJson(topology))
         self.assertTrue(os.path.exists(outfile))
         with open(outfile, 'r') as f:
           data = json.load(f)

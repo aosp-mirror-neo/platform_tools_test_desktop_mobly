@@ -36,6 +36,7 @@ import os
 import subprocess
 import sys
 from google.protobuf import json_format
+from google.protobuf import text_format
 import yaml
 from chromiumos.test.lab.api import pasit_host_pb2
 
@@ -59,15 +60,14 @@ def parse_json(json_file: str) -> pasit_host_pb2.PasitHost:
   return pasit_host
 
 
-def convert_json_to_yaml(json_file: str, yaml_file: str):
-  """Converts a JSON file to a YAML file.
+def write_to_mobly_yaml(topology: pasit_host_pb2.PasitHost, yaml_file: str):
+  """Converts a PASIT topoloygy to a mobly compatible YAML file.
 
   Args:
-    json_file: string path to a JSON file containing a pasit topology.
+    topology: a pasit_host_pb2.PasitHost object that will be converted to YAML.
     yaml_file: string path to a YAML file to write the converted topology.
   """
-  data = parse_json(json_file)
-  topology_dict = json_format.MessageToDict(data)
+  topology_dict = json_format.MessageToDict(topology)
   topology = {
       'TestBeds': [{
           'Name': 'pasit-android-testbed',
@@ -152,16 +152,13 @@ def parse_yaml(yaml_file: str) -> pasit_host_pb2.PasitHost:
   return pasit_host
 
 
-def convert_yaml_to_json(yaml_file: str, json_file: str):
-  """Converts a YAML file to a JSON file.
-
-  Args:
-    yaml_file: string path to a YAML file containing a Mobly testbed config.
-    json_file: string path to a JSON file to write the converted topology.
-  """
-  topology = parse_yaml(yaml_file)
-  with open(json_file, 'w') as f:
-    f.write(json_format.MessageToJson(topology, indent=2))
+def parse_textproto(textproto_file: str) -> pasit_host_pb2.PasitHost:
+  """Parses the pasit topology from a textproto file."""
+  pasit_host = pasit_host_pb2.PasitHost()
+  with open(textproto_file, 'r') as f:
+    data = f.read()
+    text_format.Parse(data, pasit_host)
+  return pasit_host
 
 
 def generate_graph(input_file: str, output_file: str):
@@ -177,6 +174,8 @@ def generate_graph(input_file: str, output_file: str):
     topology = parse_json(input_file)
   elif file_type == '.yaml' or file_type == '.yml':
     topology = parse_yaml(input_file)
+  elif file_type == '.textproto':
+    topology = parse_textproto(input_file)
   else:
     print(f'Unsupported file type: {file_type}')
     return
@@ -241,14 +240,33 @@ def main():
       parser.print_help()
       print('Input and output files are required for conversion.')
       sys.exit(1)
-    if input_file.endswith('.json') and output_file.endswith('.yaml'):
-      convert_json_to_yaml(input_file, output_file)
-    elif input_file.endswith('.yaml') and output_file.endswith('.json'):
-      convert_yaml_to_json(input_file, output_file)
+    topology = None
+    if input_file.endswith('.json'):
+      topology = parse_json(input_file)
+    elif input_file.endswith('.yaml') or input_file.endswith('.yml'):
+      topology = parse_yaml(input_file)
+    elif input_file.endswith('.textproto'):
+      topology = parse_textproto(input_file)
     else:
       print(
-          'Invalid file type combination for conversion.  Input must be json or'
-          ' yaml and the opposite for output.'
+          'Invalid input file type for conversion.  Input must be json, yaml,'
+          ' or textproto.'
+      )
+    if not topology:
+      print('Failed to parse input file.')
+      sys.exit(1)
+    if output_file.endswith('.json'):
+      with open(output_file, 'w') as f:
+        f.write(json_format.MessageToJson(topology))
+    elif output_file.endswith('.yaml') or output_file.endswith('.yml'):
+      write_to_mobly_yaml(topology, output_file)
+    elif output_file.endswith('.textproto'):
+      with open(output_file, 'w') as f:
+        f.write(text_format.MessageToString(topology))
+    else:
+      print(
+          'Invalid output file type for conversion.  Output must be json,'
+          ' yaml, or textproto.'
       )
   elif args.command == 'graph':
     if not args.input_file or not args.output_file:

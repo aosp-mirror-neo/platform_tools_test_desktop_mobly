@@ -15,7 +15,6 @@
 """Interface for interacting with removable storage on a device."""
 
 import abc
-import time
 from typing import Any
 
 
@@ -43,31 +42,6 @@ class BasePasitStorage(metaclass=abc.ABCMeta):
       otherwise.
     """
     raise NotImplementedError
-
-  def wait_for_external_mount_point(self, timeout: int = 20) -> str:
-    """Blocks until an external removable storage mount point is found.
-
-    Args:
-      timeout: The number of seconds to wait for the removable storage to mount;
-        default is 20 seconds.
-
-    Returns:
-      A path for the external removable storage.
-
-    Raises:
-      TimeoutError: If the removable storage mount point is not detected within
-        the timeout.
-    """
-    start_time = time.time()
-    while not self.get_external_mount_point():
-      if time.time() - start_time > timeout:
-        raise TimeoutError(
-            'Timed out waiting for removable storage to mount. Waited for'
-            f' {timeout} seconds.'
-        )
-      time.sleep(1)
-
-    return self.get_external_mount_point()
 
   @abc.abstractmethod
   def format_external_storage(self) -> bool:

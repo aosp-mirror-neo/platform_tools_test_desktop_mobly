@@ -85,15 +85,17 @@ class UnplugExternalStorageTest(storage_base_test.StorageBaseTest):
     ):
       self._unplug_external_storage()
 
-    asserts.assert_false(
-        self._is_external_storage_mounted(),
+    asserts.assert_true(
+        self._is_external_storage_unmounted(),
         'External storage not unmounted after unplugging.',
     )
 
     self._plug_in_external_storage()
 
-    external_storage_path = self.storage.wait_for_external_mount_point(
-        self._get_storage_mount_timeout()
+    external_storage_path = self._wait_for_external_mount_point()
+    asserts.assert_true(
+        external_storage_path,
+        'External storage not mounted after replugging.',
     )
     logging.info('Using external storage with path: %s', external_storage_path)
 

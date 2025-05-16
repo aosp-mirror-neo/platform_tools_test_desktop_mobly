@@ -180,8 +180,8 @@ function crosfleet_dut_info() {
     echo -e "\n\nFailed to get DUT info from crosfleet for ${DUT_HOSTNAME}"
     exit 1
   fi
-  BOARD=$(jq -r '.. | .buildTarget? | select(. != null)' "${DUT_INFO_FILE}")
-  MODEL=$(jq -r '.. | .model? | select(. != null)' "${DUT_INFO_FILE}")
+  BOARD=$(jq -r '.DUTs[].Machine.chromeosMachine.buildTarget' "${DUT_INFO_FILE}")
+  MODEL=$(jq -r '.DUTs[].Machine.chromeosMachine.model' "${DUT_INFO_FILE}")
   POOL=$(jq -r '.. | .pools?[0] | select(. != null)' "${DUT_INFO_FILE}")
   rm "${DUT_INFO_FILE}"
   if [[ -z "${BOARD}" ]]; then

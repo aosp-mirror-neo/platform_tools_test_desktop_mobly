@@ -112,14 +112,6 @@ python_library_host {
 }
 
 python_library_host {
-    name: "py-pasit-utils",
-    srcs: [
-        "pasit_utils.py",
-    ],
-    pkg_path: "pasit/lib",
-}
-
-python_library_host {
     name: "py-passport",
     srcs: ["passport/*.py"],
     libs: [

@@ -25,10 +25,8 @@ from mobly import asserts
 from pasit.lib import pasit_file
 from pasit.lib import pasit_storage
 from pasit.lib import pasit_test
+from pasit.lib.utils import retry
 
-
-_STORAGE_MOUNT_TIMEOUT_PARAM = 'storage_mount_timeout'
-_STORAGE_MOUNT_TIMEOUT_DEFAULT = 10
 
 _DUT_TMP_DIR = '/data/local/tmp/'
 
@@ -70,33 +68,19 @@ class StorageBaseTest(pasit_test.PasitTestClass):
       ValueError: If no external storage is found.
     """
     logging.info('Waiting for external storage to mount')
-    storage_mount_timeout = self._get_storage_mount_timeout()
-    try:
-      mount_point = self.storage.wait_for_external_mount_point(
-          storage_mount_timeout
-      )
-    except TimeoutError as e:
+    mount_point = self._wait_for_external_mount_point()
+
+    if not mount_point:
       logging.info('External storage not mounted, formatting and trying again.')
       if not self.storage.format_external_storage():
-        raise ValueError(
-            'No USB storage device found, ensure that external storage is'
-            ' plugged in and connected to the DUT through switch.'
-        ) from e
+        raise ValueError('No USB storage device found.')
 
       # Unplug and replug the external storage to ensure that the storage is
       # mounted after formatting.
       self._unplug_external_storage()
       self._plug_in_external_storage()
-      mount_point = self.storage.wait_for_external_mount_point(
-          storage_mount_timeout
-      )
+      mount_point = self._wait_for_external_mount_point()
     return mount_point
-
-  def _get_storage_mount_timeout(self) -> int:
-    """Get the storage mount timeout from the user params."""
-    return self.user_params.get(
-        _STORAGE_MOUNT_TIMEOUT_PARAM, _STORAGE_MOUNT_TIMEOUT_DEFAULT
-    )
 
   def _create_test_file(self, size: int = 1024) -> tuple[str, str]:
     """Creates a test file with a string of random characters.
@@ -217,11 +201,38 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     )
     return host_file_path
 
+  def _wait_for_external_mount_point(self, max_tries: int = 10) -> str:
+    """Blocks until an external removable storage mount point is found.
+
+    Args:
+      max_tries: The maximum number of times to check for the mount point.
+
+    Returns:
+      A path for the external removable storage.
+    """
+    return retry.retry(
+        self.storage.get_external_mount_point,
+        until=lambda mount_point: mount_point,
+        max_tries=max_tries,
+    )
+
   def _is_external_storage_mounted(self) -> bool:
-    try:
-      self.storage.wait_for_external_mount_point(
-          self._get_storage_mount_timeout()
-      )
-    except TimeoutError:
-      return False
-    return True
+    return bool(self._wait_for_external_mount_point())
+
+  def _is_external_storage_unmounted(self, max_tries: int = 10) -> bool:
+    """Blocks until an external removable storage mount point is unmounted.
+
+    Use this method to wait for the external storage to be unmounted after
+    unplugging to avoid retry failed message and test timeout.
+
+    Args:
+      max_tries: The maximum number of times to check for the mount point.
+
+    Returns:
+      True if the external removable storage is unmounted, False otherwise.
+    """
+    return retry.retry(
+        lambda: not self.storage.get_external_mount_point(),
+        until=lambda unmounted: unmounted,
+        max_tries=max_tries,
+    )
