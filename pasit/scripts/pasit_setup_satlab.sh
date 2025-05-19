@@ -217,7 +217,7 @@ function generate_config() {
     echo -e "\n\nFailed to get pasit topology info from shivas for ${DUT_HOSTNAME}"
     exit 1
   fi
-  if [[ "$(wc -l "${SHIVAS_JSON_FILE}")" -lt 6 ]]; then
+  if [[ "$(wc -l "${SHIVAS_JSON_FILE}" | awk '{print $1}')" -lt 6 ]]; then
     echo -e "\n\Not enough data in shivas pasit topology for ${DUT_HOSTNAME}"
     cat "${SHIVAS_JSON_FILE}"
     exit 1
