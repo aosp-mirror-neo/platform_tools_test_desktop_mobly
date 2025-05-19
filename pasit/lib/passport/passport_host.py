@@ -18,6 +18,7 @@ from collections.abc import Callable, MutableSequence, Sequence
 import enum
 import http
 import logging
+import os
 from typing import Any
 import urllib.error
 import urllib.parse
@@ -26,9 +27,11 @@ import urllib.request
 from google.protobuf import json_format
 from mobly import logger as mobly_logger
 
+from pasit.lib.passport import passport_camera_service_client
 from pasit.lib.passport import passport_switch_service_client
 from pasit.lib.passport import passport_usb_service_client
 from pasit.lib.passport import passport_video_service_client
+from pasit.lib.utils import image
 from chromiumos.test.lab.api import pasit_host_pb2
 
 
@@ -113,6 +116,9 @@ class PassportHost:
     video_tester_client: The client for the video tester service.
   """
 
+  _camera_client: passport_camera_service_client.PassportCameraServiceClient = (
+      None
+  )
   usb_tester_client: passport_usb_service_client.PassportUsbServiceClient = None
   video_tester_client: (
       passport_video_service_client.PassportVideoServiceClient | None
@@ -181,6 +187,9 @@ class PassportHost:
       )
 
     self.log.info('Connecting to Passport API at address: %s' % self.address)
+    self._camera_client = (
+        passport_camera_service_client.PassportCameraServiceClient(self.address)
+    )
     self._switch_client = (
         passport_switch_service_client.PassportSwitchServiceClient(self.address)
     )
@@ -451,3 +460,51 @@ class PassportHost:
       raise PassportIPPowerError(
           'URL request failed.', address, power_state
       ) from e
+
+  def get_cameras(self) -> list[str]:
+    """Returns the camera IDs connected to the PassportHost."""
+    self._ensure_passport_connected()
+    resp = self._camera_client.get_cameras()
+    return [camera.id for camera in resp.cameras]
+
+  def get_average_pixel(
+      self, camera_id: str, log_dir: str = '', image_name_prefix: str = ''
+  ) -> image.Color:
+    """Gets the average pixel color detected by the specified camera.
+
+    Args:
+      camera_id: The unique ID of the camera to capture an image and
+        GetAveragePixel.
+      log_dir: The directory to save the image to, should be the mobly log
+        directory or a subdirectory of it.  Must be specified if
+        image_name_prefix is specified.
+      image_name_prefix: The prefix of the image name to use for the image. if
+        empty no image file will be saved, if specified, the image will be saved
+        to logs directory with the given prefix and a timestamp.
+
+    Returns:
+      The average pixel Color.
+    """
+    self._ensure_passport_connected()
+    resp = self._camera_client.get_average_pixel(camera_id)
+    if image_name_prefix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_prefix)
+    return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
+
+  def _save_image(
+      self, image_bytes: bytes, log_dir: str, image_name_prefix: str
+  ) -> None:
+    """Saves the image to the logs directory."""
+    if not image_bytes:
+      self.log.warning(
+          'No image bytes received, image will not be saved to %s.',
+          log_dir,
+      )
+      return
+    time_str = mobly_logger.get_log_file_timestamp()
+    image_path = os.path.join(
+        log_dir,
+        f'{image_name_prefix.replace("/", "_")}_{time_str}.jpeg',
+    )
+    with open(image_path, 'wb') as f:
+      f.write(image_bytes)
