@@ -23,6 +23,7 @@ from pasit.lib import pasit_test
 
 
 class ComplianceTest(pasit_test.PasitTestClass):
+  """Test class for running VESA compliance tests."""
 
   def setup_class(self):
     super().setup_class()
@@ -40,9 +41,18 @@ class ComplianceTest(pasit_test.PasitTestClass):
   def test_dp_1_4_link_layer_cts(self):
     asserts.assert_true(
         self.ucd_manager.run_compliance_tests(
-            ucd_compliance_tests_lists.DP_1_4_LL_CTS, ["4.2.1.1", "4.2.1.4"]
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            ["4.2.1", "4.2.2.3", "4.5"],
         ),
-        "Failed to run DP 1.4 Link Layer CTS.",
+        "DP 1.4 Link Layer CTS Failed.",
+    )
+
+  def test_pixel_level_video_test(self):
+    asserts.assert_true(
+        self.ucd_manager.run_compliance_tests(
+            ucd_compliance_tests_lists.PIXEL_LEVEL_VIDEO_TEST
+        ),
+        "Pixel Level Video Test Failed.",
     )
 
 

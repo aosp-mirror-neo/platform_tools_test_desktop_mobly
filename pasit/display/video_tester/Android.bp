@@ -18,8 +18,8 @@ package {
 
 python_test_host {
     name: "DesktopUCDComplianceTests",
-    main: "compliance_test.py",
-    srcs: ["compliance_test.py"],
+    main: "test_compliance.py",
+    srcs: ["test_compliance.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,

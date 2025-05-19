@@ -100,7 +100,7 @@ class TestGroup:
 
     Args:
         references: A list of test reference strings (e.g., ["4.2.1.1",
-          "4.2.1.4"]).
+          "4.2.1.4"]). Can also be partial references like ["4.2.1"].
 
     Returns:
         A list of ComplianceTestVideoTester (group id and test id) objects.
@@ -109,17 +109,38 @@ class TestGroup:
         ValueError: If any reference is not found in the specified group.
     """
     tester_tests = []
-    for reference in references:
-      test = self.get_test_by_reference(reference)
-      if test is None:
-        raise ValueError(
-            f"Test reference '{reference}' not found in group '{self.name}' "
-            f"(ID: {self.group_id})"
-        )
-      tester_tests.append(
-          video_tester_service_pb2.ComplianceTestVideoTester(
-              group_id=self.group_id, test_id=test.id
+    for provided_ref in references:
+      found_match_for_current_ref = False
+      for test_ref, test_obj in self.tests.items():
+        if test_ref.startswith(provided_ref):
+          tester_tests.append(
+              video_tester_service_pb2.ComplianceTestVideoTester(
+                  group_id=self.group_id, test_id=test_obj.id
+              )
           )
-      )
+          found_match_for_current_ref = True
+      if not found_match_for_current_ref:
+        raise ValueError(
+            f"Test reference (or prefix) '{provided_ref}' not found in group"
+            f" '{self.name}' (ID: {self.group_id})"
+        )
 
-    return tester_tests
+    # Remove duplicates if a full reference and a partial reference match the
+    # same test
+    # e.g. if references = ["4.2.1.1", "4.2.1"]
+    # Using a set of tuples (group_id, test_id) to ensure uniqueness
+    unique_tester_tests_map = {
+        (tt.group_id, tt.test_id): tt for tt in tester_tests
+    }
+    return list(unique_tester_tests_map.values())
+
+  def get_all_video_tester_tests_in_group(
+      self,
+  ) -> list[video_tester_service_pb2.ComplianceTestVideoTester]:
+    """Returns a list of all tests in this group as ComplianceTestVideoTester objects."""
+    return [
+        video_tester_service_pb2.ComplianceTestVideoTester(
+            group_id=self.group_id, test_id=test_obj.id
+        )
+        for test_obj in self.tests.values()
+    ]

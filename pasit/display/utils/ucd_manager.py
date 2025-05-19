@@ -178,23 +178,16 @@ class UcdManager:
     start_time = time.time()
 
     while time.time() - start_time < timeout_sec:
-      # TODO: b/415014744 - stream_infos throws an error on no displays as it
-      # miscounts the streams when there are no displays. Remove the try catch
-      # when the backend is fixed.
       stream_infos = self._vsc.get_stream_info_for_all_streams()
       if len(stream_infos) != expected_total_display_count:
         continue
 
       all_screens_on = True
       for stream_info in stream_infos:
-        # TODO: b/415014744 - Even though checking the hactive and vactive
-        # values works for most cases, checking the CRC from UCD gives us more
-        # confidence that the display is on. Use CRC instead of hactive and
-        # vactive when it is implemented.
-        if stream_info.hactive < 1 or stream_info.vactive < 1:
-          logging.info(
-              "Stream %s is not active or not active.", stream_info
-          )
+        does_have_size = stream_info.hactive > 0 and stream_info.vactive > 1
+        does_have_crc = any(crc != 0 for crc in stream_info.crc)
+        if not (does_have_size or does_have_crc):
+          logging.debug("Stream %s is not active", stream_info)
           all_screens_on = False
           break
       if not all_screens_on:
@@ -286,16 +279,37 @@ class UcdManager:
     self.unplug_and_destroy_all_displays()
 
   def run_compliance_tests(
-      self, group: compliance_tests_manager.TestGroup, references: list[str]
+      self,
+      group: compliance_tests_manager.TestGroup,
+      references: list[str] | None = None,
   ) -> bool:
-    """Runs a set of compliance tests identified by their reference numbers."""
+    """Runs a set of compliance tests.
+
+    If references are provided, it runs specific tests identified by their
+    reference numbers within the group.
+    If references is None, it runs all tests in the specified group.
+
+    Args:
+      group: The TestGroup object containing the tests.
+      references: Optional. A list of test reference strings (e.g., ["4.2.1.1",
+        "4.2"]) as it can also be partial references. If None, all tests in the
+        group are run.
+
+    Returns:
+      True if all run tests passed, False otherwise.
+    """
     logging.info(
         "\nPreparing to run tests for group: %s (ID: %s)",
         group.name,
         group.group_id,
     )
-    logging.info("Requested references: %s", references)
-    tests = group.get_video_tester_group_and_test_ids(references)
+    if references:
+      logging.info("Requested references: %s", references)
+      tests = group.get_video_tester_group_and_test_ids(references)
+    else:
+      logging.info("Requested to run all tests in group %s.", group.name)
+      tests = group.get_all_video_tester_tests_in_group()
+
     results, _ = self._vsc.run_compliance_tests(tests)
 
     status_counts = collections.defaultdict(int)
@@ -327,10 +341,7 @@ class UcdManager:
         else:
           logging.warning("  - Test ID: %s (Not found in group)", test_id)
 
-    return (
-        ComplianceTestStatus.COMPLIANCE_TEST_FAILED in status_counts
-        or ComplianceTestStatus.COMPLIANCE_TEST_ABORTED in status_counts
-    )
+    return not failed_tests
 
   def disconnect_ucd(self):
     """Disconnects from the UCD via the video tester service."""
