@@ -467,6 +467,31 @@ class PassportHost:
     resp = self._camera_client.get_cameras()
     return [camera.id for camera in resp.cameras]
 
+  def capture_image(
+      self,
+      camera_id: str,
+      log_dir: str,
+      image_name_prefix: str,
+  ) -> None:
+    """Captures an image from the specified camera and saves it.
+
+    Image is saved to the logsdirectory with the given prefix and a timestamp.
+
+    Args:
+      camera_id: The unique ID of the camera to capture an image and
+        GetAveragePixel, should be one of the camera IDs returned by
+        get_cameras.
+      log_dir: The directory to save the image to, should be the mobly log
+        directory or a subdirectory of it.
+      image_name_prefix: The prefix of the image name to use for the image.
+
+    Returns:
+      None
+    """
+    # get_average_pixel will save the image if image_name_prefix is specified,
+    # so call that but don't use the average pixel result.
+    self.get_average_pixel(camera_id, log_dir, image_name_prefix)
+
   def get_average_pixel(
       self, camera_id: str, log_dir: str = '', image_name_prefix: str = ''
   ) -> image.Color:

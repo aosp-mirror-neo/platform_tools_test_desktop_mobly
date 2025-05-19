@@ -17,6 +17,7 @@
 import logging
 
 from mobly import asserts
+from mobly import records
 
 from pasit.lib import pasit_display
 from pasit.lib import pasit_test
@@ -47,14 +48,14 @@ class DisplayCountTest(pasit_test.PasitTestClass):
         self._EXPECTED_DISPLAY_COUNT_BEFORE_PLUG_IN,
         'Display count is not 1 before external display plug in.',
     )
-
+    self._capture_display_images('before_plug_in')
     self._plug_in_external_display()
     asserts.assert_equal(
         self.try_get_display_count(self._EXPECTED_DISPLAY_COUNT_AFTER_PLUG_IN),
         self._EXPECTED_DISPLAY_COUNT_AFTER_PLUG_IN,
         'Display count is not 2 after external display plug in.',
     )
-
+    self._capture_display_images('after_plug_in')
     self._unplug_external_display()
     asserts.assert_equal(
         self.try_get_display_count(self._EXPECTED_DISPLAY_COUNT_BEFORE_PLUG_IN),
@@ -80,3 +81,31 @@ class DisplayCountTest(pasit_test.PasitTestClass):
         max_tries=10,
         delay_seconds=2,
     )
+
+  def _capture_display_images(self, image_prefix: str):
+    """Captures an image from each PASIT camera to the log directory.
+
+    TODO: this doesn't do any association between the image and the display,
+    that will be done in future improvements.
+
+    Args:
+      image_prefix: The prefix of the image name to use for the image.
+    """
+    cameras = self.passport_host.get_cameras()
+    for camera in cameras:
+      logging.debug(
+          'Capturing display image for %s camera %s to directory %s',
+          image_prefix,
+          camera,
+          self.current_test_info.output_path,
+      )
+      self.passport_host.capture_image(
+          camera,
+          self.current_test_info.output_path,
+          f'passport_img_{image_prefix}_{camera}',
+      )
+
+  def on_fail(self, record: records.TestResultRecord) -> None:
+    """Called on test failure."""
+    self._capture_display_images('on_fail')
+    super().on_fail(record)
