@@ -14,6 +14,7 @@ target architecture must match the architecture of the DUT you are testing.
 To build:
 
 ```
+source build/envsetup.sh && lunch aosp_cf_x86_64_only_phone-trunk_staging-userdebug
 m <PASIT suite build target name>
 # artifacts in
 # ./out/host/linux-x86/nativetest64/<PASIT suite build target name>/<PASIT suite build target name>
