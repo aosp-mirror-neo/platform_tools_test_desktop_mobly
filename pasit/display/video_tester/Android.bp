@@ -17,9 +17,29 @@ package {
 }
 
 python_test_host {
-    name: "DesktopUCDComplianceTests",
+    name: "TestComplianceUcd",
     main: "test_compliance.py",
     srcs: ["test_compliance.py"],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+    ],
+    libs: [
+        "py-pasit-display-utils",
+    ],
+}
+
+python_test_host {
+    name: "TestBwWithDisplaysUcd",
+    main: "test_bw_with_displays.py",
+    srcs: ["test_bw_with_displays.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,

@@ -1,0 +1,7 @@
+TestBeds:
+- Name: UcdTestBed
+  Controllers:
+    PassportHost:
+        - service_host: "localhost"
+          service_port: 8300
+    AndroidDevice: '*'
