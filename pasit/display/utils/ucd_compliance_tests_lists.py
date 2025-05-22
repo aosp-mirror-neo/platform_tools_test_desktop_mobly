@@ -14,8 +14,9 @@
 
 """Lists of VESA Compliance Tests grouped by UCD-500 API."""
 
-from pasit.display.utils import compliance_tests_manager
 from chromiumos.test.lab.api.passport import video_tester_service_pb2 as vts
+from pasit.display.utils import compliance_tests_manager
+
 
 # The long lines are the test case descriptions from the VESA standard.
 # We disable the lint for this to keep the descriptions more readable.

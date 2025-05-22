@@ -25,6 +25,9 @@ from pasit.lib import pasit_test
 class ComplianceTest(pasit_test.PasitTestClass):
   """Test class for running VESA compliance tests."""
 
+  def pre_run(self):
+    self.setup_generated_tests()
+
   def setup_class(self):
     super().setup_class()
     self.video_tester_client = self.passport_host.video_tester_client
@@ -38,23 +41,72 @@ class ComplianceTest(pasit_test.PasitTestClass):
   def teardown_test(self):
     self.ucd_manager.reset_ucd_displays_state_to_default()
 
-  def test_dp_1_4_link_layer_cts(self):
+  def _run_compliance_test(self, test_list, test_name, test_filter=None):
     asserts.assert_true(
-        self.ucd_manager.run_compliance_tests(
+        self.ucd_manager.run_compliance_tests(test_list, test_filter),
+        f"{test_name} Failed.",
+    )
+
+  def setup_generated_tests(self):
+    tests = [
+        (
+            ucd_compliance_tests_lists.PIXEL_LEVEL_VIDEO_TEST,
+            "Pixel Level Video Test",
+        ),
+        (
+            ucd_compliance_tests_lists.CRC_BASED_VIDEO_TEST_SET,
+            "CRC Based Video Test",
+        ),
+        (ucd_compliance_tests_lists.LINK_TEST_SET, "Link Test"),
+        (
             ucd_compliance_tests_lists.DP_1_4_LL_CTS,
-            ["4.2.1", "4.2.2.3", "4.5"],
+            "DP 1.4 Link Layer CTS 4.2.1.x",
+            ["4.2.1"],
         ),
-        "DP 1.4 Link Layer CTS Failed.",
-    )
-
-  def test_pixel_level_video_test(self):
-    asserts.assert_true(
-        self.ucd_manager.run_compliance_tests(
-            ucd_compliance_tests_lists.PIXEL_LEVEL_VIDEO_TEST
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.2.2.x",
+            ["4.2.2"],
         ),
-        "Pixel Level Video Test Failed.",
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.3.1.x",
+            ["4.3.1"],
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.3.2.x and/or 4.3.3.1",
+            ["4.3.2", "4.3.3.1"],
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.4.(1/2/3)",
+            ["4.4.1", "4.4.2", "4.4.3"],
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.4.4.x",
+            ["4.4.4"],
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_LL_CTS,
+            "DP 1.4 Link Layer CTS 4.5",
+            ["4.5"],
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_DSC_LL_CTS,
+            "DP 1.4 DSC Link Layer CTS",
+        ),
+        (
+            ucd_compliance_tests_lists.DP_1_4_DISPLAYID_CTS_SOURCE_TEST_SET,
+            "DP 1.4 DisplayID CTS Source Test Set",
+        ),
+    ]
+    self.generate_tests(
+        test_logic=self._run_compliance_test,
+        name_func=lambda test_list, test_name, test_filter=None: f"test_{test_name.lower().replace(' ', '_')}",
+        arg_sets=tests,
     )
-
 
 if __name__ == "__main__":
   test_runner.main()
