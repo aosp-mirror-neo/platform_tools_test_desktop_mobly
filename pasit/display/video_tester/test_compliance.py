@@ -15,7 +15,9 @@
 """Run VESA compliance tests using UCD."""
 
 from mobly import asserts
-from mobly import test_runner
+from mobly import base_suite
+from mobly import config_parser
+from mobly import suite_runner
 
 from pasit.display.utils import ucd_compliance_tests_lists
 from pasit.display.utils import ucd_manager
@@ -108,5 +110,16 @@ class ComplianceTest(pasit_test.PasitTestClass):
         arg_sets=tests,
     )
 
+
+class ComplianceTestSuite(base_suite.BaseSuite):
+  """Compliance Test Suite."""
+
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    self.add_test_class(ComplianceTest)
+
+
+def main() -> None:
+  suite_runner.run_suite_class()
+
 if __name__ == "__main__":
-  test_runner.main()
+  main()

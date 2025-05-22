@@ -15,13 +15,15 @@
 """Testing the System Bandwidth in supporting displays."""
 
 from mobly import asserts
-from mobly import test_runner
+from mobly import base_suite
+from mobly import config_parser
+from mobly import suite_runner
 
 from pasit.display.utils import ucd_manager
 from pasit.lib import pasit_test
 
 
-class ConnectedDisplayActiveTest(pasit_test.PasitTestClass):
+class BwWithDisplaysTest(pasit_test.PasitTestClass):
   """Test class for testing the system bandwidth with multiple displays.
 
   This class includes tests to verify the system's ability to handle an
@@ -134,5 +136,15 @@ class ConnectedDisplayActiveTest(pasit_test.PasitTestClass):
       )
 
 
+class BwWithDisplaysTestSuite(base_suite.BaseSuite):
+  """Test suite for testing the system bandwidth with displays."""
+
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    self.add_test_class(BwWithDisplaysTest)
+
+
+def main() -> None:
+  suite_runner.run_suite_class()
+
 if __name__ == "__main__":
-  test_runner.main()
+  main()
