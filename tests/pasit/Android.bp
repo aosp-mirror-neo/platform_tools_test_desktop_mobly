@@ -35,3 +35,19 @@ python_defaults {
     ],
     pkg_path: "pasit",
 }
+
+python_test_host {
+    name: "pasit_suite_import_test",
+    srcs: [
+        "pasit_suite_import_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "DesktopPASITCameraTests",
+        "DesktopPASITDisplayTests",
+        "DesktopPASITSmokeTests",
+        "DesktopPASITStorageTests",
+    ],
+}

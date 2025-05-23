@@ -102,7 +102,10 @@ python_library_host {
         "*/*test.py",
         "*test.py",
     ],
-    exclude_srcs: ["passport/*"],
+    exclude_srcs: [
+        "passport/*",
+        "pasit_lib_imports_test.py",
+    ],
     libs: [
         "mobly",
         "py-pasit-device",
@@ -121,4 +124,24 @@ python_library_host {
         "py-chromiumos-config-passport",
     ],
     pkg_path: "lib/pasit",
+}
+
+python_test_host {
+    name: "pasit_lib_imports_test",
+    srcs: [
+        "pasit_lib_imports_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-camera",
+        "py-pasit-device",
+        "py-pasit-display",
+        "py-pasit-file",
+        "py-pasit-servo-client",
+        "py-pasit-storage",
+        "py-pasit-test",
+        "py-passport",
+    ],
 }
