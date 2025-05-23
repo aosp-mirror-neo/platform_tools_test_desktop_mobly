@@ -1,0 +1,62 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Manages the state of a PASIT device."""
+
+import enum
+import logging
+from lib.pasit import pasit_device
+
+
+@enum.unique
+class PowerState(enum.Enum):
+  ON = 'on'
+  OFF = 'off'
+  SUSPEND = 'suspended'
+
+
+class EnterStateAndReturnToPowerOn:
+  """Enter the desired state and return to the power on state.
+
+  The context manager will power on the DUT even if there is an exception
+  raised or the test fails during the context execution. Any exceptions raised
+  during the context execution will be re-raised.
+  """
+
+  def __init__(self, dut: pasit_device.PasitDevice, desired_state: PowerState):
+    """Initializes the context manager based on the DUT and desired state.
+
+    Args:
+      dut: The PASIT device to manage.
+      desired_state: The desired state to enter.
+    """
+    self._dut = dut
+    self._desired_state = desired_state
+
+  def __enter__(self):
+    if self._desired_state == PowerState.OFF:
+      logging.info('Powering off DUT')
+      self._dut.power_off()
+    elif self._desired_state == PowerState.SUSPEND:
+      logging.info('Suspending DUT')
+      self._dut.suspend()
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if (
+        self._desired_state == PowerState.OFF
+        or self._desired_state == PowerState.SUSPEND
+    ):
+      logging.info('Powering on DUT')
+      self._dut.power_on()
+    return False

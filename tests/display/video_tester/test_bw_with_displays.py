@@ -1,0 +1,150 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Testing the System Bandwidth in supporting displays."""
+
+from mobly import asserts
+from mobly import base_suite
+from mobly import config_parser
+from mobly import suite_runner
+
+from display.utils import ucd_manager
+from lib.pasit import pasit_test
+
+
+class BwWithDisplaysTest(pasit_test.PasitTestClass):
+  """Test class for testing the system bandwidth with multiple displays.
+
+  This class includes tests to verify the system's ability to handle an
+  increasing and decreasing number of displays, ensuring that each display is
+  correctly activated and managed.
+  """
+  ucd_manager: ucd_manager.UcdManager
+
+  def pre_run(self):
+    arg_sets = [
+        (i,)
+        for i in range(1, ucd_manager.UcdManager.MAX_SUPPORTED_DISPLAY_COUNT)
+    ]
+
+    self.generate_tests(
+        test_logic=self.increment_displays,
+        name_func=self.generate_test_name_increment_displays,
+        arg_sets=arg_sets,
+    )
+
+    self.generate_tests(
+        test_logic=self.decrement_displays,
+        name_func=self.generate_test_name_decrement_displays,
+        arg_sets=arg_sets,
+    )
+
+  def setup_class(self):
+    super().setup_class()
+    self.video_tester_client = self.passport_host.video_tester_client
+    self.ucd_manager = ucd_manager.UcdManager(
+        self.video_tester_client
+    )
+    self.ucd_manager.connect_to_ucd()
+    self.ucd_manager.reset_ucd_displays_state_to_default()
+
+  def teardown_class(self):
+    self.ucd_manager.disconnect_ucd()
+
+  def teardown_test(self):
+    self.ucd_manager.reset_ucd_displays_state_to_default()
+
+  def generate_test_name_increment_displays(self, display_count: int) -> str:
+    """Generates the test name for incrementing displays to a specific count."""
+    return f"test_increment_displays_to_{display_count}_displays"
+
+  def generate_test_name_decrement_displays(self, display_count: int) -> str:
+    """Generates the test name for decrementing displays to a specific count."""
+    return f"test_decrement_displays_from_{display_count}_displays"
+
+  def increment_displays(self, max_display_count: int):
+    """Tests the system's ability to handle an increasing number of displays.
+
+    This test gradually increases the number of attached displays by one,
+    verifying that the system can successfully activate and manage each
+    additional display.
+
+    Args:
+        max_display_count: The maximum number of displays to test up to.
+    """
+
+    for i in range(max_display_count):
+      display_count_to_test = i + 1
+      self.ucd_manager.create_and_plug_new_displays(additional_display_count=1)
+      asserts.assert_true(
+          self.ucd_manager.are_all_screens_on_aux_channel(
+              display_count_to_test
+          ),
+          "External displays are not active for"
+          f" {display_count_to_test} displays.",
+      )
+      self._check_screenshots_for_displays(display_count_to_test)
+
+  def decrement_displays(self, max_display_count: int):
+    """Tests the system's ability to handle a decreasing number of displays.
+
+    This test starts with the maximum number of supported displays, then
+    gradually removes one display at a time, verifying that the system
+    continues to function correctly with each reduction in the number of
+    active displays.
+
+    Args:
+        max_display_count: The maximum number of displays to test up to.
+    """
+    self.ucd_manager.create_and_plug_new_displays(max_display_count)
+    for i in range(max_display_count, 0, -1):
+      # Verify that all displays are active
+      asserts.assert_true(
+          self.ucd_manager.are_all_screens_on_aux_channel(i),
+          f"External displays are not active for {i} displays.",
+      )
+      self._check_screenshots_for_displays(i)
+
+      self.ucd_manager.destroy_the_most_recently_attached_display()
+
+  def _check_screenshots_for_displays(self, display_count: int):
+    """Checks if the screenshots of the displays are not black.
+
+    This function iterates through the specified number of displays, takes a
+    screenshot of each, and verifies that the screenshot is not a black image.
+
+    Args:
+        display_count: The number of displays to check.
+    """
+    for i in range(display_count):
+      print(f"Checking screenshot for display {i}")
+      screenshot = self.ucd_manager.get_screenshot_display(i)
+      asserts.assert_true(
+          self.ucd_manager.is_image_not_black(screenshot),
+          f"Screenshot for display {i} is black.",
+      )
+
+
+class BwWithDisplaysTestSuite(base_suite.BaseSuite):
+  """Test suite for testing the system bandwidth with displays."""
+
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    self.add_test_class(BwWithDisplaysTest)
+
+
+def main() -> None:
+  suite_runner.run_suite_class()
+
+if __name__ == "__main__":
+  main()
