@@ -15,6 +15,7 @@
 """Unit test to ensure that there are no import errors."""
 
 import unittest
+# pylint: disable=g-import-not-at-top,unused-import
 
 
 class PASITSuiteImportTest(unittest.TestCase):
