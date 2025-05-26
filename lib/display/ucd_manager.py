@@ -18,12 +18,12 @@ import collections
 import logging
 import time
 
+from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from display.utils import compliance_tests_manager
 from display.utils import edid_datum
 from display.utils import edids_list
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_video_service_client
-from chromiumos.test.lab.api.passport import video_tester_service_pb2
 
 
 PassportBaseError = passport_host.PassportBaseError
@@ -129,9 +129,11 @@ class UcdManager:
           current_connected_displays_count:total_expected_display_count
       ]
 
+    enable_mst = bool(total_expected_display_count > 1)
     if not self._vsc.set_dp_link_capabilities(
-        # Set MST to always be true. No downsides.
-        mst=True, mst_sink_count=total_expected_display_count
+        mst=enable_mst,
+        ss_sbm=enable_mst,
+        mst_sink_count=total_expected_display_count
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
 
@@ -248,23 +250,33 @@ class UcdManager:
       raise PassportBaseError("No displays are currently configured.")
 
     total_expected_display_count = configured_displays_count - 1
+    enable_mst = bool(total_expected_display_count > 1)
     if not self._vsc.set_dp_link_capabilities(
-        mst=bool(total_expected_display_count > 0),
-        mst_sink_count=configured_displays_count - 1,
+        mst=enable_mst,
+        ss_sbm=enable_mst,
+        mst_sink_count=total_expected_display_count,
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
 
-    if not self._vsc.send_hpd_pulse():
-      raise PassportBaseError(
-          "Failed to send HPD pulse on"
-          " destroy_the_most_recently_attached_display."
-      )
+    if total_expected_display_count > 0:
+      if not self._vsc.send_hpd_pulse():
+        raise PassportBaseError(
+            "Failed to send HPD pulse on"
+            " destroy_the_most_recently_attached_display."
+        )
+    else:
+      if not self._vsc.perform_attach_operation(False):
+        raise PassportBaseError("Failed to detach from the DUT.")
 
   def unplug_and_destroy_all_displays(self):
     """Unplug all the displays and destroy them."""
     self.toggle_displays_plug_state(False)
-    if not self._vsc.set_dp_link_capabilities(mst=False):
+    if not self._vsc.set_dp_link_capabilities(
+        mst=False, ss_sbm=False, mst_sink_count=0
+    ):
       raise PassportBaseError("Failed to set DP link capabilities.")
+    if not self._vsc.perform_attach_operation(False):
+      raise PassportBaseError("Failed to detach from the DUT.")
 
   def reset_ucd_displays_state_to_default(self):
     """Resets the displays state."""

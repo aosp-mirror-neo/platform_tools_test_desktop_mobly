@@ -14,13 +14,16 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
+from display.utils import ucd_manager
+from lib.pasit import pasit_test
+from lib.pasit.passport import passport_host
+
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
-from display.utils import ucd_manager
-from lib.pasit import pasit_test
+PassportBaseError = passport_host.PassportBaseError
 
 
 class BwWithDisplaysTest(pasit_test.PasitTestClass):
@@ -33,7 +36,7 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
   ucd_manager: ucd_manager.UcdManager
 
   def pre_run(self):
-    arg_sets = [
+    displays_range_arg_sets = [
         (i,)
         for i in range(1, ucd_manager.UcdManager.MAX_SUPPORTED_DISPLAY_COUNT)
     ]
@@ -41,13 +44,19 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
     self.generate_tests(
         test_logic=self.increment_displays,
         name_func=self.generate_test_name_increment_displays,
-        arg_sets=arg_sets,
+        arg_sets=displays_range_arg_sets,
     )
 
     self.generate_tests(
         test_logic=self.decrement_displays,
         name_func=self.generate_test_name_decrement_displays,
-        arg_sets=arg_sets,
+        arg_sets=displays_range_arg_sets,
+    )
+
+    self.generate_tests(
+        test_logic=self.toggle_mst_and_sbm,
+        name_func=self.generate_test_name_toggle_mst_sbm,
+        arg_sets=[(False, False), (False, True), (True, False), (True, True)],
     )
 
   def setup_class(self):
@@ -72,6 +81,10 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
   def generate_test_name_decrement_displays(self, display_count: int) -> str:
     """Generates the test name for decrementing displays to a specific count."""
     return f"test_decrement_displays_from_{display_count}_displays"
+
+  def generate_test_name_toggle_mst_sbm(self, is_mst: bool, is_sbm: bool) -> str:
+    """Generates the test name for toggling MST and SBM."""
+    return f"test_toggle_mst_{is_mst}_sbm_{is_sbm}"
 
   def increment_displays(self, max_display_count: int):
     """Tests the system's ability to handle an increasing number of displays.
@@ -117,6 +130,23 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
       self._check_screenshots_for_displays(i)
 
       self.ucd_manager.destroy_the_most_recently_attached_display()
+
+  def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
+    """Tests the system's ability to toggle MST and SBM."""
+    if not self.video_tester_client.set_dp_link_capabilities(
+        mst=is_mst,
+        ss_sbm=is_sbm,
+        mst_sink_count=1,
+    ):
+      raise PassportBaseError("Failed to set DP link capabilities.")
+    if not self.video_tester_client.perform_attach_operation(True):
+      raise PassportBaseError("Failed to attach to the DUT.")
+
+    asserts.assert_true(
+        self.ucd_manager.are_all_screens_on_aux_channel(1),
+        f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
+    )
+    self._check_screenshots_for_displays(1)
 
   def _check_screenshots_for_displays(self, display_count: int):
     """Checks if the screenshots of the displays are not black.

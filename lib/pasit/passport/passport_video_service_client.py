@@ -16,11 +16,11 @@
 
 import logging
 
-import grpc
-
-from utils import retry
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from chromiumos.test.lab.api.passport import video_tester_service_pb2_grpc
+
+import grpc
+from utils import retry
 
 
 class PassportVideoServiceClient:
@@ -205,6 +205,7 @@ class PassportVideoServiceClient:
   def set_dp_link_capabilities(
       self,
       mst: bool,
+      ss_sbm: bool,
       mst_sink_count: int | None = None,
       scrambler_seed: int | None = None,
       max_lane: int | None = None,
@@ -213,6 +214,7 @@ class PassportVideoServiceClient:
 
     Args:
         mst: Multi-Stream Transport setting.
+        ss_sbm: Single-Stream Stream Buffer Management setting.
         mst_sink_count: Number of MST sinks.
         scrambler_seed: Scrambler seed value.
         max_lane: Maximum lane count.
@@ -225,6 +227,8 @@ class PassportVideoServiceClient:
         id=self._tester_id
     )
     request.mst = mst
+    if ss_sbm is not None:
+      request.ss_sbm = ss_sbm
     if mst_sink_count is not None:
       request.mst_sink_count = mst_sink_count
     if scrambler_seed is not None:
