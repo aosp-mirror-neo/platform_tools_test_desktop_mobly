@@ -24,6 +24,11 @@ class PassportUsbServiceClient:
   """Passport USB service client."""
 
   def __init__(self, server_address: str):
+    """Initializes the PassportUsbServiceClient.
+
+    Args:
+      server_address: The address of the gRPC server.
+    """
     self._channel = grpc.insecure_channel(server_address)
     self._stub = usb_tester_service_pb2_grpc.UsbTesterServiceStub(self._channel)
     self._tester_serial = None
@@ -138,7 +143,6 @@ class PassportUsbServiceClient:
     """Sets the power role of the USB tester with the given ID."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.POWER_ROLE,
             power_role=usb_tester_service_pb2.SNK,
         )
@@ -148,7 +152,6 @@ class PassportUsbServiceClient:
     """Sets the power role of the USB tester with the given ID."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.POWER_ROLE,
             power_role=usb_tester_service_pb2.SRC,
         )
@@ -172,7 +175,6 @@ class PassportUsbServiceClient:
     """Sets the data role of the USB tester with the given ID to be the upstream facing port."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.DATA_ROLE,
             data_role=usb_tester_service_pb2.DATA_UFP,
         )
@@ -182,7 +184,6 @@ class PassportUsbServiceClient:
     """Sets the data role of the USB tester with the given ID to be the downstream facing port."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.DATA_ROLE,
             data_role=usb_tester_service_pb2.DATA_DFP,
         )
@@ -199,7 +200,6 @@ class PassportUsbServiceClient:
     """Sets the USB mode of the USB tester with the given ID to be USB 2.0."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.USB_CHANNEL,
             usb_channel=usb_tester_service_pb2.USB_2_HS,
         )
@@ -209,7 +209,6 @@ class PassportUsbServiceClient:
     """Sets the USB mode of the USB tester with the given ID to be USB 3.2."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.USB_CHANNEL,
             usb_channel=usb_tester_service_pb2.USB_3_AND_2_HS,
         )
@@ -226,7 +225,6 @@ class PassportUsbServiceClient:
     """Sets the PD init state of the USB tester with the given ID to be DFP."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.INIT_PD_STATE,
             init_pd_state=usb_tester_service_pb2.PD_DFP,
         )
@@ -236,11 +234,153 @@ class PassportUsbServiceClient:
     """Sets the PD init state of the USB tester with the given ID to be UFP."""
     self.set_capability_usb_tester(
         usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
-            id=self._tester_serial,
             capability=usb_tester_service_pb2.INIT_PD_STATE,
             init_pd_state=usb_tester_service_pb2.PD_UFP,
         )
     )
+
+  def set_pd_data_swap_policy(self, enabled: bool) -> None:
+    """Sets the PD data swap policy of the USB tester with the given ID.
+
+    Args:
+      enabled: True to enable the policy, False to disable.
+    """
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.DATA_SWAP_POLICY,
+            data_role_swap_policy=enabled,
+        )
+    )
+
+  def get_pd_data_swap_policy(self) -> bool:
+    """Gets the PD data swap policy of the USB tester with the given ID.
+
+    Returns:
+      True if the policy is enabled, False otherwise.
+    """
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.DATA_SWAP_POLICY,
+        )
+    )
+    return ret.data_role_swap_policy
+
+  def set_pd_power_swap_policy(self, enabled: bool) -> None:
+    """Sets the PD power swap policy of the USB tester with the given ID.
+
+    Args:
+      enabled: True to enable the policy, False to disable.
+    """
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.POWER_SWAP_POLICY,
+            power_role_swap_policy=enabled,
+        )
+    )
+
+  def get_pd_power_swap_policy(self) -> bool:
+    """Gets the PD power swap policy of the USB tester with the given ID.
+
+    Returns:
+      True if the policy is enabled, False otherwise.
+    """
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.POWER_SWAP_POLICY,
+        )
+    )
+    return ret.power_role_swap_policy
+
+  def set_pd_vconn_swap_policy(self, enabled: bool) -> None:
+    """Sets the PD VCONN swap policy of the USB tester with the given ID.
+
+    Args:
+      enabled: True to enable the policy, False to disable.
+    """
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.VCONN_SWAP_POLICY,
+            vconn_swap_policy=enabled,
+        )
+    )
+
+  def get_pd_vconn_swap_policy(self) -> bool:
+    """Gets the PD VCONN swap policy of the USB tester with the given ID.
+
+    Returns:
+      True if the policy is enabled, False otherwise.
+    """
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.VCONN_SWAP_POLICY,
+        )
+    )
+    return ret.vconn_swap_policy
+
+  def set_pd_display_port_alternate_mode(self, enabled: bool) -> None:
+    """Sets the PD display port alternate mode of the USB tester with the given ID.
+
+    Args:
+      enabled: True to enable the mode, False to disable.
+    """
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.DISPLAY_PORT_AM,
+            display_port_am=enabled,
+        )
+    )
+
+  def get_pd_display_port_alternate_mode(self) -> bool:
+    """Gets the PD display port alternate mode of the USB tester with the given ID.
+
+    Returns:
+      True if the mode is enabled, False otherwise.
+    """
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.DISPLAY_PORT_AM,
+        )
+    )
+    return ret.display_port_am
+
+  def get_usb_path(self) -> usb_tester_service_pb2.UsbPath:
+    ret = self.get_capability_usb_tester(
+        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.USB_PATH,
+        )
+    )
+    return ret.usb_path
+
+
+  def set_usb_path_to_internal(self) -> None:
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.USB_PATH,
+            usb_path=usb_tester_service_pb2.USB_PATH_INTERNAL,
+        )
+    )
+
+  def set_usb_path_to_external(self) -> None:
+    self.set_capability_usb_tester(
+        usb_tester_service_pb2.SetUsbTesterCapabilityRequest(
+            capability=usb_tester_service_pb2.USB_PATH,
+            usb_path=usb_tester_service_pb2.USB_PATH_EXTERNAL,
+        )
+    )
+
+  def get_pd_src_pdos(self) -> list[int]:
+    """Gets the PD source power data objects (PDOs) of the USB tester with the given ID.
+
+    Returns:
+      A list of integers representing the source PDOs.
+    """
+    ret = self._stub.GetPdos(
+        usb_tester_service_pb2.GetPdosRequest(
+            id=self._tester_serial,
+        )
+    )
+    self._validate_reply(ret)
+    return ret.src_pdos
 
   def is_open(self) -> bool:
     """Returns True if the USB tester is open, False otherwise."""
@@ -258,9 +398,17 @@ class PassportUsbServiceClient:
           | usb_tester_service_pb2.HardResetTesterReply
           | usb_tester_service_pb2.DoCableReplugReply
           | usb_tester_service_pb2.LoadEdidReply
+          | usb_tester_service_pb2.GetPdosReply
       ),
   ) -> None:
-    """Validates the reply of the USB tester with the given ID."""
+    """Validates the reply from a gRPC call.
+
+    Args:
+      reply: The reply object from a gRPC call.
+
+    Raises:
+      RuntimeError: If the reply contains an error code indicating a failed request.
+    """
     if reply.err_code != 0:
       raise RuntimeError(
           f'Request for tester {self._tester_serial} returned a reply of type'
