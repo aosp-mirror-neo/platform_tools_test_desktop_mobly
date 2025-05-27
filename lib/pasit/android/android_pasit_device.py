@@ -16,18 +16,17 @@
 
 from collections.abc import Iterable
 import logging
+import os
+import sys
 import time
 
+from lib.pasit.base import base_pasit_device
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
 from mobly.controllers.android_device_lib import snippet_client_v2
 from snippet_uiautomator import uiautomator
-
-from lib.pasit.base import base_pasit_device
 from utils import retry
-import os
-import sys
 
 
 class AndroidDeviceError(Exception):
@@ -236,7 +235,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _ui_active_package_is(self, expected_package: str):
     """Checks if the active package is the expected package."""
-    if self.controller.ui.package_name != expected_package:
+    if not self.controller.ui(pkg=expected_package):
       raise UnexpectedActivePackageError(
           expected_package, self.controller.ui.package_name
       )
