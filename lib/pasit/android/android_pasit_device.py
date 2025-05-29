@@ -71,12 +71,22 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def __init__(self, controller: android_device.AndroidDevice, servo_uri: str):
     super().__init__(controller, servo_uri)
     self._test_settings()
+    # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
+    self.uninstall_apks()
     self._install_mbs()
     self._load_mbs()
     self._register_uiautomator()
     self.controller.root_adb()
     self._skip_oobe()
     self._bypass_login_screen()
+
+  def __del__(self):
+    # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
+    self.uninstall_apks()
+
+  def uninstall_apks(self):
+    apk_utils.uninstall(self.controller, android_device.MBS_PACKAGE)
+    apk_utils.uninstall(self.controller, uiautomator.UIAUTOMATOR_PACKAGE_NAME)
 
   def _test_settings(self):
     # settings are same settings set by tradefed for GoogleDeviceSetup
@@ -166,7 +176,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _install_mbs(self):
     """Installs Mobly Bundled Snippets."""
-    apk_utils.uninstall(self.controller, android_device.MBS_PACKAGE)
     apk_utils.install(
         self.controller,
         self.SNIPPET_APK_PATH,
@@ -201,8 +210,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       if self.FOUR_CORNER_EXIT_ACTION_ERROR in str(e.stderr):
         # The four corner exit action will not run if the device is already
         # logged in or if the device is not rooted.
-        self.controller.log.info('Ignoring failure to skip OOBE/Setup Wizard.')
-        self.controller.log.info(e)
+        self.controller.log.debug('Ignoring failure to skip OOBE/Setup Wizard.')
+        self.controller.log.debug(e)
       else:
         raise e
 
