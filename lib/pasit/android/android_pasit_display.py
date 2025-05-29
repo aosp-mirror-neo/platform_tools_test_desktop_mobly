@@ -14,8 +14,8 @@
 
 """AndroidPasitDisplay handles display operations for PASIT testing on Android devices."""
 
-from mobly.controllers import android_device
 
+import re
 from lib.pasit.base import base_pasit_display
 
 
@@ -23,16 +23,11 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
   """PasitDisplay for Android devices."""
 
   def get_display_count(self) -> int:
-    try:
-      dut_displays = (
-          self.controller.adb.shell('ls -1d /sys/class/drm/card?-*')
-          .decode('utf-8')
-          .splitlines()
-      )
-    except android_device.adb.AdbError:
-      # The command fails when grep returns empty. Catch the error and return
-      # 0.
-      return 0
+    dut_displays = (
+        self.controller.adb.shell('ls -1d /sys/class/drm/card?-*')
+        .decode('utf-8')
+        .splitlines()
+    )
     display_count = 0
     for display in dut_displays:
       display = display.strip()
@@ -44,3 +39,20 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
       if status == 'connected':
         display_count += 1
     return display_count
+
+  def get_display_ids(self) -> list[str]:
+    """Returns the display IDs."""
+    dumpsys_display_lines = (
+        self.controller.adb.shell(['dumpsys', 'display']).decode().splitlines()
+    )
+    # example line:
+    # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0, displayGroupId 0, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS...
+    display_info_lines = [
+        line for line in dumpsys_display_lines if 'mBaseDisplayInfo' in line
+    ]
+    display_ids = []
+    for line in display_info_lines:
+      match = re.search(r'displayId (\d+)', line)
+      if match:
+        display_ids.append(match.group(1))
+    return display_ids

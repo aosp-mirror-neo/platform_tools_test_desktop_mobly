@@ -15,6 +15,9 @@
 """Test that counts the number of displays on the DUT."""
 
 
+import logging
+
+from mobly import test_runner
 from pasit.display import display_base_test
 
 
@@ -24,11 +27,21 @@ class DisplayCountTest(display_base_test.DisplayBaseTest):
   def test_display_count(self):
     """Test that counts the number of displays on the DUT."""
     self._verify_display_count(1, 'before external display plug in')
+    logging.info(
+        'Display IDs before plug in: %s', self.display.get_display_ids()
+    )
     self._capture_display_images('before_plug_in')
 
     self._plug_in_external_display()
     self._verify_display_count(2, 'after external display plug in')
+    logging.info(
+        'Display IDs after plug in: %s', self.display.get_display_ids()
+    )
     self._capture_display_images('after_plug_in')
 
     self._unplug_external_display()
     self._verify_display_count(1, 'after external display unplug')
+    logging.info('Display IDs after unplug: %s', self.display.get_display_ids())
+
+if __name__ == '__main__':
+  test_runner.main()
