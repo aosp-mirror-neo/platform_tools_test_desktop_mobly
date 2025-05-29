@@ -38,11 +38,19 @@ hide the logs by default, when developing using the `-v` is recommended so you
 can see the logs as the test is running, for multiple iterations it may be
 helpful to remove the `-v` flag however.
 
+Also of note is it is prefered to skip the install step for PASIT, since we need
+to handle install of supporting APKs as part of the test for compatibility with
+all test infra, we can skip the duplicate install step performed by `atest` by
+specifying the `-tb` flags.  This will work around the fact that a freshly
+provisioned DUT may also hang at the `atest` `-i` step due to missing settings
+flags. Furthermore, for re-running a test without any changes you can drop the
+`-b` for instant test running with no build delay.
+
 ```
 # run an entire suite
-atest <PASIT suite build target name> [-v] [--iterations <num iterations] -- --config <path to your config> --testbed <name of testbed from config>
+atest <PASIT suite build target name> -tb [-v] [--iterations <num iterations] -- --config <path to your config> --testbed <name of testbed from config>
 # example
-atest DesktopPASITStorageTests --iterations 20 -- --config ~/pasit_local.yaml --testbed pasit-android-testbed
+atest DesktopPASITStorageTests -tb --iterations 20 -- --config ~/pasit_local.yaml --testbed pasit-android-testbed
 ```
 
 When running a PASIT suite you can filter by test case with the syntax
@@ -52,7 +60,7 @@ multiple classes in a single `atest` command.
 
 ```
 # example run a single test case
-atest DesktopPASITMiscTests:PassportHostTest#test_get_switches -v -- --config ~/pasit_local.yaml --testbed pasit-android-testbed
+atest DesktopPASITMiscTests:PassportHostTest#test_get_switches -tbv -- --config ~/pasit_local.yaml --testbed pasit-android-testbed
 ```
 
 ### Running the test binary directly
