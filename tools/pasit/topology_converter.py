@@ -35,10 +35,11 @@ import argparse
 import os
 import subprocess
 import sys
+
+from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
 from google.protobuf import text_format
 import yaml
-from chromiumos.test.lab.api import pasit_host_pb2
 
 
 def parse_json(json_file: str) -> pasit_host_pb2.PasitHost:
@@ -187,9 +188,12 @@ def generate_graph(input_file: str, output_file: str):
         f' [label="{device.id}\n{pasit_host_pb2.PasitHost.Device.Type.Name(device.type)}"];\n'
     )
   for connection in topology.connections:
+    port_info = ''
+    if connection.parent_port:
+      port_info = f'Port {connection.parent_port}: '
     graph_content += (
         f'    "{connection.parent_id}" -> "{connection  .child_id}"'
-        f' [label="{connection.type}"];\n'
+        f' [label="{port_info}{connection.type}"];\n'
     )
   graph_content += '}'
 
