@@ -14,10 +14,9 @@
 
 """Client for the Passport API handling the Switch Service functionality."""
 
-import grpc
-
 from chromiumos.test.lab.api.passport import switch_service_pb2
 from chromiumos.test.lab.api.passport import switch_service_pb2_grpc
+import grpc
 
 
 class PassportSwitchBaseError(Exception):
@@ -92,7 +91,7 @@ class PassportSwitchServiceClient:
           'Failed to reset all switches from Passport.'
       ) from e
 
-  def disable_switch(self, switch_id: str):
+  def disable_switch(self, switch_id: str, port_id: str = ''):
     """Disables the switch with the given ID.
 
     Args:
@@ -102,10 +101,12 @@ class PassportSwitchServiceClient:
       PassportSwitchError: If the switch state could not be set.
     """
     self.configure_switch_port(
-        switch_id, switch_service_pb2.SwitchPortState.SWITCH_PORT_DISABLED
+        switch_id,
+        switch_service_pb2.SwitchPortState.SWITCH_PORT_DISABLED,
+        port_id,
     )
 
-  def enable_switch(self, switch_id: str):
+  def enable_switch(self, switch_id: str, port_id: str = ''):
     """Enables the switch with the given ID.
 
     Args:
@@ -116,17 +117,24 @@ class PassportSwitchServiceClient:
     """
 
     self.configure_switch_port(
-        switch_id, switch_service_pb2.SwitchPortState.SWITCH_PORT_ENABLED
+        switch_id,
+        switch_service_pb2.SwitchPortState.SWITCH_PORT_ENABLED,
+        port_id,
     )
 
   def configure_switch_port(
-      self, switch_id: str, state: switch_service_pb2.SwitchPortState
+      self,
+      switch_id: str,
+      state: switch_service_pb2.SwitchPortState,
+      port_id: str
   ):
     """Configures the switch port with the given ID and state.
 
     Args:
       switch_id: The ID of the switch to configure.
       state: The state to set the switch to.
+      port_id: The optional port ID of the port to configure, for multi-port
+        switches.
 
     Raises:
       PassportSwitchError: If the switch state could not be set.
@@ -136,6 +144,8 @@ class PassportSwitchServiceClient:
         switch_id=switch_id,
         state=state,
     )
+    if port_id:
+      request.port_id = port_id
     try:
       self.stub.ConfigureSwitchPort(request)
     except grpc.RpcError as e:

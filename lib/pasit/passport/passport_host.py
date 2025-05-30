@@ -24,15 +24,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
-from mobly import logger as mobly_logger
-
 from lib.pasit.passport import passport_camera_service_client
 from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
+from mobly import logger as mobly_logger
 from utils import image
-from chromiumos.test.lab.api import pasit_host_pb2
 
 
 MOBLY_CONTROLLER_CONFIG_NAME = 'PassportHost'
@@ -321,21 +320,23 @@ class PassportHost:
         f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)}, path to'
         f' device: {device_path}',
     )
-    device_id = None
-    for device_id in device_path:
+    for connection in connections:
+      device_id = connection.parent_id
+      port_id = connection.parent_port
       if (
           self._devices[device_id].type
           == pasit_host_pb2.PasitHost.Device.Type.SWITCH_FIXTURE
       ):
         self.log.debug(
-            'Setting switch %s to %s',
+            'Setting switch %s %sto %s',
             device_id,
+            f'port {port_id} ' if port_id else '',
             'enabled' if enable else 'disabled',
         )
         if enable:
-          self._switch_client.enable_switch(device_id)
+          self._switch_client.enable_switch(device_id, port_id)
         else:
-          self._switch_client.disable_switch(device_id)
+          self._switch_client.disable_switch(device_id, port_id)
       elif (
           self._devices[device_id].type
           == pasit_host_pb2.PasitHost.Device.Type.IP_POWER
