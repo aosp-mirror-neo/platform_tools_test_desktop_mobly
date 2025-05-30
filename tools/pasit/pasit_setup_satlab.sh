@@ -50,6 +50,8 @@ function usage() {
   echo "  -m|--minutes: The number of minutes to lease the DUT for."
   echo "  -c|--config-generate: Generate the config yaml file for the DUT using"
   echo "                  data from shivas pasit topology."
+  echo "  --skip-lease: Skip leasing the DUT."
+  echo "  --skip-servo-setup: Skip setting up servod container."
   echo ""
   echo "Example:"
   echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
@@ -65,7 +67,7 @@ function run_command_on_satlab() {
 }
 
 function setup_tunnel() {
-  TUNNEL_PGREP="ssh -fNT -L.*satlab-" # dut hostname will usually start with 'satlab-'
+  TUNNEL_PGREP="ssh -fNT -L.*"
   echo "Killing existing tunnels to satlab-*..."
   pgrep -f "${TUNNEL_PGREP}" | xargs kill -9 > /dev/null 2>&1
   # background tunnel to the DUT
@@ -89,9 +91,14 @@ function setup_tunnel() {
 }
 
 function start_passport() {
+  echo -e "\n\nStarting passport container..."
   # don't use the run_command_on_satlab function in this function because
   # there is too much quoting going on and it will mess up the command parsing
-  local DOCKER_CMD="/usr/local/bin/docker"
+  local DOCKER_CMD="$(ssh "${SATLAB_IP}" which docker)"
+  if [[ -z "${DOCKER_CMD}" ]]; then
+    DOCKER_CMD="/usr/local/bin/docker"
+    echo -e "defaulting to satlab docker path ${DOCKER_CMD}"
+  fi
   # stop any existing passport container
   ssh "${SATLAB_IP}" "${DOCKER_CMD}" rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
   # login to docker registry
@@ -230,6 +237,27 @@ function generate_config() {
   rm "${SHIVAS_JSON_FILE}"
 }
 
+function lease_dut() {
+  echo -e "\n\nChecking if DUT ${DUT_HOSTNAME} is leased..."
+  #check that DUT is leased and if not lease it
+  if ! crosfleet dut leases | grep -q "${DUT_HOSTNAME}"; then
+    if [[ "${PROVISION}" == true ]]; then
+      echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, provisioning before leasing ...\n\n"
+      crosfleet run suite \
+        -desktop \
+        -board "${BOARD}" \
+        -pool "${POOL}" \
+        -dims "dut_name:${DUT_HOSTNAME}" \
+        -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases \
+        crosfleet-placeholder
+      echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, waiting 3 minutes for provisioning to start before leasing ..."
+      sleep 180
+    fi
+    echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, leasing now..."
+    crosfleet dut lease -minutes "${DUT_LEASE_MINUTES}" -host "${DUT_HOSTNAME}"
+  fi
+}
+
 # parse the arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -256,6 +284,14 @@ while [[ $# -gt 0 ]]; do
       CONFIG_OUTPUT_FILE="$2"
       shift; shift
       ;;
+    --skip-lease)
+      SKIP_LEASE=true
+      shift
+      ;;
+    --skip-servo-setup)
+      SKIP_SETUP_SERVO=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -274,9 +310,13 @@ if [[ -z "${SATLAB_IP}" ]]; then
   exit 1
 fi
 
-crosfleet_dut_info
-
-echo "Setting up DUT board: ${BOARD}, model: ${MODEL}, pool: ${POOL}"
+if [[ "${SKIP_LEASE}" != true || "${SKIP_SETUP_SERVO}" != true || "${PROVISION}" == true ]]; then
+  # if we are not doing these steps then we can skip the crosfleet call
+  # since we won't need the DUT info for anything else this removes the need
+  # for crosfleet and shivas commands
+  crosfleet_dut_info
+  echo "Setting up DUT board: ${BOARD}, model: ${MODEL}, pool: ${POOL}"
+fi
 
 echo -e "\n\nChecking if satlab ${SATLAB_IP} is logged in..."
 # check that we can ssh to the satlab and that we are logged in
@@ -291,28 +331,15 @@ if [[ "${WHOAMI}" =~ "Not logged in." ]]; then
   fi
 fi
 
-echo -e "\n\nChecking if DUT ${DUT_HOSTNAME} is leased..."
-# check that DUT is leased and if not lease it
-if ! crosfleet dut leases | grep -q "${DUT_HOSTNAME}"; then
-  if [[ "${PROVISION}" == true ]]; then
-    echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, provisioning before leasing ...\n\n"
-    crosfleet run suite \
-      -desktop \
-      -board "${BOARD}" \
-      -pool "${POOL}" \
-      -dims "dut_name:${DUT_HOSTNAME}" \
-      -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases \
-      crosfleet-placeholder
-    echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, waiting 3 minutes for provisioning to start before leasing ..."
-    sleep 180
-  fi
-  echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, leasing now..."
-  crosfleet dut lease -minutes "${DUT_LEASE_MINUTES}" -host "${DUT_HOSTNAME}"
-fi
 
+if [[ "${SKIP_LEASE}" != true ]]; then
+  lease_dut
+fi
 generate_config
 start_passport
-setup_servo
+if [[ "${SKIP_SETUP_SERVO}" != true ]]; then
+  setup_servo
+fi
 setup_tunnel
 adb_connect_and_dut_info
 
