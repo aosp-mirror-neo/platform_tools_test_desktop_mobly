@@ -5,3 +5,6 @@ TestBeds:
         - service_host: "localhost"
           service_port: 8300
     AndroidDevice: '*'
+  TestParams:
+    servo_host: "localhost"
+    servo_port: 9999
