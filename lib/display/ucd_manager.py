@@ -76,15 +76,70 @@ class UcdManager:
     if not self._vsc.set_role_for_video_tester(self.EXPECTED_SUPPORTED_ROLE):
       raise PassportBaseError("Failed to set role for video tester.")
 
-  def create_and_plug_new_displays(
+  def set_total_displays_count(
+      self,
+      total_display_count: int,
+      displays_edids: list[edid_datum.EdidDatum] =UCD_DEFAULT_EDIDS,
+  ):
+    """Sets the total number of displays to be simulated by the UCD and plugs them into the DUT.
+
+    This function configures the UCD to simulate a specific number of displays
+    and plugs them into the DUT. It does not wait for the displays to be
+    detected or turned on.
+
+    Args:
+      total_display_count: The total number of displays to simulate.
+      displays_edids: A list of EDIDs for each display.
+
+    Raises:
+      PassportBaseError: If the number of EDIDs does not match the number of
+      displays, or if the number of requested displays is greater than the
+      maximum supported.
+    """
+    self._vsc.perform_attach_operation(False)
+
+    if (len(displays_edids) < total_display_count):
+      raise PassportBaseError(
+          f"The number of provided EDIDs {len(displays_edids)} is less than "
+          f"the number of requested displays {total_display_count}."
+      )
+
+    if total_display_count > self.MAX_SUPPORTED_DISPLAY_COUNT:
+      raise PassportBaseError(
+          f"The number of requested displays {total_display_count} is greater "
+          "than the maximum supported (4)."
+      )
+
+    enable_mst = bool(total_display_count > 1)
+    if not self._vsc.set_dp_link_capabilities(
+        mst=enable_mst,
+        ss_sbm=enable_mst,
+        mst_sink_count=total_display_count
+    ):
+      raise PassportBaseError("Failed to set DP link capabilities.")
+
+    for i in range(total_display_count):
+      if not self._vsc.load_edid_at_stream(
+          edid=displays_edids[i].to_bytes(), id_stream=i
+      ):
+        raise PassportBaseError(
+            "Failed to load EDID at stream %d" % i
+        )
+
+    if not self._vsc.perform_attach_operation(True):
+      raise PassportBaseError("Failed to attach to the DUT.")
+
+  def plug_additional_displays_to_active_displays(
       self,
       additional_display_count: int,
       displays_edids: list[edid_datum.EdidDatum] | None = None,
   ):
     """Configures new displays simulated through UCD, then plugs them into the DUT by sending an HPD pulse.
 
-    It adds the number of displays to the total number of displays already
-    connected to the DUT.
+    This function adds a specified number of displays to the existing
+    configuration, which means that it appends new displays to the current
+    active displays. It then plugs them into the DUT and waits for them to be
+    detected and turned on.
 
     If `displays_edids` is provided, it will be used to configure the new
     displays. Otherwise, the default EDIDs will be used.
@@ -93,12 +148,13 @@ class UcdManager:
     provided EDIDs.
 
     Args:
-      additional_display_count: The number of displays to initialize.
+      additional_display_count: The number of displays to add.
       displays_edids: A list of EDIDs for each display.
 
     Raises:
       PassportBaseError: If the number of EDIDs does not match the number of
-      displays.
+      displays, or if the number of requested displays is greater than the
+      maximum supported.
     """
     if (
         displays_edids is not None
@@ -113,12 +169,10 @@ class UcdManager:
     total_expected_display_count = (
         current_connected_displays_count + additional_display_count
     )
-    logging.info(
-        "Total expected display count: %d", total_expected_display_count
-    )
     if total_expected_display_count > self.MAX_SUPPORTED_DISPLAY_COUNT:
       raise PassportBaseError(
-          "The number of displays is greater than the maximum supported (4)."
+          f"The number of requested displays {total_expected_display_count} is "
+          "greater than the maximum supported (4)."
       )
 
     # If no EDIDs are provided, use the default EDIDs, starting from after the
