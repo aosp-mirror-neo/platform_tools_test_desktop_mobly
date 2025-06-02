@@ -35,10 +35,13 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
   """
   ucd_manager: ucd_manager.UcdManager
 
+  # As of now, the max number of connected displays that can be supported is 2.
+  _MAX_CURRENT_AL_SUPPORTED_CONNECTED_DISPLAYS = 2
+
   def pre_run(self):
     displays_range_arg_sets = [
         (i,)
-        for i in range(1, ucd_manager.UcdManager.MAX_SUPPORTED_DISPLAY_COUNT)
+        for i in range(1, self._MAX_CURRENT_AL_SUPPORTED_CONNECTED_DISPLAYS + 1)
     ]
 
     self.generate_tests(
