@@ -14,14 +14,15 @@
 
 """Run VESA compliance tests using UCD."""
 
+from display.utils import interface_types
+from display.utils import ucd_compliance_tests_lists
+from display.utils import ucd_manager
+from lib.pasit import pasit_test
+
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
-from display.utils import ucd_compliance_tests_lists
-from display.utils import ucd_manager
-from lib.pasit import pasit_test
 
 
 class ComplianceTest(pasit_test.PasitTestClass):
@@ -33,8 +34,13 @@ class ComplianceTest(pasit_test.PasitTestClass):
   def setup_class(self):
     super().setup_class()
     self.video_tester_client = self.passport_host.video_tester_client
-    self.ucd_manager = ucd_manager.UcdManager(self.video_tester_client)
-    self.ucd_manager.connect_to_ucd()
+    self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
+        self.video_tester_client
+    )
+    asserts.skip_if(
+        self.ucd_manager.interface_type != interface_types.InterfaceType.DP,
+        "This test is only applicable to DP displays.",
+    )
     self.ucd_manager.reset_ucd_displays_state_to_default()
 
   def teardown_class(self):

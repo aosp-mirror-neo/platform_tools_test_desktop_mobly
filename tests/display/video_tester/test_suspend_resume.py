@@ -102,10 +102,9 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
     asserts.assert_true(
         self.dut.is_servo_configured(), "Servo is not configured.")
     self.video_tester_client = self.passport_host.video_tester_client
-    self.ucd_manager = ucd_manager.UcdManager(
+    self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.video_tester_client
     )
-    self.ucd_manager.connect_to_ucd()
     self.ucd_manager.reset_ucd_displays_state_to_default()
 
   def teardown_test(self):
@@ -249,7 +248,7 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
 
   def _check_for_displays_on(self, display_count: int, suspend_time: float):
     asserts.assert_true(
-        self.ucd_manager.are_all_screens_on_aux_channel(display_count),
+        self.ucd_manager.are_displays_reporting_stream_info(display_count),
         f"External displays are not active for {display_count} displays.",
     )
     asserts.assert_true(

@@ -14,20 +14,14 @@
 
 """A module for building and representing EDID configurations."""
 
-import enum
-
-
-class InterfaceType(enum.Enum):
-  """Specifies the display interface type."""
-  DP = 'DisplayPort'
-  HDMI = 'HDMI'
+from display.utils import interface_types
 
 
 class EdidDatum:
   """Represents an EDID configuration for a display."""
 
   name: str
-  interface_type: InterfaceType
+  interface_type: interface_types.InterfaceType
   edid_hex_string: str
   is_4k: bool
   is_hdr: bool
@@ -35,7 +29,7 @@ class EdidDatum:
 
   def __init__(
       self,
-      interface_type: InterfaceType,
+      interface_type: interface_types.InterfaceType,
       edid_hex_string: str,
       is_4k: bool = False,
       is_hdr: bool = False,

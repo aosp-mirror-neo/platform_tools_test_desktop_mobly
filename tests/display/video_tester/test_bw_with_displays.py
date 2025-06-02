@@ -14,6 +14,7 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
+from display.utils import interface_types
 from display.utils import ucd_manager
 from lib.pasit import pasit_test
 from lib.pasit.passport import passport_host
@@ -65,10 +66,9 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
   def setup_class(self):
     super().setup_class()
     self.video_tester_client = self.passport_host.video_tester_client
-    self.ucd_manager = ucd_manager.UcdManager(
+    self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.video_tester_client
     )
-    self.ucd_manager.connect_to_ucd()
     self.ucd_manager.reset_ucd_displays_state_to_default()
 
   def teardown_class(self):
@@ -100,11 +100,19 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
         max_display_count: The maximum number of displays to test up to.
     """
 
+    asserts.skip_if(
+        max_display_count > self.ucd_manager.max_supported_displays,
+        f"Testing a larger number of displays than the maximum supported."
+        f" {self.ucd_manager.max_supported_displays}."
+    )
+
     for i in range(max_display_count):
       display_count_to_test = i + 1
-      self.ucd_manager.create_and_plug_new_displays(additional_display_count=1)
+      self.ucd_manager.plug_additional_displays_to_active_displays(
+          additional_display_count=1
+      )
       asserts.assert_true(
-          self.ucd_manager.are_all_screens_on_aux_channel(
+          self.ucd_manager.are_displays_reporting_stream_info(
               display_count_to_test
           ),
           "External displays are not active for"
@@ -123,11 +131,20 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
     Args:
         max_display_count: The maximum number of displays to test up to.
     """
-    self.ucd_manager.create_and_plug_new_displays(max_display_count)
+
+    asserts.skip_if(
+        max_display_count > self.ucd_manager.max_supported_displays,
+        f"Testing a larger number of displays than the maximum supported."
+        f" {self.ucd_manager.max_supported_displays}."
+    )
+
+    self.ucd_manager.plug_additional_displays_to_active_displays(
+        max_display_count
+    )
     for i in range(max_display_count, 0, -1):
       # Verify that all displays are active
       asserts.assert_true(
-          self.ucd_manager.are_all_screens_on_aux_channel(i),
+          self.ucd_manager.are_displays_reporting_stream_info(i),
           f"External displays are not active for {i} displays.",
       )
       self._check_screenshots_for_displays(i)
@@ -136,6 +153,10 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
 
   def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
     """Tests the system's ability to toggle MST and SBM."""
+    asserts.skip_if(
+        self.ucd_manager.interface_type != interface_types.InterfaceType.DP,
+        "This test is only applicable to DP displays.",
+    )
     if not self.video_tester_client.set_dp_link_capabilities(
         mst=is_mst,
         ss_sbm=is_sbm,
@@ -146,7 +167,7 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
       raise PassportBaseError("Failed to attach to the DUT.")
 
     asserts.assert_true(
-        self.ucd_manager.are_all_screens_on_aux_channel(1),
+        self.ucd_manager.are_displays_reporting_stream_info(1),
         f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
     )
     self._check_screenshots_for_displays(1)

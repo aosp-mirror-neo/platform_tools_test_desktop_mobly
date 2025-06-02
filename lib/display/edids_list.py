@@ -15,13 +15,14 @@
 """This module stores the EDID information for different displays."""
 
 from display.utils import edid_datum
+from display.utils import interface_types
 
-InterfaceType = edid_datum.InterfaceType
+
 EdidDatum = edid_datum.EdidDatum
 
 UCD_500_DP1 = EdidDatum(
     is_4k=True,
-    interface_type=InterfaceType.DP,
+    interface_type=interface_types.InterfaceType.DP,
     edid_hex_string="""
 00ffffffffffff0054c73640eca23b00
 34180104e53d23783a5fb1a2574fa228
@@ -51,7 +52,7 @@ e70007002a001293ff099f058f93ff0e
 
 UCD_500_DP2 = EdidDatum(
     is_4k=True,
-    interface_type=InterfaceType.DP,
+    interface_type=interface_types.InterfaceType.DP,
     edid_hex_string="""
 00ffffffffffff0054c73640eca23b00
 34180104e53d23783a5fb1a2574fa228
@@ -82,7 +83,7 @@ e70007002a001293ff099f058f93ff0e
 
 UCD_500_DP3 = EdidDatum(
     is_4k=True,
-    interface_type=InterfaceType.DP,
+    interface_type=interface_types.InterfaceType.DP,
     edid_hex_string="""
 00ffffffffffff0054c73640eca23b00
 34180104e53d23783a5fb1a2574fa228
@@ -113,7 +114,7 @@ e70007002a001293ff099f058f93ff0e
 
 UCD_500_DP4 = EdidDatum(
     is_4k=True,
-    interface_type=InterfaceType.DP,
+    interface_type=interface_types.InterfaceType.DP,
     edid_hex_string="""
 00ffffffffffff0054c73640eca23b00
 34180104e53d23783a5fb1a2574fa228
@@ -141,3 +142,27 @@ e70007002a001293ff099f058f93ff0e
 00000000000000000000000000002390
     """
 )
+
+HP_Spectre32_4K_HDMI = EdidDatum(
+    is_4k=True,
+    interface_type=interface_types.InterfaceType.HDMI,
+    edid_hex_string="""
+00ffffffffffff0022f01c3201010101
+04190103804728782a87d5a8554d9f25
+0e5054210800d1c0a9c081c0d100b300
+9500a94081804dd000a0f0703e803020
+3500c48f2100001a000000fd00183c1b
+873c000a202020202020000000fc0048
+702053706563747265203332000000ff
+00434e43393430303030310a202001fb
+02033df15361605f5d101f0413031202
+11010514070616152309070783010000
+6c030c001000383c200040010367d85d
+c401788000e40f030000e2002b047400
+30f2705a80b0588a00c48f2100001a56
+5e00a0a0a0295030203500c48f210000
+1eef5100a0f070198030203500c48f21
+00001e000000000000000000000000a8
+    """
+)
+
