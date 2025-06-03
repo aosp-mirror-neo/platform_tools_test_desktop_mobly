@@ -157,7 +157,7 @@ class PassportHost:
     if service_host is not None and service_port is not None:
       # If the passport host and port are set, override the hostname in the
       # passport device.
-      self.log.info(
+      self.log.debug(
           'Overriding hostname "%s" with switch host and port: %s:%s',
           self.topology.hostname,
           service_host,
@@ -165,7 +165,7 @@ class PassportHost:
       )
       self.topology.hostname = f'{service_host}:{service_port}'  # pylint: disable=bad-whitespace
 
-    self.log.info('PassportHost topology: %s' % self.topology)
+    self.log.debug('PassportHost topology: %s' % self.topology)
     self._connect_to_service()
     self._parse_topology()
     self._validate_topology_switches()

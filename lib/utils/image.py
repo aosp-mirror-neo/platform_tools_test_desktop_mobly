@@ -1,4 +1,20 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utility functions for working with images."""
+
+import enum
 
 
 class Color:
@@ -11,7 +27,7 @@ class Color:
     a: The alpha component of the color.
   """
 
-  def __init__(self, r: int, g: int, b: int, a: int):
+  def __init__(self, r: int, g: int, b: int, a: int = 255):
     self.r = r
     self.g = g
     self.b = b
@@ -25,8 +41,24 @@ class Color:
         and self.a == other.a
     )
 
+  def __str__(self):
+    return f'RGBA({self.r},{self.g},{self.b},{self.a})'
+
   def __repr__(self):
-    return f'Color(r={self.r}, g={self.g}, b={self.b}, a={self.a})'
+    """Returns the color as a string in the format AARRGGBB."""
+    return f'{self.a:02X}{self.r:02X}{self.g:02X}{self.b:02X}'
+
+
+class NamedColor(enum.Enum):
+  """Predefined colors of Color type.
+
+  Usage:
+    NamedColor.RED.value
+  """
+
+  RED = Color(255, 0, 0, 255)
+  GREEN = Color(0, 255, 0, 255)
+  BLUE = Color(0, 0, 255, 255)
 
 
 class HSV:
