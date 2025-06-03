@@ -17,8 +17,8 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
 from pasit.display import display_count_test
+from pasit.display import plug_unplug_external_display
 
 
 class PasitDisplaySuite(base_suite.BaseSuite):
@@ -26,6 +26,9 @@ class PasitDisplaySuite(base_suite.BaseSuite):
 
   def setup_suite(self, config: config_parser.TestRunConfig):
     self.add_test_class(display_count_test.DisplayCountTest)
+    self.add_test_class(
+        plug_unplug_external_display.PlugUnplugExternalDisplayTest
+    )
 
 
 def main() -> None:
