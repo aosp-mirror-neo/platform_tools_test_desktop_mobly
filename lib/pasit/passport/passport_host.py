@@ -517,6 +517,45 @@ class PassportHost:
       self._save_image(resp.frame, log_dir, image_name_prefix)
     return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
 
+  def analyze_hsv(
+      self,
+      camera_id: str,
+      masks: dict[str, image.HSVMask],
+      log_dir: str = '',
+      image_name_prefix: str = '',
+  ) -> dict[str, float]:
+    """Captures an image from the specified camera and performs HSV analysis.
+
+
+    Image is saved to the logsdirectory with the given prefix and a timestamp.
+    HSV analysis is performed on the image and the percentage of pixels that
+    fall within the specified HSV value range is returned for each mask.
+
+    Args:
+      camera_id: The unique ID of the camera to capture an image and
+        GetAveragePixel.
+      masks: A dictionary of mask names to HSVMasks to compare against.
+      log_dir: The directory to save the image to, should be the mobly log
+        directory or a subdirectory of it.  Must be specified if
+        image_name_prefix is specified.
+      image_name_prefix: The prefix of the image name to use for the image. if
+        empty no image file will be saved, if specified, the image will be saved
+        to logs directory with the given prefix and a timestamp.
+
+    Returns:
+      The HSV analysis results for each mask, which is a percentage value
+      between 0 and 100 for the percentage of pixels that fall within the
+      specified HSV value range.
+    """
+    self._ensure_passport_connected()
+    resp = self._camera_client.analyze_hsv(camera_id, masks)
+    if image_name_prefix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_prefix)
+    ret = {}
+    for name, percentage in resp.percentage_matched.items():
+      ret[name] = percentage
+    return ret
+
   def _save_image(
       self, image_bytes: bytes, log_dir: str, image_name_prefix: str
   ) -> None:
