@@ -1,9 +1,9 @@
 """Client for the Passport API handling the Camera Service functionality."""
 
-import grpc
-
 from chromiumos.test.lab.api.passport import camera_service_pb2
 from chromiumos.test.lab.api.passport import camera_service_pb2_grpc
+import grpc
+from utils import image
 
 
 class PassportCameraBaseError(Exception):
@@ -12,6 +12,21 @@ class PassportCameraBaseError(Exception):
 
 class PassportCameraClientError(PassportCameraBaseError):
   """Camera service RPC error for non-state-modifying requests."""
+
+
+def _hsv_to_proto(hsv: image.HSV) -> camera_service_pb2.HSV:
+  """Converts an HSV object to a proto HSV object.
+
+  Args:
+    hsv: The HSV object to convert.
+  Returns:
+    The proto HSV object.
+  """
+  return camera_service_pb2.HSV(
+      hue=hsv.hue,
+      saturation=hsv.saturation,
+      value=hsv.value
+  )
 
 
 class PassportCameraServiceClient:
@@ -72,4 +87,35 @@ class PassportCameraServiceClient:
     except grpc.RpcError as e:
       raise PassportCameraClientError(
           f'Failed to get average pixel from Passport for camera {camera_id}.'
+      ) from e
+
+  def analyze_hsv(
+      self, camera_id: str, masks:dict[str, image.HSVMask]
+  ) -> camera_service_pb2.AnalyzeHSVResponse:
+    """Performs HSV analysis on the specified camera.
+
+    Args:
+      camera_id: The unique ID of the camera to perform HSV analysis on.
+      masks: A dictionary of mask names to HSVMasks to compare against.
+    Returns:
+      The AnalyzeHSVResponse from the Passport server with the HSV analysis
+      results for each mask.
+    Raises:
+      PassportCameraClientError: If the RPC fails.
+    """
+    request_masks = {}
+    for name, mask in masks.items():
+      request_masks[name] = camera_service_pb2.HSVMask(
+          min=_hsv_to_proto(mask.min),
+          max=_hsv_to_proto(mask.max),
+      )
+    try:
+      request = camera_service_pb2.AnalyzeHSVRequest(
+          device_id=camera_id,
+          masks=request_masks,
+      )
+      return self.stub.AnalyzeImageHSV(request)
+    except grpc.RpcError as e:
+      raise PassportCameraClientError(
+          f'Failed to analyze HSV for camera {camera_id}.'
       ) from e
