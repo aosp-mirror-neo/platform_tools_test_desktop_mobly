@@ -21,14 +21,14 @@ import sys
 import time
 
 from lib.pasit.base import base_pasit_device
+from lib.utils import image
+from lib.utils import retry
 from mobly import signals
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
 from mobly.controllers.android_device_lib import snippet_client_v2
 from snippet_uiautomator import uiautomator
-from utils import image
-from utils import retry
 
 _DUT_TMP_DIR = '/data/local/tmp/'
 

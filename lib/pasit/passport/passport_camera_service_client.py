@@ -3,7 +3,7 @@
 from chromiumos.test.lab.api.passport import camera_service_pb2
 from chromiumos.test.lab.api.passport import camera_service_pb2_grpc
 import grpc
-from utils import image
+from lib.utils import image
 
 
 class PassportCameraBaseError(Exception):

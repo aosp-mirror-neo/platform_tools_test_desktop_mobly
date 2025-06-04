@@ -22,7 +22,7 @@ python_library_host {
         "*.py",
     ],
     exclude_srcs: ["*_test.py"],
-    pkg_path: "utils",
+    pkg_path: "lib/utils",
 }
 
 python_test_host {

@@ -18,9 +18,8 @@ import logging
 
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from chromiumos.test.lab.api.passport import video_tester_service_pb2_grpc
-
 import grpc
-from utils import retry
+from lib.utils import retry
 
 
 class PassportVideoServiceClient:

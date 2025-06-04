@@ -19,11 +19,11 @@ from typing import Optional
 
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.utils import image
+from lib.utils import retry
 from mobly import asserts
 from mobly import records
 from mobly import signals
-from utils import image
-from utils import retry
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):

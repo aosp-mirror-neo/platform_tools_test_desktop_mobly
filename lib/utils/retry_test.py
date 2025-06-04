@@ -14,8 +14,9 @@
 
 """Unit tests for retry.py."""
 
-from utils import retry
 import unittest
+
+from lib.utils import retry
 
 
 def _throw_or_return_value(exception_type, return_value: int = 0) -> int:

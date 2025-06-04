@@ -16,9 +16,9 @@
 
 import logging
 
+from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
-from utils import image
 
 
 class PlugUnplugExternalDisplayTest(display_base_test.DisplayBaseTest):

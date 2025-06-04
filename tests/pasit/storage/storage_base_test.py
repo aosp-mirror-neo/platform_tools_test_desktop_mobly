@@ -20,12 +20,11 @@ import random
 import string
 import tempfile
 
-from mobly import asserts
-
 from lib.pasit import pasit_file
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
-from utils import retry
+from lib.utils import retry
+from mobly import asserts
 
 
 _DUT_TMP_DIR = '/data/local/tmp/'

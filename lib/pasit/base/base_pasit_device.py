@@ -20,7 +20,7 @@ import logging
 from typing import Any
 
 from lib.pasit.base import servo_client
-from utils import image
+from lib.utils import image
 
 
 class ShellError(Exception):

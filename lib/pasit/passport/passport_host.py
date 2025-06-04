@@ -30,8 +30,8 @@ from lib.pasit.passport import passport_camera_service_client
 from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
+from lib.utils import image
 from mobly import logger as mobly_logger
-from utils import image
 
 
 MOBLY_CONTROLLER_CONFIG_NAME = 'PassportHost'
@@ -525,7 +525,6 @@ class PassportHost:
       image_name_prefix: str = '',
   ) -> dict[str, float]:
     """Captures an image from the specified camera and performs HSV analysis.
-
 
     Image is saved to the logsdirectory with the given prefix and a timestamp.
     HSV analysis is performed on the image and the percentage of pixels that
