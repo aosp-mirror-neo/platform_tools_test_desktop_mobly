@@ -14,7 +14,10 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
+import logging
+
 from display.utils import interface_types
+from display.utils import modetest_helper
 from display.utils import ucd_manager
 from lib.pasit import pasit_test
 from lib.pasit.passport import passport_host
@@ -36,14 +39,19 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
   """
   ucd_manager: ucd_manager.UcdManager
 
-  # As of now, the max number of connected displays that can be supported is 2.
-  _MAX_CURRENT_AL_SUPPORTED_CONNECTED_DISPLAYS = 2
+  _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4
 
   def pre_run(self):
     displays_range_arg_sets = [
         (i,)
-        for i in range(1, self._MAX_CURRENT_AL_SUPPORTED_CONNECTED_DISPLAYS + 1)
+        for i in range(1, self._UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS + 1)
     ]
+
+    self.generate_tests(
+        test_logic=self.plug_n_at_once,
+        name_func=self.generate_test_name_plug_n_at_once,
+        arg_sets=displays_range_arg_sets,
+    )
 
     self.generate_tests(
         test_logic=self.increment_displays,
@@ -65,14 +73,28 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
 
   def setup_class(self):
     super().setup_class()
+
     self.video_tester_client = self.passport_host.video_tester_client
     self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.video_tester_client
     )
     self.ucd_manager.reset_ucd_displays_state_to_default()
 
+    max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
+    theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
+    self.max_tested_displays = min(
+        self.ucd_manager.max_supported_displays, theoritical_max_connected_displays
+    )
+    logging.info(f"max_tested_displays: {self.max_tested_displays}")
+    asserts.assert_greater(
+        self.max_tested_displays, 0,
+        "No displays are supported by the system.",
+    )
+
   def teardown_class(self):
+    self.ucd_manager.reset_ucd_displays_state_to_default()
     self.ucd_manager.disconnect_ucd()
+    self.dut.reboot()
 
   def teardown_test(self):
     self.ucd_manager.reset_ucd_displays_state_to_default()
@@ -85,11 +107,15 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
     """Generates the test name for decrementing displays to a specific count."""
     return f"test_decrement_displays_from_{display_count}_displays"
 
+  def generate_test_name_plug_n_at_once(self, display_count: int) -> str:
+    """Generates the test name for plugging in and out displays at once."""
+    return f"test_plug_{display_count}_displays_at_once"
+
   def generate_test_name_toggle_mst_sbm(self, is_mst: bool, is_sbm: bool) -> str:
     """Generates the test name for toggling MST and SBM."""
     return f"test_toggle_mst_{is_mst}_sbm_{is_sbm}"
 
-  def increment_displays(self, max_display_count: int):
+  def increment_displays(self, display_count: int):
     """Tests the system's ability to handle an increasing number of displays.
 
     This test gradually increases the number of attached displays by one,
@@ -100,27 +126,16 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
         max_display_count: The maximum number of displays to test up to.
     """
 
-    asserts.skip_if(
-        max_display_count > self.ucd_manager.max_supported_displays,
-        f"Testing a larger number of displays than the maximum supported."
-        f" {self.ucd_manager.max_supported_displays}."
-    )
+    asserts.skip_if(display_count > self.max_tested_displays, f"{display_count} is greater than the maximum supported {self.max_tested_displays}.")
 
-    for i in range(max_display_count):
+    for i in range(display_count):
       display_count_to_test = i + 1
       self.ucd_manager.plug_additional_displays_to_active_displays(
           additional_display_count=1
       )
-      asserts.assert_true(
-          self.ucd_manager.are_displays_reporting_stream_info(
-              display_count_to_test
-          ),
-          "External displays are not active for"
-          f" {display_count_to_test} displays.",
-      )
       self._check_screenshots_for_displays(display_count_to_test)
 
-  def decrement_displays(self, max_display_count: int):
+  def decrement_displays(self, display_count: int):
     """Tests the system's ability to handle a decreasing number of displays.
 
     This test starts with the maximum number of supported displays, then
@@ -131,25 +146,27 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
     Args:
         max_display_count: The maximum number of displays to test up to.
     """
-
-    asserts.skip_if(
-        max_display_count > self.ucd_manager.max_supported_displays,
-        f"Testing a larger number of displays than the maximum supported."
-        f" {self.ucd_manager.max_supported_displays}."
-    )
+    asserts.skip_if(display_count > self.max_tested_displays, f"{display_count} is greater than the maximum supported {self.max_tested_displays}.")
 
     self.ucd_manager.plug_additional_displays_to_active_displays(
-        max_display_count
+        display_count
     )
-    for i in range(max_display_count, 0, -1):
-      # Verify that all displays are active
-      asserts.assert_true(
-          self.ucd_manager.are_displays_reporting_stream_info(i),
-          f"External displays are not active for {i} displays.",
-      )
+
+    for i in range(display_count, 0, -1):
       self._check_screenshots_for_displays(i)
 
       self.ucd_manager.destroy_the_most_recently_attached_display()
+
+  def plug_n_at_once(self, display_count: int):
+    """Tests the system's ability to plug in and out displays at once."""
+
+    asserts.skip_if(display_count > self.max_tested_displays, f"{display_count} is greater than the maximum supported {self.max_tested_displays}.")
+
+    self.ucd_manager.plug_additional_displays_to_active_displays(
+        additional_display_count=display_count)
+    self._check_screenshots_for_displays(display_count)
+
+    self.ucd_manager.unplug_and_destroy_all_displays()
 
   def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
     """Tests the system's ability to toggle MST and SBM."""
@@ -182,12 +199,13 @@ class BwWithDisplaysTest(pasit_test.PasitTestClass):
         display_count: The number of displays to check.
     """
     for i in range(display_count):
-      print(f"Checking screenshot for display {i}")
+      logging.debug(f"Checking screenshot for display {i}")
       screenshot = self.ucd_manager.get_screenshot_display(i)
       asserts.assert_true(
           self.ucd_manager.is_image_not_black(screenshot),
           f"Screenshot for display {i} is black.",
       )
+      logging.info(f"Screenshot for display {i} is not black.")
 
 
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):

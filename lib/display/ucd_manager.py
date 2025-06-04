@@ -220,7 +220,7 @@ class UcdManager(abc.ABC):
       if not self._vsc.send_hpd_pulse():
         raise PassportBaseError("Failed to send HPD pulse.")
     else:
-      logging.info("Attaching to the DUT.")
+      logging.info(f"Attaching {total_expected_display_count} displays to the DUT.")
       if not self._vsc.perform_attach_operation(True):
         raise PassportBaseError("Failed to attach to the DUT.")
 
@@ -232,13 +232,13 @@ class UcdManager(abc.ABC):
   def are_displays_reporting_stream_info(
       self, expected_total_display_count: int
   ) -> bool:
-    """Waits for all the displays to turn on, checking the aux channel info.
+    """Waits for the exact number of expected displays to turn on, checking the aux channel info.
 
     Args:
-      expected_total_display_count: The number of displays to wait for.
+      expected_total_display_count: The exact number of displays to wait for.
 
     Returns:
-      True if all the displays turned on before the timeout.
+      True if the exact number of displays turned on before the timeout.
       The information is retrieved from the aux channel.
     """
     timeout_sec = 20
@@ -261,11 +261,12 @@ class UcdManager(abc.ABC):
         continue
 
       logging.info(
-          "All screens are on after %d seconds.", time.time() - start_time
+          f"{expected_total_display_count} displays are reported after "
+           f"{time.time() - start_time:.1f}s."
       )
       return True
 
-    logging.info("Timeout waiting for screens to turn on.")
+    logging.info(f"Timeout waiting for {expected_total_display_count} displays to report stream info.")
     return False
 
   def get_screenshot_display(self, display_idx: int) -> bytes:
@@ -328,15 +329,24 @@ class UcdManager(abc.ABC):
       if not self._vsc.perform_attach_operation(False):
         raise PassportBaseError("Failed to detach from the DUT.")
 
+    if not self.are_displays_reporting_stream_info(total_expected_display_count):
+      raise PassportBaseError(f"Failed to destroy the most recently attached display. "
+          f"Expected {total_expected_display_count} displays to be active."
+      )
+
   def unplug_and_destroy_all_displays(self):
     """Unplug all the displays and destroy them."""
     self._set_display_caps(is_mst=False, displays_to_set=0)
     if not self._vsc.perform_attach_operation(False):
       raise PassportBaseError("Failed to detach from the DUT.")
+    # It takes a while for the displays to deactivate, so we need to wait.
+    if not self.are_displays_reporting_stream_info(0):
+      raise PassportBaseError("Monitors are not deactivating.")
 
   def reset_ucd_displays_state_to_default(self):
     """Resets the displays state."""
     # At reset, bring back the old EDIDs as UCD doesn't reset them
+    logging.info("Resetting UCD displays state to default.")
     for i in range(self.max_supported_displays):
       self._set_edid(self._get_default_edids()[i], i)
 
