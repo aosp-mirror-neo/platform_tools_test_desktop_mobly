@@ -15,6 +15,7 @@
 """Base test for PASIT display tests."""
 
 import logging
+from typing import Optional
 
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
@@ -28,13 +29,32 @@ from utils import retry
 class DisplayBaseTest(pasit_test.PasitTestClass):
   """Base test for PASIT display tests."""
 
+  HSV_MASKS_PASIT = {
+    image.NamedColor.RED.name: image.HSVMask(
+        image.HSV(h=330, s=0.5, v=0.55),
+        image.HSV(h=20, s=1.0, v=1.0),
+    ),
+    image.NamedColor.GREEN.name: image.HSVMask(
+        image.HSV(h=95, s=0.5, v=0.55),
+        image.HSV(h=165, s=1.0, v=1.0),
+    ),
+    image.NamedColor.BLUE.name: image.HSVMask(
+        image.HSV(h=220, s=0.5, v=0.55),
+        image.HSV(h=260, s=1.0, v=1.0),
+    ),
+  }
+
+  # The minimum percentage of pixels that must match for a color to be
+  # considered a match, we set this to a low value because glare on the display
+  # can cause a lot of pixels to be washed out and close to white rather than
+  # the expected color.
+  MATCH_PERCENTAGE_THRESHOLD = 40.0
+
   _COLORS = [
       image.NamedColor.RED,
       image.NamedColor.GREEN,
       image.NamedColor.BLUE,
   ]
-
-  _COLOR_EUCLIDEAN_DISTANCE_THRESHOLD = 150
 
   display: pasit_display.PasitDisplay
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
@@ -134,48 +154,79 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     display_id_to_color = self._open_rgb_images_on_displays()
     self.dut.get_screenshots(self.log_path, 'map_displays_to_cameras')
 
-    avg_pixels = {
-        camera_id: self.passport_host.get_average_pixel(
-            camera_id, self.log_path, f'map_displays_to_cameras{camera_id}'
+    hsv_match_percentages = {
+        camera_id: self.passport_host.analyze_hsv(
+            camera_id,
+            self.HSV_MASKS_PASIT,
+            self.log_path,
+            f'map_displays_to_cameras{camera_id}',
         )
         for camera_id in self.passport_host.get_cameras()
     }
-    logging.debug('Average pixels: %s', avg_pixels)
+    logging.debug('HSV match percentages: %s', hsv_match_percentages)
     self.dut.clean_color_on_display()
 
     display_id_to_camera_id = dict()
-    for camera_id, avg_pixel in avg_pixels.items():
-      # for the camera id and its average pixel color captured, calculate the
-      # color diff with each display color
-      display_id_and_color_diffs = [
-          (display_id, image.color_diff(avg_pixel, display_color))
-          for display_id, display_color in display_id_to_color.items()
-      ]
-      # find the display id with the minimum color diff
-      min_color_diff_pair = min(
-          display_id_and_color_diffs,
-          key=lambda display_id_and_color_diff: display_id_and_color_diff[1],
-      )
-      matched_display_id = min_color_diff_pair[0]
+    for camera_id, hsv_match_percentages in hsv_match_percentages.items():
+      matched_color = self._get_matched_color(hsv_match_percentages)
+      if matched_color is None:
+        # Camera didn't match any color or is not properly aligned so skip it
+        # since we associated it with any display.
+        continue
+      matched_display_id = None
+      for display_id, color in display_id_to_color.items():
+        if color == matched_color.value:
+          matched_display_id = display_id
+          break
+      if matched_display_id is None:
+        raise signals.TestError(
+            f'Camera {camera_id} matched color {matched_color} but no display'
+            ' matched it. Most likely incorrect testbed setup, or test logic'
+            ' error.'
+        )
       logging.info(
-          'Camera %s captured a color %s that is %.2f from the color %s shown'
-          ' on the display %s',
+          'Camera %s matched color %s  on display %s with %.1f%% of pixels'
+          ' matching',
           camera_id,
-          str(avg_pixel),
-          min_color_diff_pair[1],
-          display_id_to_color[matched_display_id],
+          matched_color.name,
           matched_display_id,
+          hsv_match_percentages[matched_color.name],
       )
       # store the association between the matched display id and the camera id
       display_id_to_camera_id[matched_display_id] = camera_id
     logging.debug('Display id to camera id: %s', display_id_to_camera_id)
     if len(display_id_to_camera_id) != len(display_id_to_color):
       raise signals.TestError(
-          'Not all displays have a camera associated with them. Expected'
-          f' {len(display_id_to_color)} displays, but got'
+          'Not all displays have a camera associated with them. '
+          'Check that cameras are aligned and displays are functioning.'
+          f'Expected {len(display_id_to_color)} displays, but got'
           f' {len(display_id_to_camera_id)}.'
       )
     return display_id_to_camera_id
+
+  def _get_matched_color(
+    self, hsv_match_percentages: dict[str, float],
+  ) -> Optional[image.NamedColor]:
+    """Verifies that the display captured the expected color."""
+    # handle the case where are hsv percentage values are 0 since protobuf
+    # optimizes out the 0 values we end up with an empty dict.
+    if not hsv_match_percentages:
+      logging.debug('HSV match percentages are empty')
+      return None
+    match_color = max(
+        hsv_match_percentages,
+        key=hsv_match_percentages.get,
+    )
+    match_percentage = hsv_match_percentages[match_color]
+    if match_percentage < self.MATCH_PERCENTAGE_THRESHOLD:
+      logging.debug(
+          'Did not match any color, max match percentage is %s:%.2f',
+          match_color,
+          match_percentage,
+      )
+      return None
+    match_color = image.NamedColor[match_color]
+    return match_color
 
   def _verify_captured_color(
       self,
@@ -195,22 +246,25 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    average_pixel = self.passport_host.get_average_pixel(
+    hsv_match_percentages = self.passport_host.analyze_hsv(
         camera_id,
+        self.HSV_MASKS_PASIT,
         self.log_path,
         f'{camera_capture_name}_from_camera{camera_id}',
     )
-    color_diff = image.color_diff(average_pixel, expected_color)
+    logging.debug('Verifying HSV match percentages: %s', hsv_match_percentages)
+    match_color = self._get_matched_color(hsv_match_percentages)
     logging.info(
-        'Camera %s captured a color %s that is %.2f from the color %s shown on'
-        ' the display',
+        'Camera %s detected color %s with display color %s',
         camera_id,
-        str(average_pixel),
-        color_diff,
         expected_color,
+        match_color,
     )
-    asserts.assert_less_equal(
-        color_diff, self._COLOR_EUCLIDEAN_DISTANCE_THRESHOLD, failure_message
+    asserts.assert_is_not_none(match_color, failure_message)
+    asserts.assert_equal(
+        match_color.value,
+        expected_color,
+        failure_message,
     )
 
   def _get_internal_display_id(self) -> str:

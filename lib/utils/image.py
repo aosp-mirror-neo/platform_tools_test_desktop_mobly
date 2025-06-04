@@ -15,7 +15,6 @@
 """Utility functions for working with images."""
 
 import enum
-import math
 
 
 class Color:
@@ -60,16 +59,6 @@ class NamedColor(enum.Enum):
   RED = Color(255, 0, 0, 255)
   GREEN = Color(0, 255, 0, 255)
   BLUE = Color(0, 0, 255, 255)
-
-
-def color_diff(color1: Color, color2: Color) -> float:
-  """Returns the Euclidean distance between two colors."""
-  result = math.sqrt(
-      pow(color1.r - color2.r, 2)
-      + pow(color1.g - color2.g, 2)
-      + pow(color1.b - color2.b, 2)
-  )
-  return result
 
 
 class HSV:
