@@ -14,15 +14,15 @@
 
 """The module for PASIT camera related imports and types."""
 
-from mobly.controllers import android_device
-
 from lib.pasit.android import android_pasit_camera
 from lib.pasit.base import base_pasit_camera
+from mobly.controllers import android_device
+
 
 PasitCamera = base_pasit_camera.BasePasitCamera
 
 # A dictionary of controller types and the corresponding PasitCamera class.
 # Used in PasitTestClass.create() to get the correct PasitCamera class.
-_registry = {
+registry = {
     android_device.AndroidDevice: android_pasit_camera.AndroidPasitCamera
 }
