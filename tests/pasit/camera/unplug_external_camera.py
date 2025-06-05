@@ -14,31 +14,15 @@
 
 """Test unplugging an external camera."""
 
-from collections.abc import Iterable, MutableSequence
 import logging
 
 from mobly import asserts
 from mobly import test_runner
-
-from lib.pasit import pasit_camera
-from lib.pasit import pasit_test
+from pasit.camera import camera_base_test
 
 
-class UnplugExternalCameraTest(pasit_test.PasitTestClass):
+class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test unplugging an external camera."""
-
-  camera: pasit_camera.PasitCamera
-  requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
-
-  def setup_class(self):
-    """Handle the setup for the test."""
-    super().setup_class()
-    self.camera = self.create(pasit_camera)
-
-  def teardown_test(self):
-    """Handle the teardown for the test."""
-    super().teardown_test()
-    self.camera.close_camera_app()
 
   def test_external_camera_is_not_default(self):
     """Test that the external camera is regonized by system and not used in camera app by default."""
@@ -71,32 +55,6 @@ class UnplugExternalCameraTest(pasit_test.PasitTestClass):
     asserts.assert_true(
         self._is_camera_app_using_any_device(internal_camera_devices),
         'Camera app is not using internal camera.',
-    )
-
-  def _plug_in_external_camera(self):
-    """Emulate external camera plug in using passport."""
-    logging.info('Plugging in external camera')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_CAMERA)
-
-  def _unplug_external_camera(self):
-    """Emulate external camera unplug using passport."""
-    logging.info('Unplugging external camera')
-    self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_CAMERA)
-
-  def _get_external_camera_devices(
-      self, internal_camera_devices: Iterable[str]
-  ) -> MutableSequence[str]:
-    """Finds the external camera devices."""
-    return [
-        device
-        for device in self.camera.get_connected_cameras()
-        if device not in internal_camera_devices
-    ]
-
-  def _is_camera_app_using_any_device(self, devices: Iterable[str]) -> bool:
-    """Checks if the camera app is using any of the given devices."""
-    return any(
-        [self.camera.is_camera_app_using_camera(device) for device in devices]
     )
 
 
