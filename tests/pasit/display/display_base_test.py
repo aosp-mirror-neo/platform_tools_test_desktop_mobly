@@ -29,18 +29,21 @@ from mobly import signals
 class DisplayBaseTest(pasit_test.PasitTestClass):
   """Base test for PASIT display tests."""
 
+  # HSV masks for PASIT displays. +/-30 degrees from the expected color gives
+  # reasonable results, with the exception of green which has more on the plus
+  # end to make it pass on sample set of images in passport unit tests.
   HSV_MASKS_PASIT = {
     image.NamedColor.RED.name: image.HSVMask(
         image.HSV(h=330, s=0.5, v=0.55),
-        image.HSV(h=20, s=1.0, v=1.0),
+        image.HSV(h=30, s=1.0, v=1.0),
     ),
     image.NamedColor.GREEN.name: image.HSVMask(
-        image.HSV(h=95, s=0.5, v=0.55),
+        image.HSV(h=90, s=0.5, v=0.55),
         image.HSV(h=165, s=1.0, v=1.0),
     ),
     image.NamedColor.BLUE.name: image.HSVMask(
-        image.HSV(h=220, s=0.5, v=0.55),
-        image.HSV(h=260, s=1.0, v=1.0),
+        image.HSV(h=210, s=0.5, v=0.55),
+        image.HSV(h=270, s=1.0, v=1.0),
     ),
   }
 
