@@ -15,9 +15,8 @@
 """Run VESA compliance tests using UCD."""
 
 from display.utils import interface_types
+from display.utils import ucd_base_test
 from display.utils import ucd_compliance_tests_lists
-from display.utils import ucd_manager
-from lib.pasit import pasit_test
 
 from mobly import asserts
 from mobly import base_suite
@@ -25,7 +24,7 @@ from mobly import config_parser
 from mobly import suite_runner
 
 
-class ComplianceTest(pasit_test.PasitTestClass):
+class ComplianceTest(ucd_base_test.UcdBaseTest):
   """Test class for running VESA compliance tests."""
 
   def pre_run(self):
@@ -33,25 +32,14 @@ class ComplianceTest(pasit_test.PasitTestClass):
 
   def setup_class(self):
     super().setup_class()
-    self.video_tester_client = self.passport_host.video_tester_client
-    self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
-        self.video_tester_client
-    )
     asserts.skip_if(
-        self.ucd_manager.interface_type != interface_types.InterfaceType.DP,
+        self._ucd_manager.interface_type != interface_types.InterfaceType.DP,
         "This test is only applicable to DP displays.",
     )
-    self.ucd_manager.reset_ucd_displays_state_to_default()
-
-  def teardown_class(self):
-    self.ucd_manager.disconnect_ucd()
-
-  def teardown_test(self):
-    self.ucd_manager.reset_ucd_displays_state_to_default()
 
   def _run_compliance_test(self, test_list, test_name, test_filter=None):
     asserts.assert_true(
-        self.ucd_manager.run_compliance_tests(test_list, test_filter),
+        self._ucd_manager.run_compliance_tests(test_list, test_filter),
         f"{test_name} Failed.",
     )
 
