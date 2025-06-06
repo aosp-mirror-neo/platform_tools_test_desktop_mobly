@@ -18,16 +18,16 @@ import enum
 import logging
 import time
 
-from display.utils import ucd_manager
+from display.utils import ucd_base_test
+
 from lib.pasit import dut_state_manager
-from lib.pasit import pasit_test
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class SuspendResumeTest(pasit_test.PasitTestClass):
+class SuspendResumeTest(ucd_base_test.UcdBaseTest):
   """Test class for testing the suspend and resume functionality.
 
   This class includes tests for suspending and resuming the device with
@@ -35,8 +35,9 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
   It also includes stress tests to verify the stability of the suspend/resume
   functionality.
   """
-  ucd_manager: ucd_manager.UcdManager
 
+  # TODO: b/422483099 - When we gain more confidence in our max display support,
+  # replace this by self.max_tested_displays
   _PLUGGED_DISPLAYS = 1
   _SUSPEND_TIME_BASE = 1.5
   _MAX_SUSPEND_TIME_EXPONENT = 13
@@ -97,25 +98,6 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
         arg_sets=[(i,) for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
     )
 
-  def setup_class(self):
-    super().setup_class()
-    asserts.assert_true(
-        self.dut.is_servo_configured(), "Servo is not configured.")
-    self.video_tester_client = self.passport_host.video_tester_client
-    self.ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
-        self.video_tester_client
-    )
-    self.ucd_manager.reset_ucd_displays_state_to_default()
-
-  def teardown_test(self):
-    self.ucd_manager.unplug_and_destroy_all_displays()
-    self.dut.power_on_if_offline()
-
-  def teardown_class(self):
-    self.ucd_manager.reset_ucd_displays_state_to_default()
-    self.ucd_manager.disconnect_ucd()
-    self.dut.reboot()
-
   def generate_test_name_suspend_resume_with_plugs(self, exp: int,
                                                    stage: PlugInStage):
     """Generates the test name for suspend and resume with different stages of displays plugging."""
@@ -173,14 +155,14 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
     different suspend times and plug stages in each test iteration.
     """
     if stage == self.PlugInStage.BEFORE_SUSPEND:
-      self.ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
+      self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
       logging.debug("Plugging in external displays before suspend.")
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, dut_state_manager.PowerState.SUSPEND
     ):
       if stage == self.PlugInStage.DURING_SUSPEND:
-        self.ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
+        self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
         logging.debug("Plugging in external displays during suspend.")
       logging.debug("Waiting for %f seconds before resuming.",
                     self._generate_suspend_time(exp))
@@ -189,7 +171,7 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
     logging.debug("Resumed device.")
     if stage == self.PlugInStage.AFTER_SUSPEND:
       logging.debug("Plugging in external displays after resume.")
-      self.ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
+      self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
 
     self._check_for_displays_on(self._PLUGGED_DISPLAYS,
                                 self._generate_suspend_time(exp))
@@ -231,7 +213,7 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
           defined by _STESS_ITERATION_COUNT.
       3.  It asserts that the device is online and the displays are on.
     """
-    self.ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
+    self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
 
     for _ in range(self._STESS_ITERATION_COUNT):
       with dut_state_manager.EnterStateAndReturnToPowerOn(
@@ -248,7 +230,7 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
 
   def _check_for_displays_on(self, display_count: int, suspend_time: float):
     asserts.assert_true(
-        self.ucd_manager.are_displays_reporting_stream_info(display_count),
+        self._ucd_manager.are_displays_reporting_stream_info(display_count),
         f"External displays are not active for {display_count} displays.",
     )
     asserts.assert_true(
@@ -259,9 +241,9 @@ class SuspendResumeTest(pasit_test.PasitTestClass):
         ),
     )
     for i in range(display_count):
-      screenshot = self.ucd_manager.get_screenshot_display(i)
+      screenshot = self._ucd_manager.get_screenshot_display(i)
       asserts.assert_true(
-          self.ucd_manager.is_image_not_black(screenshot),
+          self._ucd_manager.is_image_not_black(screenshot),
           f"Screenshot for display {i} is black.",
       )
 
