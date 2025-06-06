@@ -14,10 +14,9 @@
 
 """Passport USB service client."""
 
-import grpc
-
 from chromiumos.test.lab.api.passport import usb_tester_service_pb2
 from chromiumos.test.lab.api.passport import usb_tester_service_pb2_grpc
+import grpc
 
 
 class PassportUsbServiceClient:
@@ -259,9 +258,7 @@ class PassportUsbServiceClient:
       True if the policy is enabled, False otherwise.
     """
     ret = self.get_capability_usb_tester(
-        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
-            capability=usb_tester_service_pb2.DATA_SWAP_POLICY,
-        )
+        capability=usb_tester_service_pb2.DATA_SWAP_POLICY
     )
     return ret.data_role_swap_policy
 
@@ -285,9 +282,7 @@ class PassportUsbServiceClient:
       True if the policy is enabled, False otherwise.
     """
     ret = self.get_capability_usb_tester(
-        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
-            capability=usb_tester_service_pb2.POWER_SWAP_POLICY,
-        )
+        capability=usb_tester_service_pb2.POWER_SWAP_POLICY
     )
     return ret.power_role_swap_policy
 
@@ -311,9 +306,7 @@ class PassportUsbServiceClient:
       True if the policy is enabled, False otherwise.
     """
     ret = self.get_capability_usb_tester(
-        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
-            capability=usb_tester_service_pb2.VCONN_SWAP_POLICY,
-        )
+        capability=usb_tester_service_pb2.VCONN_SWAP_POLICY
     )
     return ret.vconn_swap_policy
 
@@ -337,20 +330,15 @@ class PassportUsbServiceClient:
       True if the mode is enabled, False otherwise.
     """
     ret = self.get_capability_usb_tester(
-        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
-            capability=usb_tester_service_pb2.DISPLAY_PORT_AM,
-        )
+        capability=usb_tester_service_pb2.DISPLAY_PORT_AM
     )
     return ret.display_port_am
 
   def get_usb_path(self) -> usb_tester_service_pb2.UsbPath:
     ret = self.get_capability_usb_tester(
-        usb_tester_service_pb2.GetUsbTesterCapabilityRequest(
-            capability=usb_tester_service_pb2.USB_PATH,
-        )
+        capability=usb_tester_service_pb2.USB_PATH
     )
     return ret.usb_path
-
 
   def set_usb_path_to_internal(self) -> None:
     self.set_capability_usb_tester(
@@ -407,7 +395,8 @@ class PassportUsbServiceClient:
       reply: The reply object from a gRPC call.
 
     Raises:
-      RuntimeError: If the reply contains an error code indicating a failed request.
+      RuntimeError: If the reply contains an error code indicating a failed
+      request.
     """
     if reply.err_code != 0:
       raise RuntimeError(

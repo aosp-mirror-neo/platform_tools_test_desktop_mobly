@@ -55,7 +55,7 @@ class UcdManager(abc.ABC):
     pass
 
   @abc.abstractmethod
-  def set_role()->None:
+  def set_role(self) -> None:
     pass
 
   @abc.abstractmethod
@@ -109,7 +109,7 @@ class UcdManager(abc.ABC):
   def set_total_displays_count(
       self,
       total_display_count: int,
-      displays_edids: list[edid_datum.EdidDatum] = None,
+      displays_edids: list[edid_datum.EdidDatum] | None = None,
   ):
     """Sets the total number of displays to be simulated by the UCD and plugs them into the DUT.
 
@@ -137,7 +137,7 @@ class UcdManager(abc.ABC):
     if not displays_edids:
       displays_edids = self._get_default_edids()
 
-    if (len(displays_edids) < total_display_count):
+    if len(displays_edids) < total_display_count:
       raise PassportBaseError(
           f"The number of provided EDIDs {len(displays_edids)} is less than "
           f"the number of requested displays {total_display_count}."
@@ -195,7 +195,7 @@ class UcdManager(abc.ABC):
     if total_expected_display_count > self.max_supported_displays:
       raise PassportBaseError(
           f"The number of requested displays {total_expected_display_count} is "
-          f"greater than the maximum supported "
+          "greater than the maximum supported "
           f"{self.max_supported_displays}."
       )
 
@@ -220,7 +220,9 @@ class UcdManager(abc.ABC):
       if not self._vsc.send_hpd_pulse():
         raise PassportBaseError("Failed to send HPD pulse.")
     else:
-      logging.info(f"Attaching {total_expected_display_count} displays to the DUT.")
+      logging.info(
+          f"Attaching {total_expected_display_count} displays to the DUT."
+      )
       if not self._vsc.perform_attach_operation(True):
         raise PassportBaseError("Failed to attach to the DUT.")
 
@@ -262,11 +264,14 @@ class UcdManager(abc.ABC):
 
       logging.info(
           f"{expected_total_display_count} displays are reported after "
-           f"{time.time() - start_time:.1f}s."
+          f"{time.time() - start_time:.1f}s."
       )
       return True
 
-    logging.info(f"Timeout waiting for {expected_total_display_count} displays to report stream info.")
+    logging.info(
+        f"Timeout waiting for {expected_total_display_count} displays to report"
+        " stream info."
+    )
     return False
 
   def get_screenshot_display(self, display_idx: int) -> bytes:
@@ -329,8 +334,11 @@ class UcdManager(abc.ABC):
       if not self._vsc.perform_attach_operation(False):
         raise PassportBaseError("Failed to detach from the DUT.")
 
-    if not self.are_displays_reporting_stream_info(total_expected_display_count):
-      raise PassportBaseError(f"Failed to destroy the most recently attached display. "
+    if not self.are_displays_reporting_stream_info(
+        total_expected_display_count
+    ):
+      raise PassportBaseError(
+          "Failed to destroy the most recently attached display. "
           f"Expected {total_expected_display_count} displays to be active."
       )
 
@@ -423,7 +431,7 @@ class UcdManager(abc.ABC):
 
 
 class Ucd500Manager(UcdManager):
-  """ UCD 500 is the DP Tester Device. """
+  """UCD 500 is the DP Tester Device."""
 
   @property
   def interface_type(self) -> interface_types.InterfaceType:
@@ -433,7 +441,7 @@ class Ucd500Manager(UcdManager):
   def max_supported_displays(self) -> int:
     return 4
 
-  def set_role(self)->None:
+  def set_role(self) -> None:
     # Right now, the UCD devices are hardwired to be connected via usb-c on
     # both ends.
     if not self._vsc.set_role_for_video_tester(
@@ -443,35 +451,31 @@ class Ucd500Manager(UcdManager):
 
   def _get_default_edids(self) -> list[edid_datum.EdidDatum]:
     return [
-      edids_list.UCD_500_DP1,
-      edids_list.UCD_500_DP2,
-      edids_list.UCD_500_DP3,
-      edids_list.UCD_500_DP4,
-  ]
+        edids_list.UCD_500_DP1,
+        edids_list.UCD_500_DP2,
+        edids_list.UCD_500_DP3,
+        edids_list.UCD_500_DP4,
+    ]
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
     if not self._vsc.set_dp_link_capabilities(
-        mst=is_mst,
-        ss_sbm=is_mst,
-        mst_sink_count=displays_to_set
+        mst=is_mst, ss_sbm=is_mst, mst_sink_count=displays_to_set
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
 
   def _set_edid(self, edid: edid_datum.EdidDatum, stream_id: int) -> None:
-    if (edid.interface_type != interface_types.InterfaceType.DP):
+    if edid.interface_type != interface_types.InterfaceType.DP:
       raise PassportBaseError(
           "EDID is not a DP EDID. It's a %s EDID." % edid.interface_type.value
       )
     if not self._vsc.load_edid_at_stream(
         edid=edid.to_bytes(), id_stream=stream_id
     ):
-      raise PassportBaseError(
-          "Failed to load EDID at stream %d" % stream_id
-      )
+      raise PassportBaseError("Failed to load EDID at stream %d" % stream_id)
 
 
 class Ucd422Manager(UcdManager):
-  """ UCD 422 is the HDMI Tester Device. """
+  """UCD 422 is the HDMI Tester Device."""
 
   @property
   def interface_type(self) -> interface_types.InterfaceType:
@@ -481,7 +485,7 @@ class Ucd422Manager(UcdManager):
   def max_supported_displays(self) -> int:
     return 1
 
-  def set_role(self)->None:
+  def set_role(self) -> None:
     if not self._vsc.set_role_for_video_tester(
         video_tester_service_pb2.Role.ROLE_HDMISOURCE_HDMISINK
     ):
@@ -489,30 +493,28 @@ class Ucd422Manager(UcdManager):
 
   def _get_default_edids(self) -> list[edid_datum.EdidDatum]:
     return [
-      # TODO: b/418250484 - Add the default EDID for the UCD422 once it's
-      # available.
-      edids_list.HP_Spectre32_4K_HDMI
-  ]
+        # TODO: b/418250484 - Add the default EDID for the UCD422 once it's
+        # available.
+        edids_list.HP_Spectre32_4K_HDMI
+    ]
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
     if displays_to_set > self.max_supported_displays:
       raise PassportBaseError(
           f"HDMI doesn't support more than one display. {displays_to_set} "
-          f"displays were requested."
+          "displays were requested."
       )
     # For HDMI < 2.1, no fields need to be set.
     # However, for HDMI 2.1, frl_mode is required.
     # None of the current AL devices support HDMI 2.1.
 
   def _set_edid(self, edid: edid_datum.EdidDatum, stream_id: int) -> None:
-    if (edid.interface_type != interface_types.InterfaceType.HDMI):
+    if edid.interface_type != interface_types.InterfaceType.HDMI:
       raise PassportBaseError(
-        "EDID is not an HDMI EDID. It's a %s EDID." % edid.interface_type.value
+          "EDID is not an HDMI EDID. It's a %s EDID."
+          % edid.interface_type.value
       )
     if not self._vsc.load_edid_at_stream(
         edid=edid.to_bytes(), id_stream=stream_id
     ):
-      raise PassportBaseError(
-          "Failed to load EDID at stream %d" % stream_id
-      )
-
+      raise PassportBaseError("Failed to load EDID at stream %d" % stream_id)
