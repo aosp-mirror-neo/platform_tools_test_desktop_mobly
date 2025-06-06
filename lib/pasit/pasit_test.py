@@ -17,13 +17,12 @@
 import types
 from typing import Any
 
-from mobly import asserts
-from mobly import base_test
-
+from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
-from chromiumos.test.lab.api import pasit_host_pb2
+from mobly import asserts
+from mobly import base_test
 
 
 def get_device_type_name(
@@ -95,12 +94,12 @@ class PasitTestClass(base_test.BaseTestClass):
           f' {self.controller_configs}'
       )
 
-  def _requires_servo(
-      self,
-      dut_state: dut_state_manager.PowerState,
-  ) -> bool:
-    """Returns True if servo is required for the dut to enter the given state."""
-    return dut_state in [
-        dut_state_manager.PowerState.OFF,
-        dut_state_manager.PowerState.SUSPEND,
-    ]
+  def _skip_if_servo_needed_and_not_configured(
+      self, desired_state: dut_state_manager.PowerState
+  ):
+    """Skip the test if servo is required and not configured."""
+    asserts.skip_if(
+        dut_state_manager.requires_servo(desired_state)
+        and not self.dut.is_servo_configured(),
+        'Test requires servo and servo is not configured.',
+    )

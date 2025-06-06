@@ -17,10 +17,8 @@
 import logging
 import os
 
-from mobly import asserts
-from mobly import test_runner
-
 from lib.pasit import dut_state_manager
+from mobly import test_runner
 from pasit.storage import storage_base_test
 
 
@@ -72,11 +70,7 @@ class PlugInExternalStorageTest(storage_base_test.StorageBaseTest):
     Write to external storage after plugging it in when DUT is in a specific
     state.
     """
-    asserts.skip_if(
-        self._requires_servo(state_when_plug_storage)
-        and not self.dut.is_servo_configured(),
-        'Servo is not configured.',
-    )
+    self._skip_if_servo_needed_and_not_configured(state_when_plug_storage)
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_storage

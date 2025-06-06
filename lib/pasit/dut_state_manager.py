@@ -17,6 +17,7 @@
 import enum
 import logging
 from lib.pasit import pasit_device
+from lib.pasit.base import base_pasit_device
 
 
 @enum.unique
@@ -24,6 +25,16 @@ class PowerState(enum.Enum):
   ON = 'on'
   OFF = 'off'
   SUSPEND = 'suspended'
+
+
+def requires_servo(
+    dut_state: PowerState,
+) -> bool:
+  """Returns True if servo is required for a dut to enter the given state."""
+  return dut_state in [
+      PowerState.OFF,
+      PowerState.SUSPEND,
+  ]
 
 
 class EnterStateAndReturnToPowerOn:
@@ -45,6 +56,14 @@ class EnterStateAndReturnToPowerOn:
     self._desired_state = desired_state
 
   def __enter__(self):
+    if (
+        requires_servo(self._desired_state)
+        and not self._dut.is_servo_configured()
+    ):
+      raise base_pasit_device.ServoNotConfiguredError(
+          'Servo is not configured, cannot change dut state.'
+      )
+
     if self._desired_state == PowerState.OFF:
       logging.info('Powering off DUT')
       self._dut.power_off()
