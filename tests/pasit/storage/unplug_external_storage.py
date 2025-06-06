@@ -17,10 +17,9 @@
 import logging
 import os
 
+from lib.pasit import dut_state_manager
 from mobly import asserts
 from mobly import test_runner
-
-from lib.pasit import dut_state_manager
 from pasit.storage import storage_base_test
 
 
@@ -71,11 +70,7 @@ class UnplugExternalStorageTest(storage_base_test.StorageBaseTest):
     Write to external storage after unplugging it when DUT is in a specific
     state and then replugging it.
     """
-    asserts.skip_if(
-        self._requires_servo(state_when_unplug_storage)
-        and not self.dut.is_servo_configured(),
-        'Servo is not configured.',
-    )
+    self._skip_if_servo_needed_and_not_configured(state_when_unplug_storage)
 
     self._plug_in_external_storage()
     self._wait_to_mount_or_reformat_external_storage()
