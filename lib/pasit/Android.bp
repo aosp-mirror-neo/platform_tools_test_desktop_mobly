@@ -40,7 +40,6 @@ python_library_host {
     libs: [
         "mobly",
         "py-desktop-utils",
-        "py-pasit-servo-client",
         "py-snippet-uiautomator",
     ],
     pkg_path: "lib/pasit",
@@ -66,17 +65,6 @@ python_library_host {
         "*file.py",
     ],
     exclude_srcs: ["passport/*"],
-    libs: [
-        "mobly",
-    ],
-    pkg_path: "lib/pasit",
-}
-
-python_library_host {
-    name: "py-pasit-servo-client",
-    srcs: [
-        "base/servo_client.py",
-    ],
     libs: [
         "mobly",
     ],
@@ -139,7 +127,6 @@ python_test_host {
         "py-pasit-device",
         "py-pasit-display",
         "py-pasit-file",
-        "py-pasit-servo-client",
         "py-pasit-storage",
         "py-pasit-test",
         "py-passport",

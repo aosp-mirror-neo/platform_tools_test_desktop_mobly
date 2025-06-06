@@ -15,6 +15,7 @@
 """Unit test to ensure that the PASIT library works without any errors."""
 
 import unittest
+# pylint: disable=g-import-not-at-top,unused-import
 
 
 class PASITLibImportsTest(unittest.TestCase):
@@ -42,9 +43,6 @@ class PASITLibImportsTest(unittest.TestCase):
 
   def test_import_pasit_file(self):
     from lib.pasit import pasit_file
-
-  def test_import_pasit_servo_client(self):
-    from lib.pasit.base import servo_client
 
   def test_import_pasit_storage(self):
     from lib.pasit import pasit_storage

@@ -19,8 +19,8 @@ from collections.abc import Iterable
 import logging
 from typing import Any
 
-from lib.pasit.base import servo_client
 from lib.utils import image
+from lib.utils import servo_client
 
 
 class ShellError(Exception):
