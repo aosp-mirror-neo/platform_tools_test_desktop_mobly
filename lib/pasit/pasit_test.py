@@ -71,7 +71,7 @@ class PasitTestClass(base_test.BaseTestClass):
     """Create a component utility instance for the test Mobly controller.
 
     Args:
-      module: The module must have a field named `_registry` which is a
+      module: The module must have a field named `registry` which is a
         dictionary of controller type as the key, and corresponding component
         utility class as the value.
 
@@ -79,7 +79,7 @@ class PasitTestClass(base_test.BaseTestClass):
       A component utility instance for particular Mobly controller.
     """
     controller = self.dut.controller
-    for controller_type, func in module._registry.items():
+    for controller_type, func in module.registry.items():
       if controller_type == type(controller):
         return func(controller)
     raise ValueError(f'Unknown controller type: {type(controller).__name__}')

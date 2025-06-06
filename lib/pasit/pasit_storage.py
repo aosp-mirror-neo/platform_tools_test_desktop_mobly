@@ -14,16 +14,15 @@
 
 """The module for PASIT storage related imports and types."""
 
-from mobly.controllers import android_device
-
 from lib.pasit.android import android_pasit_storage
 from lib.pasit.base import base_pasit_storage
+from mobly.controllers import android_device
 
 
 PasitStorage = base_pasit_storage.BasePasitStorage
 
 # A dictionary of controller types and the corresponding PasitStorage class.
 # Used in PasitTestClass.create() to get the correct PasitStorage class.
-_registry = {
+registry = {
     android_device.AndroidDevice: android_pasit_storage.AndroidPasitStorage,
 }

@@ -14,16 +14,15 @@
 
 """The module for PASIT file related imports and types."""
 
-from mobly.controllers import android_device
-
 from lib.pasit.android import android_pasit_file
 from lib.pasit.base import base_pasit_file
+from mobly.controllers import android_device
 
 
 PasitFile = base_pasit_file.BasePasitFile
 
 # A dictionary of controller types and the corresponding PasitFile class.
 # Used in PasitTestClass.create() to get the correct PasitFile class.
-_registry = {
+registry = {
     android_device.AndroidDevice: android_pasit_file.AndroidPasitFile,
 }

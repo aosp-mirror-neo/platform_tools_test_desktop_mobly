@@ -14,15 +14,15 @@
 
 """The module for PASIT display related imports and types."""
 
-from mobly.controllers import android_device
-
 from lib.pasit.android import android_pasit_display
 from lib.pasit.base import base_pasit_display
+from mobly.controllers import android_device
+
 
 PasitDisplay = base_pasit_display.BasePasitDisplay
 
 # A dictionary of controller types and the corresponding PasitDisplay class.
 # Used in PasitTestClass.create() to get the correct PasitDisplay class.
-_registry = {
+registry = {
     android_device.AndroidDevice: android_pasit_display.AndroidPasitDisplay
 }
