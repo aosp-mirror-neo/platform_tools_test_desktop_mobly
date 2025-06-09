@@ -68,7 +68,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     self._ucd_manager.disconnect_ucd()
     self.dut.reboot()
 
-  def skip_if_display_count_not_supported(self, display_count: int) -> bool:
+  def skip_if_display_count_not_supported(self, display_count: int):
     """Skips the test if the display count to test is greater than the maximum supported displays."""
     asserts.skip_if(
         display_count > self.max_tested_displays,

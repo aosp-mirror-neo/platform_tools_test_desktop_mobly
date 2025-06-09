@@ -27,7 +27,7 @@ def get_crtcs_count(dut: pasit_device.PasitDevice) -> int:
     The number of CRTCs reported by the device.
   """
   try:
-    output = dut.shell("modetest -p").decode("utf-8", errors="ignore")
+    output = dut.shell(["modetest", "-p"]).decode("utf-8", errors="ignore")
     lines = output.splitlines()
 
     crtc_count = 0
@@ -52,4 +52,3 @@ def get_crtcs_count(dut: pasit_device.PasitDevice) -> int:
     return crtc_count
   except Exception:
     return 0
-
