@@ -1,0 +1,101 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import logging
+import time
+
+from display.utils import ucd_base_test
+from lib.utils import image
+from lib.pasit import pasit_display
+
+from mobly import asserts
+from mobly import base_suite
+from mobly import config_parser
+from mobly import suite_runner
+
+class TestRGB(ucd_base_test.UcdBaseTest):
+  """Test class for testing the system bandwidth with multiple displays.
+
+  This class includes tests to verify the system's ability to handle an
+  increasing and decreasing number of displays, ensuring that each display is
+  correctly activated and managed.
+  """
+  display: pasit_display.PasitDisplay
+  internal_display_id: str
+  _DISPLAY_STABILIZATION_TIME_SECONDS = 2
+
+  def pre_run(self):
+    for i in range(1, self._UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS + 1):
+      self.generate_tests(
+        test_logic=self.color_on_displays,
+        name_func=self.generate_test_name_color_on_displays,
+        arg_sets= [
+          (color, i)
+          for color in [image.NamedColor.RED, image.NamedColor.GREEN, image.NamedColor.BLUE]
+        ]
+      )
+
+  def setup_class(self):
+    super().setup_class()
+
+    self.display = self.create(pasit_display)
+    display_ids = self.display.get_display_ids()
+    asserts.assert_equal(
+        len(display_ids), 1,
+        "There should be only one display connected to the DUT.",
+    )
+    self.internal_display_id = display_ids[0]
+
+  def generate_test_name_color_on_displays(self, color: image.NamedColor, display_count: int):
+    """Generate a test name for displaying a color on multiple displays."""
+    return f"test_{color.name}_on_{display_count}_displays"
+
+  def color_on_displays(self, color: image.NamedColor, display_count: int):
+    """Display a color on all displays connected to the DUT."""
+    self.skip_if_display_count_not_supported(display_count)
+
+    self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
+    external_display_ids = self._get_external_display_ids()
+    asserts.assert_equal(
+      len(external_display_ids), display_count,
+      f"The number of display IDs {display_count} does not match the expected number of external displays {len(external_display_ids)}.",
+    )
+
+    for display_id in external_display_ids:
+      print (f"Showing color {color.value} on display {display_id}")
+      logging.info("Showing color %s on display %s", color.value, display_id)
+      self.dut.show_color_on_display(color.value, display_id)
+      # Wait for the display to stabilize.
+      time.sleep(self._DISPLAY_STABILIZATION_TIME_SECONDS)
+
+    self.check_all_screenshots_for_displays(display_count, color.value)
+
+  def _get_external_display_ids(self):
+    """Get the IDs of all external displays connected to the DUT."""
+    display_ids = self.display.get_display_ids()
+    external_display_ids = [
+        display_id for display_id in display_ids
+        if display_id != self.internal_display_id
+    ]
+    return external_display_ids
+
+class RGBTestSuite(base_suite.BaseSuite):
+  """Test suite for testing displays with different colors."""
+
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    self.add_test_class(TestRGB)
+
+
+if __name__ == "__main__":
+ suite_runner.run_suite_class()

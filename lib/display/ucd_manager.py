@@ -26,7 +26,7 @@ from display.utils import edids_list
 from display.utils import interface_types
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_video_service_client
-
+from lib.utils import retry
 
 PassportBaseError = passport_host.PassportBaseError
 ComplianceTestStatus = video_tester_service_pb2.ComplianceTestStatus
@@ -249,6 +249,7 @@ class UcdManager(abc.ABC):
     while time.time() - start_time < timeout_sec:
       stream_infos = self._vsc.get_stream_info_for_all_streams()
       if len(stream_infos) != expected_total_display_count:
+        time.sleep(2)
         continue
 
       all_screens_on = True
@@ -277,37 +278,6 @@ class UcdManager(abc.ABC):
   def get_screenshot_display(self, display_idx: int) -> bytes:
     """Captures a screenshot from a stream of the open video tester."""
     return self._vsc.get_screenshot_at_stream(display_idx)
-
-  def is_image_not_black(self, image_raw: bytes) -> bool:
-    """Checks if the image is not all black."""
-    black_threshold = 10  # Values below this are considered "black"
-    minimum_non_black_percent = (
-        5.0  # Minimum percentage of non-black pixels to consider active
-    )
-    minimum_unique_values = (
-        3  # Minimum number of unique color values for real content
-    )
-
-    total_pixels = len(image_raw)
-    if not image_raw or total_pixels == 0:
-      logging.info("Empty image_raw bytes.")
-      return False
-    # Count non-black pixels (using a threshold)
-    # For most image formats, black is 0 or very close to 0
-    non_black = sum(1 for byte in image_raw if byte > black_threshold)
-    # Calculate percentage of non-black content
-    non_black_percentage = (non_black * 100) / total_pixels
-
-    # Convert samples to a set to eliminate duplicates, then count unique values
-    unique_color_count = len(set(image_raw))
-
-    # Screen is showing content if:
-    # 1. It has sufficient non-black pixels
-    # 2. It has enough variety in color values
-    return (
-        non_black_percentage > minimum_non_black_percent
-        and unique_color_count > minimum_unique_values
-    )
 
   def destroy_the_most_recently_attached_display(self):
     """Destroys the most recently attached display.
@@ -348,7 +318,11 @@ class UcdManager(abc.ABC):
     if not self._vsc.perform_attach_operation(False):
       raise PassportBaseError("Failed to detach from the DUT.")
     # It takes a while for the displays to deactivate, so we need to wait.
-    if not self.are_displays_reporting_stream_info(0):
+    if not retry.retry(
+      lambda: self.are_displays_reporting_stream_info(0),
+      until=lambda x: x,
+      max_tries=5,
+    ):
       raise PassportBaseError("Monitors are not deactivating.")
 
   def reset_ucd_displays_state_to_default(self):

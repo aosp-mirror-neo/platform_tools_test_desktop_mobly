@@ -15,11 +15,14 @@
 """Base class for UCD tests that sets and resets the displays state between tests."""
 
 import logging
+import os
+import time
 
 from display.utils import modetest_helper
 from display.utils import ucd_manager
 from lib.pasit import pasit_test
 from lib.pasit.passport import passport_host
+from lib.utils import image
 
 from mobly import asserts
 
@@ -78,7 +81,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         f" {self.max_tested_displays}.",
     )
 
-  def check_all_screenshots_for_displays(self, display_count: int)-> bool:
+  def check_all_screenshots_for_displays(self, display_count: int, color: image.Color | None = None)-> bool:
     """Checks if the screenshots of the displays are not black.
 
     This function iterates through the specified number of displays, takes a
@@ -87,18 +90,51 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
     Args:
         display_count: The number of displays to check.
+        color: Optional RGB color to check against the screenshot. If provided,
+               the function will verify that the screenshot matches this color.
+               If None, it will only check that the screenshot is not black.
+    Raises:
+        asserts.AssertionError: If any screenshot does not match the expected
+        color or is black.
 
     Returns:
-        True if all screenshots are not black, throws an assertion error
-        otherwise.
+        True if all screenshots are valid (not black or match the expected color).
     """
     for i in range(display_count):
       logging.debug(f"Checking screenshot for display {i}")
-      screenshot = self._ucd_manager.get_screenshot_display(i)
-      asserts.assert_true(
-          self._ucd_manager.is_image_not_black(screenshot),
-          f"Screenshot for display {i} is black.",
-      )
-      logging.info(f"Screenshot for display {i} is not black.")
+      screenshot_bmp = self._ucd_manager.get_screenshot_display(i)
+      screenshot_raw = image.process_bmp_img_to_raw(screenshot_bmp)
+
+      timestamp = int(time.time())
+      if color:
+        filename = f"display_{i}_{color}_{timestamp}_raw.bmp"
+        if not image.check_rgb_image_matches_color(screenshot_raw, color):
+           self._save_screenshot(screenshot_bmp, filename)
+           # TODO: ssoltysyak@ and I are not loving how it's asserting, find alternative ways to
+           # take the same screenshot on failure.
+           asserts.assert_true(False, f"Screenshot for display {i} does not match the expected color {color}. Saved to {filename}.")
+        logging.info(f"Screenshot for display {i} matches the expected color {color}.")
+      else:
+        filename = f"display_{i}_{timestamp}_raw.bmp"
+        if not image.is_rgb_image_not_black(screenshot_raw):
+            self._save_screenshot(screenshot_bmp, filename)
+            asserts.assert_true(
+                False,
+                f"Screenshot for display {i} is black. Saved to {filename}.",
+            )
+        logging.info(f"Screenshot for display {i} is not black.")
 
     return True
+
+  def _save_screenshot(self, data: bytes, filename: str):
+      """Saves binary data to a file in the test's log directory.
+
+      Args:
+          data: The binary data to save
+          filename: The name of the file to create
+      """
+      filepath = os.path.join(self.log_path, filename)
+      logging.info(f"Saving screenshot to {filepath}")
+
+      with open(filepath, 'wb') as f:
+          f.write(data)

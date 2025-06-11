@@ -19,6 +19,7 @@ import logging
 import time
 
 from display.utils import ucd_base_test
+from lib.utils import image
 
 from lib.pasit import dut_state_manager
 from mobly import asserts
@@ -246,7 +247,7 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
     for i in range(display_count):
       screenshot = self._ucd_manager.get_screenshot_display(i)
       asserts.assert_true(
-          self._ucd_manager.is_image_not_black(screenshot),
+          image.is_rgb_image_not_black(screenshot),
           f"Screenshot for display {i} is black.",
       )
 
