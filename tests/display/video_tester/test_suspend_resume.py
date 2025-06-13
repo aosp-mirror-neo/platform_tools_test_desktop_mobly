@@ -98,6 +98,9 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
         arg_sets=[(i,) for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
     )
 
+  def setup_class(self):
+    super().setup_class(require_servo=True)
+
   def generate_test_name_suspend_resume_with_plugs(self, exp: int,
                                                    stage: PlugInStage):
     """Generates the test name for suspend and resume with different stages of displays plugging."""

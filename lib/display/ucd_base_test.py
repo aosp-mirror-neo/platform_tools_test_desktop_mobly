@@ -38,11 +38,12 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4
 
-  def setup_class(self):
+  def setup_class(self, require_servo: bool = False):
     super().setup_class()
-    # Servo is required for DUT reboots and pwwer on.
-    asserts.assert_true(
-        self.dut.is_servo_configured(), "Servo is not configured.")
+    # Servo is required for DUT power cycle through servo.
+    asserts.skip_if(
+        require_servo and not self.dut.is_servo_configured(),
+        "Servo is not configured.")
     # Set the UCD.
     self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.passport_host.video_tester_client
@@ -62,7 +63,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     self._ucd_manager.reset_ucd_displays_state_to_default()
-    self.dut.power_on_if_offline()
+    if self.dut.is_servo_configured():
+      self.dut.power_on_if_offline()
 
   def teardown_class(self):
     self._ucd_manager.disconnect_ucd()

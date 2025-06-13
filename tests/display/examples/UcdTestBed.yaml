@@ -1,10 +1,23 @@
-TestBeds:
-- Name: UcdTestBed
-  Controllers:
-    PassportHost:
-        - service_host: "localhost"
-          service_port: 8300
-    AndroidDevice: '*'
+_topology: &topology
+  PassportHost:
+  - service_host: "localhost"
+    service_port: 8300
+
+_test_params: &test_params
   TestParams:
     servo_host: "localhost"
     servo_port: 9999
+
+_android_device: &android_device
+  AndroidDevice: '*'
+
+TestBeds:
+- Name: ucd-with-servo
+  Controllers:
+    <<: *android_device
+    <<: *topology
+  <<: *test_params
+- Name: ucd-without-servo
+  Controllers:
+    <<: *android_device
+    <<: *topology
