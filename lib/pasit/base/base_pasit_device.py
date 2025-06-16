@@ -119,7 +119,31 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def suspend(self):
-    """Suspends the device."""
+    """Suspends the device and waits for it to be offline.
+
+    This will block only until the device is suspended and is not detectable.
+    The device will remain suspended until woken through another means and this
+    will return after the device is suspended.
+
+    Raises:
+      Implementation specific exceptions, if the device fails to suspend.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
+    """Suspends the device with optional wakup_timeout in seconds.
+
+    This will block for wakeup_timeout_seconds and then block
+    until the device has woken up and is reconnected, or the reconnection
+    timeout is reached.
+
+    Args:
+      wakeup_timeout_seconds: The timeout in seconds to wake up the device in.
+    Raises:
+      Implementation specific exceptions, if the device fails to suspend or
+      fails to reconnect after wakeup_timeout_seconds of suspend.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod

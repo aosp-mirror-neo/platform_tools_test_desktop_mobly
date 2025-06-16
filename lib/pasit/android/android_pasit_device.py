@@ -19,6 +19,7 @@ import logging
 import os
 import sys
 import time
+import threading
 
 from lib.pasit.base import base_pasit_device
 from lib.utils import image
@@ -164,16 +165,54 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._bypass_login_screen()
 
   def power_off(self):
-    logging.debug('Stopping services...')
-    self.controller.services.stop_all()
+    self._stop_services()
     self._request_power_off()
     logging.debug('Waiting for device to power off...')
     if not self._wait_for_device_offline():
       raise AndroidDeviceError('DUT failed to power off.')
 
+  def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
+    self._stop_services()
+    # temporary test if the kernel wake lock is held
+    logging.debug(
+        'Held kernel wake lock: %s',
+        self.controller.adb.shell(['cat', '/sys/power/wake_lock']),
+    )
+    logging.info(
+        'Setting wakeup timeout to %s seconds...', wakeup_timeout_seconds
+    )
+    self._adb_shell_as_user(
+        # this command must be run as non-root user or it will fail so run
+        # as user "shell", shell is the default user when running adb commands
+        # when not using adb root
+        'shell',
+        [
+            'cmd',
+            'power',
+            'wakeup',
+            str(wakeup_timeout_seconds*1000), # wakeup expects milliseconds
+        ],
+    )
+    wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
+    wakeup_timer.start()
+    self._suspend()
+
+    wakeup_timer.join()
+    self.controller.wait_for_boot_completion(
+        timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
+    )
+    logging.debug('Starting services...')
+    self.controller.services.start_all()
+
   def suspend(self):
+    self._stop_services()
+    self._suspend()
+
+  def _stop_services(self):
     logging.debug('Stopping services...')
     self.controller.services.stop_all()
+
+  def _suspend(self):
     # temporary test if the kernel wake lock is held
     logging.debug(
         'Held kernel wake lock: %s',
@@ -402,3 +441,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.ui(
         desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
     ).click()
+
+  def _adb_shell_as_user(self, user_id: int | str, cmd: list[str]) -> bytes:
+    """Runs adb as the specified user."""
+    return self.controller.adb.shell(
+        ['su', f'{user_id}'] + cmd,
+    )

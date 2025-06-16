@@ -63,6 +63,10 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Resuming device...')
     self.dut.power_on()
 
+  def test_suspend_with_timeout(self):
+    logging.info('Suspending device for 10 seconds...')
+    self.dut.suspend_with_wakeup_timer(10)
+
 
 if __name__ == '__main__':
   test_runner.main()
