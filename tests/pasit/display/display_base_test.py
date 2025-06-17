@@ -263,6 +263,10 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_color,
         match_color,
     )
+    asserts.assert_is_not_none(
+        match_color,
+        failure_message,
+    )
     asserts.assert_equal(
         match_color.value if match_color else None,
         expected_color,
