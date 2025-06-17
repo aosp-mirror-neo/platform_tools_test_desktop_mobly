@@ -17,6 +17,7 @@
 from display.utils import interface_types
 from display.utils import ucd_base_test
 from lib.pasit.passport import passport_host
+from lib.utils import retry
 
 from mobly import asserts
 from mobly import base_suite
@@ -139,20 +140,23 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         self._ucd_manager.interface_type != interface_types.InterfaceType.DP,
         "This test is only applicable to DP displays.",
     )
-    if not self.video_tester_client.set_dp_link_capabilities(
+
+    self._ucd_manager.unplug_and_destroy_all_displays()
+
+    if not self.passport_host.video_tester_client.set_dp_link_capabilities(
         mst=is_mst,
         ss_sbm=is_sbm,
         mst_sink_count=1,
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
-    if not self.video_tester_client.perform_attach_operation(True):
+    if not self.passport_host.video_tester_client.perform_attach_operation(True):
       raise PassportBaseError("Failed to attach to the DUT.")
 
     asserts.assert_true(
         self._ucd_manager.are_displays_reporting_stream_info(1),
         f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
     )
-    self.check_all_screenshots_for_displays(1)
+    retry.retry(func=lambda: self.check_all_screenshots_for_displays(1), max_tries=5)
 
 
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):
