@@ -78,7 +78,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         f" {self.max_tested_displays}.",
     )
 
-  def check_all_screenshots_for_displays(self, display_count: int):
+  def check_all_screenshots_for_displays(self, display_count: int)-> bool:
     """Checks if the screenshots of the displays are not black.
 
     This function iterates through the specified number of displays, takes a
@@ -87,6 +87,10 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
     Args:
         display_count: The number of displays to check.
+
+    Returns:
+        True if all screenshots are not black, throws an assertion error
+        otherwise.
     """
     for i in range(display_count):
       logging.debug(f"Checking screenshot for display {i}")
@@ -96,3 +100,5 @@ class UcdBaseTest(pasit_test.PasitTestClass):
           f"Screenshot for display {i} is black.",
       )
       logging.info(f"Screenshot for display {i} is not black.")
+
+    return True
