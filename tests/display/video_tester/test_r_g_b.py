@@ -16,15 +16,16 @@ import logging
 import time
 
 from display.utils import ucd_base_test
-from lib.utils import image
 from lib.pasit import pasit_display
+from lib.utils import image
 
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
-class TestRGB(ucd_base_test.UcdBaseTest):
+
+class RGBTest(ucd_base_test.UcdBaseTest):
   """Test class for testing the system bandwidth with multiple displays.
 
   This class includes tests to verify the system's ability to handle an
@@ -94,7 +95,7 @@ class RGBTestSuite(base_suite.BaseSuite):
   """Test suite for testing displays with different colors."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(TestRGB)
+    self.add_test_class(RGBTest)
 
 
 if __name__ == "__main__":

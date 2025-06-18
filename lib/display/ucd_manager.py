@@ -24,11 +24,11 @@ from display.utils import compliance_tests_manager
 from display.utils import edid_datum
 from display.utils import edids_list
 from display.utils import interface_types
-from lib.pasit.passport import passport_host
+from lib.pasit.passport import errors
 from lib.pasit.passport import passport_video_service_client
 from lib.utils import retry
 
-PassportBaseError = passport_host.PassportBaseError
+PassportBaseError = errors.PassportBaseError
 ComplianceTestStatus = video_tester_service_pb2.ComplianceTestStatus
 
 
@@ -246,6 +246,7 @@ class UcdManager(abc.ABC):
     timeout_sec = 20
     start_time = time.time()
 
+    stream_infos = []
     while time.time() - start_time < timeout_sec:
       stream_infos = self._vsc.get_stream_info_for_all_streams()
       if len(stream_infos) != expected_total_display_count:
@@ -271,7 +272,7 @@ class UcdManager(abc.ABC):
 
     logging.info(
         f"Timeout waiting for {expected_total_display_count} displays to report"
-        " stream info."
+        f" stream info. Finding {len(stream_infos)} instead"
     )
     return False
 

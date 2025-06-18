@@ -21,12 +21,13 @@ import time
 from display.utils import modetest_helper
 from display.utils import ucd_manager
 from lib.pasit import pasit_test
-from lib.pasit.passport import passport_host
+from lib.pasit.passport import errors
 from lib.utils import image
-
+from lib.utils.retry import retry
 from mobly import asserts
 
-PassportBaseError = passport_host.PassportBaseError
+
+PassportBaseError = errors.PassportBaseError
 
 
 class UcdBaseTest(pasit_test.PasitTestClass):
@@ -81,12 +82,13 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         f" {self.max_tested_displays}.",
     )
 
-  def check_all_screenshots_for_displays(self, display_count: int, color: image.Color | None = None)-> bool:
-    """Checks if the screenshots of the displays are not black.
+  def check_all_screenshots_for_displays(self, display_count: int, color: image.Color | None = None):
+    """Checks if the screenshots of the specified displays are valid.
 
     This function iterates through the specified number of displays, takes a
-    screenshot of each, and verifies that the screenshot is not a black image.
-    A black screenshot indicates that the display is not active.
+    screenshot of each, and verifies its content. If a `color` is provided,
+    it checks if the screenshot matches that color; otherwise, it checks if it's not black.
+    Retries as the display might not be ready yet when checked.
 
     Args:
         display_count: The number of displays to check.
@@ -94,47 +96,64 @@ class UcdBaseTest(pasit_test.PasitTestClass):
                the function will verify that the screenshot matches this color.
                If None, it will only check that the screenshot is not black.
     Raises:
-        asserts.AssertionError: If any screenshot does not match the expected
+        ValueError: If any screenshot does not match the expected
         color or is black.
 
     Returns:
         True if all screenshots are valid (not black or match the expected color).
     """
     for i in range(display_count):
-      logging.debug(f"Checking screenshot for display {i}")
-      screenshot_bmp = self._ucd_manager.get_screenshot_display(i)
-      screenshot_raw = image.process_bmp_img_to_raw(screenshot_bmp)
+      retry(
+          func=lambda: self._check_single_display_screenshot(i, color),
+          max_tries=3,
+          delay_seconds=3,
+          exceptions=(ValueError,),
+      )
 
-      timestamp = int(time.time())
-      if color:
-        filename = f"display_{i}_{color}_{timestamp}_raw.bmp"
-        if not image.check_rgb_image_matches_color(screenshot_raw, color):
-           self._save_screenshot(screenshot_bmp, filename)
-           # TODO: ssoltysyak@ and I are not loving how it's asserting, find alternative ways to
-           # take the same screenshot on failure.
-           asserts.assert_true(False, f"Screenshot for display {i} does not match the expected color {color}. Saved to {filename}.")
-        logging.info(f"Screenshot for display {i} matches the expected color {color}.")
-      else:
-        filename = f"display_{i}_{timestamp}_raw.bmp"
-        if not image.is_rgb_image_not_black(screenshot_raw):
-            self._save_screenshot(screenshot_bmp, filename)
-            asserts.assert_true(
-                False,
-                f"Screenshot for display {i} is black. Saved to {filename}.",
-            )
-        logging.info(f"Screenshot for display {i} is not black.")
+  def _check_single_display_screenshot(
+      self, display_index: int, color: image.Color | None
+  ):
+    """Checks the screenshot for a single display, raising an exception on failure.
 
-    return True
+    Args:
+        display_index: The index of the display to check.
+        color: Optional RGB color to check against the screenshot. If provided,
+               the function verifies that the screenshot matches this color.
+               If None, it will only check that the screenshot is not black.
+
+    Returns:
+        True if the screenshot is valid (not black or matches the expected color).
+
+    Raises:
+        ValueError: If the screenshot does not match the expected color or is black.
+    """
+    logging.debug(f"Checking screenshot for display {display_index}")
+    screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
+    screenshot_raw = image.process_bmp_img_to_raw(screenshot_bmp)
+
+    timestamp = int(time.time())
+    if color:
+      filename = f"display_{display_index}_{color}_{timestamp}_raw.bmp"
+      if not image.check_rgb_image_matches_color(screenshot_raw, color):
+        self._save_screenshot(screenshot_bmp, filename)
+        raise ValueError(f"Screenshot for display {display_index} does not match the expected color {color}. Saved to {filename}.")
+      logging.info(f"Screenshot for display {display_index} matches the expected color {color}.")
+    else:
+      filename = f"display_{display_index}_{timestamp}_raw.bmp"
+      if not image.is_rgb_image_not_black(screenshot_raw):
+        self._save_screenshot(screenshot_bmp, filename)
+        raise ValueError(f"Screenshot for display {display_index} is black. Saved to {filename}.")
+      logging.info(f"Screenshot for display {display_index} is not black.")
 
   def _save_screenshot(self, data: bytes, filename: str):
-      """Saves binary data to a file in the test's log directory.
+    """Saves binary data to a file in the test's log directory.
 
-      Args:
-          data: The binary data to save
-          filename: The name of the file to create
-      """
-      filepath = os.path.join(self.log_path, filename)
-      logging.info(f"Saving screenshot to {filepath}")
+    Args:
+        data: The binary data to save
+        filename: The name of the file to create
+    """
+    filepath = os.path.join(self.log_path, filename)
+    logging.info(f"Saving screenshot to {filepath}")
 
-      with open(filepath, 'wb') as f:
-          f.write(data)
+    with open(filepath, "wb") as f:
+      f.write(data)

@@ -16,7 +16,7 @@
 
 from display.utils import interface_types
 from display.utils import ucd_base_test
-from lib.pasit.passport import passport_host
+from lib.pasit.passport import errors
 from lib.utils import retry
 
 from mobly import asserts
@@ -24,7 +24,7 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
-PassportBaseError = passport_host.PassportBaseError
+PassportBaseError = errors.PassportBaseError
 
 
 class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
@@ -156,7 +156,7 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         self._ucd_manager.are_displays_reporting_stream_info(1),
         f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
     )
-    retry.retry(func=lambda: self.check_all_screenshots_for_displays(1), max_tries=5)
+    self.check_all_screenshots_for_displays(1)
 
 
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):
