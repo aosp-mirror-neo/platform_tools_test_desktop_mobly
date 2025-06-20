@@ -33,18 +33,18 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   # reasonable results, with the exception of green which has more on the plus
   # end to make it pass on sample set of images in passport unit tests.
   HSV_MASKS_PASIT = {
-    image.NamedColor.RED.name: image.HSVMask(
-        image.HSV(h=330, s=0.5, v=0.55),
-        image.HSV(h=30, s=1.0, v=1.0),
-    ),
-    image.NamedColor.GREEN.name: image.HSVMask(
-        image.HSV(h=90, s=0.5, v=0.55),
-        image.HSV(h=165, s=1.0, v=1.0),
-    ),
-    image.NamedColor.BLUE.name: image.HSVMask(
-        image.HSV(h=210, s=0.5, v=0.55),
-        image.HSV(h=270, s=1.0, v=1.0),
-    ),
+      image.NamedColor.RED.name: image.HSVMask(
+          image.HSV(h=330, s=0.5, v=0.55),
+          image.HSV(h=30, s=1.0, v=1.0),
+      ),
+      image.NamedColor.GREEN.name: image.HSVMask(
+          image.HSV(h=90, s=0.5, v=0.55),
+          image.HSV(h=165, s=1.0, v=1.0),
+      ),
+      image.NamedColor.BLUE.name: image.HSVMask(
+          image.HSV(h=210, s=0.5, v=0.55),
+          image.HSV(h=270, s=1.0, v=1.0),
+      ),
   }
 
   # The minimum percentage of pixels that must match for a color to be
@@ -61,6 +61,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
+  camera_exposure_time_us: int = 0
 
   def setup_class(self):
     """Handle the setup for the test.
@@ -110,15 +111,17 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     cameras = self.passport_host.get_cameras()
     for camera in cameras:
       logging.debug(
-          'Capturing display image for %s camera %s to directory %s',
+          'Capturing display image for %s camera %s to directory %s with exposure time %d us',
           image_prefix,
           camera,
           self.current_test_info.output_path,
+          self.camera_exposure_time_us,
       )
       self.passport_host.capture_image(
           camera,
           self.current_test_info.output_path,
           f'{image_prefix}_camera{camera}',
+          self.camera_exposure_time_us,
       )
 
   def _open_rgb_images_on_displays(self) -> dict[str, image.Color]:
@@ -147,9 +150,12 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def _map_displays_to_cameras(self) -> dict[str, str]:
     """Maps the camera to the display.
 
+    This sets up the rgb images on the displays and then tries to match the
+    camera color to the display color using HSV analysis.  It will try multiple
+    exposure times if the camera doesn't match any color.
+
     Returns:
       A dictionary of display ID to camera ID.
-
     Raises:
       signals.TestError: If not all displays have a camera detected.
     """
@@ -157,17 +163,62 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     display_id_to_color = self._open_rgb_images_on_displays()
     self.dut.get_screenshots(self.log_path, 'map_displays_to_cameras')
 
+    # Try different exposure times to see if we can get a good match.
+    # testing shows that lower exposure times are more reliable and less
+    # affected by glare and overexposure, so start with those and then try 0
+    # which is auto exposure as a last resort.
+    for exposure_time_us in [3000, 6000, 12000, 0]:
+      try:
+        logging.debug(
+            'Trying to map displays to cameras with exposure time %d us',
+            exposure_time_us,
+        )
+        ret = self._check_hsv_matches_displays(
+            display_id_to_color, exposure_time_us
+        )
+        # if we get a match, store the exposure time to use for future
+        # verification steps and image captures.
+        self.camera_exposure_time_us = exposure_time_us
+        self.dut.clean_color_on_display()
+        return ret
+      except signals.TestError:
+        logging.debug(
+            'Failed to map displays to cameras with exposure time %d us',
+            exposure_time_us,
+        )
+        if exposure_time_us == 0:
+          raise
+
+  def _check_hsv_matches_displays(
+      self, display_id_to_color: dict[str, image.Color], exposure_time_us: int
+  ) -> dict[str, str]:
+    """Does the matching part of _map_displays_to_cameras.
+
+    This does the actual matching of cameras to displays using HSV analysis,
+    first captures an image from each camera with the specified exposure time,
+    then analyzes the data from the passport HSV analysis to see there is a
+    color match.
+
+    Args:
+      display_id_to_color: A dictionary of display ID to color.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+    Returns:
+      A dictionary of display ID to camera ID.
+    Raises:
+      signals.TestError: If not all displays have a camera detected.
+    """
+
     hsv_match_percentages = {
         camera_id: self.passport_host.analyze_hsv(
             camera_id,
             self.HSV_MASKS_PASIT,
             self.log_path,
             f'map_displays_to_cameras{camera_id}',
+            exposure_time_us=exposure_time_us,
         )
         for camera_id in self.passport_host.get_cameras()
     }
     logging.debug('HSV match percentages: %s', hsv_match_percentages)
-    self.dut.clean_color_on_display()
 
     display_id_to_camera_id = dict()
     for camera_id, hsv_match_percentages in hsv_match_percentages.items():
@@ -208,7 +259,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     return display_id_to_camera_id
 
   def _get_matched_color(
-    self, hsv_match_percentages: dict[str, float],
+      self,
+      hsv_match_percentages: dict[str, float],
   ) -> Optional[image.NamedColor]:
     """Verifies that the display captured the expected color."""
     # handle the case where are hsv percentage values are 0 since protobuf
@@ -254,6 +306,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.HSV_MASKS_PASIT,
         self.log_path,
         f'{camera_capture_name}_from_camera{camera_id}',
+        exposure_time_us=self.camera_exposure_time_us,
     )
     logging.debug('Verifying HSV match percentages: %s', hsv_match_percentages)
     match_color = self._get_matched_color(hsv_match_percentages)

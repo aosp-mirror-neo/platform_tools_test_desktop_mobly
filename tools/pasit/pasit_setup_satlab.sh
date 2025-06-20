@@ -218,6 +218,16 @@ function generate_config() {
   if [[ -z "${CONFIG_OUTPUT_FILE}" ]]; then
     return
   fi
+  if  ! which topology_converter; then
+    if [[ -z "${ANDROID_BUILD_TOP}" ]]; then
+      echo -e "\n\n-c flag was provided and topology_converter is not installed"
+      echo -e "\tEnsure this script is run from the android checkout directory,"
+      echo -e "\tand ensure that the lunch command has been run to setup the environment"
+      exit 1
+    fi
+    echo "Building topology_converter..."
+    m topology_converter
+  fi
   echo -e "\n\nGenerating config yaml file for ${DUT_HOSTNAME}..."
   SHIVAS_JSON_FILE="$(mktemp --suffix .json)"
   if ! shivas get peripheral-pasit-host -dut "${DUT_HOSTNAME}" -json > "${SHIVAS_JSON_FILE}"; then

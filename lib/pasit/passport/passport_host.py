@@ -405,6 +405,7 @@ class PassportHost:
       camera_id: str,
       log_dir: str,
       image_name_prefix: str,
+      exposure_time_us: int = 0,
   ) -> None:
     """Captures an image from the specified camera and saves it.
 
@@ -417,16 +418,24 @@ class PassportHost:
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.
       image_name_prefix: The prefix of the image name to use for the image.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
 
     Returns:
       None
     """
     # get_average_pixel will save the image if image_name_prefix is specified,
     # so call that but don't use the average pixel result.
-    self.get_average_pixel(camera_id, log_dir, image_name_prefix)
+    self.get_average_pixel(
+        camera_id, log_dir, image_name_prefix, exposure_time_us
+    )
 
   def get_average_pixel(
-      self, camera_id: str, log_dir: str = '', image_name_prefix: str = ''
+      self,
+      camera_id: str,
+      log_dir: str = '',
+      image_name_prefix: str = '',
+      exposure_time_us: int = 0,
   ) -> image.Color:
     """Gets the average pixel color detected by the specified camera.
 
@@ -439,12 +448,14 @@ class PassportHost:
       image_name_prefix: The prefix of the image name to use for the image. if
         empty no image file will be saved, if specified, the image will be saved
         to logs directory with the given prefix and a timestamp.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
 
     Returns:
       The average pixel Color.
     """
     self._ensure_passport_connected()
-    resp = self._camera_client.get_average_pixel(camera_id)
+    resp = self._camera_client.get_average_pixel(camera_id, exposure_time_us)
     if image_name_prefix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_prefix)
     return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
@@ -455,6 +466,7 @@ class PassportHost:
       masks: dict[str, image.HSVMask],
       log_dir: str = '',
       image_name_prefix: str = '',
+      exposure_time_us: int = 0,
   ) -> dict[str, float]:
     """Captures an image from the specified camera and performs HSV analysis.
 
@@ -472,6 +484,8 @@ class PassportHost:
       image_name_prefix: The prefix of the image name to use for the image. if
         empty no image file will be saved, if specified, the image will be saved
         to logs directory with the given prefix and a timestamp.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
 
     Returns:
       The HSV analysis results for each mask, which is a percentage value
@@ -479,7 +493,7 @@ class PassportHost:
       specified HSV value range.
     """
     self._ensure_passport_connected()
-    resp = self._camera_client.analyze_hsv(camera_id, masks)
+    resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
     if image_name_prefix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_prefix)
     ret = {}
