@@ -23,9 +23,7 @@ def _hsv_to_proto(hsv: image.HSV) -> camera_service_pb2.HSV:
     The proto HSV object.
   """
   return camera_service_pb2.HSV(
-      hue=hsv.hue,
-      saturation=hsv.saturation,
-      value=hsv.value
+      hue=hsv.hue, saturation=hsv.saturation, value=hsv.value
   )
 
 
@@ -67,13 +65,17 @@ class PassportCameraServiceClient:
       ) from e
 
   def get_average_pixel(
-      self, camera_id: str
+      self,
+      camera_id: str,
+      exposure_time_us: int = 0,
   ) -> camera_service_pb2.GetAveragePixelResponse:
     """Gets the average pixel color detected by the specified camera.
 
     Args:
       camera_id: The unique ID of the camera to capture an image and
         GetAveragePixel.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
     Returns:
       The GetAveragePixelResponse from the Passport server with the average
       pixel color detected by the specified camera and the frame.
@@ -82,7 +84,9 @@ class PassportCameraServiceClient:
     """
     try:
       return self.stub.GetAveragePixel(
-          camera_service_pb2.GetAveragePixelRequest(device_id=camera_id)
+          camera_service_pb2.GetAveragePixelRequest(
+              device_id=camera_id, exposure_microseconds=exposure_time_us
+          )
       )
     except grpc.RpcError as e:
       raise PassportCameraClientError(
@@ -90,13 +94,18 @@ class PassportCameraServiceClient:
       ) from e
 
   def analyze_hsv(
-      self, camera_id: str, masks:dict[str, image.HSVMask]
+      self,
+      camera_id: str,
+      masks: dict[str, image.HSVMask],
+      exposure_time_us: int = 0,
   ) -> camera_service_pb2.AnalyzeHSVResponse:
     """Performs HSV analysis on the specified camera.
 
     Args:
       camera_id: The unique ID of the camera to perform HSV analysis on.
       masks: A dictionary of mask names to HSVMasks to compare against.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
     Returns:
       The AnalyzeHSVResponse from the Passport server with the HSV analysis
       results for each mask.
@@ -113,6 +122,7 @@ class PassportCameraServiceClient:
       request = camera_service_pb2.AnalyzeHSVRequest(
           device_id=camera_id,
           masks=request_masks,
+          exposure_microseconds=exposure_time_us,
       )
       return self.stub.AnalyzeImageHSV(request)
     except grpc.RpcError as e:
