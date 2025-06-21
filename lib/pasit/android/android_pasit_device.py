@@ -31,8 +31,6 @@ from mobly.controllers.android_device_lib import apk_utils
 from mobly.controllers.android_device_lib import snippet_client_v2
 from snippet_uiautomator import uiautomator
 
-_DUT_TMP_DIR = '/data/local/tmp/'
-
 
 class AndroidDeviceError(Exception):
   """Error when trying performing an action on an Android device."""
@@ -190,7 +188,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
             'cmd',
             'power',
             'wakeup',
-            str(wakeup_timeout_seconds*1000), # wakeup expects milliseconds
+            str(wakeup_timeout_seconds * 1000),  # wakeup expects milliseconds
         ],
     )
     wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
@@ -239,29 +237,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return True
 
   def get_screenshots(self, output_path: str, file_name_prefix: str):
-    long_display_ids_result = self.controller.adb.shell(
-        [
-            'dumpsys SurfaceFlinger --display-id',
-            '| sed -nE ' + r'"s/Display ([0-9]+).*/\1/p"',
-        ],
-    ).decode()
-    long_display_ids = [
-        int(id.strip()) for id in long_display_ids_result.splitlines()
-    ]
-    for display_id in long_display_ids:
-      file_name = f'{file_name_prefix}_{display_id}.png'
-      self.controller.adb.shell([
-          'screencap',
-          '-p',
-          '-d',
-          str(display_id),
-          '>',
-          _DUT_TMP_DIR + file_name,
-      ])
-      self.controller.adb.pull([
-          _DUT_TMP_DIR + file_name,
-          os.path.join(output_path, file_name),
-      ])
+    self.controller.take_screenshot(
+        output_path, file_name_prefix, all_displays=True
+    )
 
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
     # make sure the color fill test app is installed once to prevent
@@ -310,11 +288,13 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def clean_color_on_display(self):
     window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell([
-        'am',
-        'force-stop',
-        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-    ])
+    self.controller.adb.shell(
+        [
+            'am',
+            'force-stop',
+            self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
+        ]
+    )
     window_count_after = retry.retry(
         lambda: self._get_color_fill_test_app_window_count(),
         until=lambda window_count: window_count == 0,
