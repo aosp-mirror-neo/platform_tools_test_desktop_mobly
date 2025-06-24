@@ -20,11 +20,11 @@ allows for easier interaction with tested devices.
 
 import logging
 
+from lib.pasit import pasit_device
+from lib.pasit.android import android_pasit_device
 from mobly import asserts
 from mobly import base_test
 from mobly import test_runner
-
-from lib.pasit import pasit_device
 
 
 class PasitDeviceTest(base_test.BaseTestClass):
@@ -64,8 +64,13 @@ class PasitDeviceTest(base_test.BaseTestClass):
     self.dut.power_on()
 
   def test_suspend_with_timeout(self):
-    logging.info('Suspending device for 10 seconds...')
-    self.dut.suspend_with_wakeup_timer(10)
+    logging.info(
+        'Suspending device for %d seconds...',
+        android_pasit_device.AndroidPasitDevice.MIN_SLEEP_TIMER_SECONDS,
+    )
+    self.dut.suspend_with_wakeup_timer(
+        android_pasit_device.AndroidPasitDevice.MIN_SLEEP_TIMER_SECONDS
+    )
 
 
 if __name__ == '__main__':

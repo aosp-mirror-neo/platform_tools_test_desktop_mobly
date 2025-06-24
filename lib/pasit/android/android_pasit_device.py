@@ -18,8 +18,8 @@ from collections.abc import Iterable
 import logging
 import os
 import sys
-import time
 import threading
+import time
 
 from lib.pasit.base import base_pasit_device
 from lib.utils import image
@@ -61,6 +61,13 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   LOGIN_SCREEN_PACKAGE_NAME = 'com.google.android.desktop.identity.login'
   LAUNCHER_PACKAGE_NAME = 'com.google.android.apps.nexuslauncher'
+  DEFAULT_RETRY_INTERVAL_SECONDS = 2
+  DEFAULT_MAX_RETRIES_OFFLINE = 10
+  # add 10 seconds to the total sleep time to account for the time it takes
+  # for the device to go to sleep and some overhead
+  MIN_SLEEP_TIMER_SECONDS = (
+      DEFAULT_RETRY_INTERVAL_SECONDS * DEFAULT_MAX_RETRIES_OFFLINE + 10
+  )
 
   # snippet apk is in same directory as this mobly executable
   SNIPPET_APK_PATH = os.path.join(
@@ -161,6 +168,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     logging.debug('Starting services...')
     self.controller.services.start_all()
     self._bypass_login_screen()
+    # if device was previously suspended ensure that the wakelocks are restored
+    self._set_wakup_timeout(0)
 
   def power_off(self):
     self._stop_services()
@@ -169,16 +178,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     if not self._wait_for_device_offline():
       raise AndroidDeviceError('DUT failed to power off.')
 
-  def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
-    self._stop_services()
-    # temporary test if the kernel wake lock is held
-    logging.debug(
-        'Held kernel wake lock: %s',
-        self.controller.adb.shell(['cat', '/sys/power/wake_lock']),
-    )
-    logging.info(
-        'Setting wakeup timeout to %s seconds...', wakeup_timeout_seconds
-    )
+  def _set_wakup_timeout(self, wakeup_timeout_seconds: int):
     self._adb_shell_as_user(
         # this command must be run as non-root user or it will fail so run
         # as user "shell", shell is the default user when running adb commands
@@ -189,8 +189,24 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
             'power',
             'wakeup',
             str(wakeup_timeout_seconds * 1000),  # wakeup expects milliseconds
+            '--restore-wakelocks',
         ],
     )
+
+  def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
+    """Suspends the device with a wakeup timer.
+
+    Args:
+      wakeup_timeout_seconds: The wakeup timeout in seconds. Must be greater
+        than the minimum sleep timer of MIN_SLEEP_TIMER_SECONDS.
+    """
+    if wakeup_timeout_seconds < self.MIN_SLEEP_TIMER_SECONDS:
+      raise ValueError(
+          f'Wakeup timeout {wakeup_timeout_seconds} is less than the minimum'
+          f' sleep timer {self.MIN_SLEEP_TIMER_SECONDS}.'
+      )
+    self._stop_services()
+    self._set_wakup_timeout(wakeup_timeout_seconds)
     wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
     wakeup_timer.start()
     self._suspend()
@@ -216,7 +232,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         'Held kernel wake lock: %s',
         self.controller.adb.shell(['cat', '/sys/power/wake_lock']),
     )
-    self.controller.adb.shell(['cmd', 'power', 'sleep'])
+    self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
     logging.debug('Waiting for device to suspend...')
     if not self._wait_for_device_offline():
       raise AndroidDeviceError('DUT failed to suspend.')
@@ -288,13 +304,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def clean_color_on_display(self):
     window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell(
-        [
-            'am',
-            'force-stop',
-            self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-        ]
-    )
+    self.controller.adb.shell([
+        'am',
+        'force-stop',
+        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
+    ])
     window_count_after = retry.retry(
         lambda: self._get_color_fill_test_app_window_count(),
         until=lambda window_count: window_count == 0,
@@ -384,7 +398,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       )
 
   def _wait_for_device_offline(
-      self, interval: int = 2, max_retries: int = 10
+      self,
+      interval: int = DEFAULT_RETRY_INTERVAL_SECONDS,
+      max_retries: int = DEFAULT_MAX_RETRIES_OFFLINE,
   ) -> bool:
     """Waits for the device to be offline.
 
