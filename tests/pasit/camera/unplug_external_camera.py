@@ -15,7 +15,6 @@
 """Test unplugging an external camera."""
 
 
-from lib.utils import retry
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
@@ -37,9 +36,8 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
     self.dut.get_screenshots(self.log_path, 'after_launch_camera_app')
 
     self._plug_in_external_camera()
-    external_camera_devices = retry.retry(
-        lambda: self._get_external_camera_devices(internal_camera_devices),
-        until=lambda result: result,
+    external_camera_devices = self._wait_for_external_camera_devices(
+        internal_camera_devices
     )
     self.dut.get_screenshots(self.log_path, 'after_plug_in_external_camera')
 

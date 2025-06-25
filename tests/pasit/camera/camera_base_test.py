@@ -86,6 +86,15 @@ class CameraBaseTest(pasit_test.PasitTestClass):
         [self.camera.is_camera_app_using_camera(device) for device in devices]
     )
 
+  def _wait_for_external_camera_devices(
+      self, devices: Iterable[str]
+  ) -> MutableSequence[str]:
+    """Waits for the external camera devices to be detected."""
+    return retry.retry(
+        lambda: self._get_external_camera_devices(devices),
+        until=lambda result: result,
+    )
+
   def _verify_camera_app_is_using_any_device(
       self, devices: Iterable[str], device_name: str
   ):
