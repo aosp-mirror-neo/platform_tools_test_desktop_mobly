@@ -41,6 +41,7 @@ class PasitTestClass(base_test.BaseTestClass):
   DEVICE_TYPE_STORAGE = pasit_host_pb2.PasitHost.Device.Type.STORAGE
   DEVICE_TYPE_CAMERA = pasit_host_pb2.PasitHost.Device.Type.CAMERA
   DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
+  DEVICE_TYPE_HID = pasit_host_pb2.PasitHost.Device.Type.HID
 
   dut: pasit_device.PasitDevice
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None

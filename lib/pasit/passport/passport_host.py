@@ -22,6 +22,7 @@ from typing import Any
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
 from lib.pasit.passport import errors
+from lib.pasit.passport import hid_service_client
 from lib.pasit.passport import ip_9850
 from lib.pasit.passport import ip_power
 from lib.pasit.passport import passport_camera_service_client
@@ -67,6 +68,7 @@ class PassportHost:
   Attributes:
     topology: The topology of the Pasit Testbed.
     address: The address of the PassportHost (in the form of hostname:port).
+    hid_client: The client for the HID service.
     log: The logger for the PassportHost.
     usb_tester_client: The client for the USB tester service.
     video_tester_client: The client for the video tester service.
@@ -80,6 +82,7 @@ class PassportHost:
       passport_video_service_client.PassportVideoServiceClient | None
   ) = None
   _switch_client: passport_switch_service_client.PassportSwitchServiceClient
+  hid_client: hid_service_client.PassportHIDServiceClient | None = None
   _dut_id = None
   _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
   _connections: dict[
@@ -161,6 +164,7 @@ class PassportHost:
     self._camera_client = (
         passport_camera_service_client.PassportCameraServiceClient(self.address)
     )
+    self.hid_client = hid_service_client.PassportHIDServiceClient(self.address)
     self._switch_client = (
         passport_switch_service_client.PassportSwitchServiceClient(self.address)
     )
