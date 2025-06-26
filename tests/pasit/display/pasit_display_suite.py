@@ -17,22 +17,21 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-from pasit.display import display_count_test
-from pasit.display import plug_unplug_external_display
+from pasit.display import plug_in_external_display
+from pasit.display import unplug_external_display
 
 
 class PasitDisplaySuite(base_suite.BaseSuite):
   """PASIT Display Suite."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(display_count_test.DisplayCountTest)
-    self.add_test_class(
-        plug_unplug_external_display.PlugUnplugExternalDisplayTest
-    )
+    self.add_test_class(unplug_external_display.UnplugExternalDisplayTest)
+    self.add_test_class(plug_in_external_display.PlugInExternalDisplayTest)
 
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == '__main__':
   main()
