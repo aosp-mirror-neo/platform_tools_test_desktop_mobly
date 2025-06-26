@@ -31,6 +31,9 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     self._launch_camera_app()
     self.dut.get_screenshots(self.log_path, 'camera_app_launched')
 
+    self._switch_camera()
+    self.dut.get_screenshots(self.log_path, 'after_switch_to_external_camera')
+
 
 if __name__ == '__main__':
   test_runner.main()
