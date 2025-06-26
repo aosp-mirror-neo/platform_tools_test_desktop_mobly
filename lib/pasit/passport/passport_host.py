@@ -434,6 +434,37 @@ class PassportHost:
         camera_id, log_dir, image_name_prefix, exposure_time_us
     )
 
+  def capture_images_from_all_cameras(
+      self,
+      output_path: str,
+      image_prefix: str,
+      camera_exposure_time_us: int = 0,
+  ):
+    """Captures an image from each camera connected to the PassportHost.
+
+    Args:
+      output_path: The directory to save the images to.
+      image_prefix: The prefix for the image file names. The actual image name
+        will be {image_prefix}_camera{camera_id}.
+      camera_exposure_time_us: The exposure time in microseconds to use for the
+        camera. If 0, the auto exposure setting will be used.
+    """
+    for camera in self.get_cameras():
+      logging.debug(
+          'Capturing display image from %s camera %s to directory %s with'
+          ' exposure time %d us',
+          image_prefix,
+          camera,
+          output_path,
+          camera_exposure_time_us,
+      )
+      self.capture_image(
+          camera,
+          output_path,
+          f'{image_prefix}_camera{camera}',
+          camera_exposure_time_us,
+      )
+
   def get_average_pixel(
       self,
       camera_id: str,

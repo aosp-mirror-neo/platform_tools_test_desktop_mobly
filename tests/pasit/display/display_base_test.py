@@ -73,7 +73,11 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
   def on_fail(self, record: records.TestResultRecord) -> None:
     """Called on test failure."""
-    self._capture_display_images('on_fail')
+    self.passport_host.capture_images_from_all_cameras(
+        self.current_test_info.output_path,
+        'on_fail',
+        self.camera_exposure_time_us,
+    )
     super().on_fail(record)
 
   def _plug_in_external_display(self):
@@ -98,31 +102,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_count,
         f'Display count is not {expected_count} {event_to_log}.',
     )
-
-  def _capture_display_images(self, image_prefix: str):
-    """Captures an image from each PASIT camera to the log directory.
-
-    TODO: this doesn't do any association between the image and the display,
-    that will be done in future improvements.
-
-    Args:
-      image_prefix: The prefix of the image name to use for the image.
-    """
-    cameras = self.passport_host.get_cameras()
-    for camera in cameras:
-      logging.debug(
-          'Capturing display image for %s camera %s to directory %s with exposure time %d us',
-          image_prefix,
-          camera,
-          self.current_test_info.output_path,
-          self.camera_exposure_time_us,
-      )
-      self.passport_host.capture_image(
-          camera,
-          self.current_test_info.output_path,
-          f'{image_prefix}_camera{camera}',
-          self.camera_exposure_time_us,
-      )
 
   def _open_rgb_images_on_displays(self) -> dict[str, image.Color]:
     """Opens RGB images on the displays.
