@@ -27,8 +27,12 @@ class BasePasitCamera(metaclass=abc.ABCMeta):
     self.controller = controller
 
   @abc.abstractmethod
-  def launch_camera_app(self):
-    """Launches the camera app."""
+  def launch_camera_app(self) -> bool:
+    """Launches the camera app.
+
+    Returns:
+      True if the camera app was launched successfully, False otherwise.
+    """
     raise NotImplementedError()
 
   @abc.abstractmethod
@@ -44,4 +48,9 @@ class BasePasitCamera(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def is_camera_app_using_camera(self, camera_device: str) -> bool:
     """Checks if the camera app is using the camera_device."""
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def switch_camera(self):
+    """Switches to the front or back camera."""
     raise NotImplementedError()
