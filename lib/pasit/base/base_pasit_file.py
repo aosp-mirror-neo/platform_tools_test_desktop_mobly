@@ -45,5 +45,14 @@ class BasePasitFile(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError()
 
+  @abc.abstractmethod
+  def list_screenshots(self) -> list[str]:
+    """Returns the list of file paths of the screenshots taken by the device.
+
+    Returns:
+      The list of file paths of the screenshots taken by the device.
+    """
+    raise NotImplementedError()
+
   def __init__(self, controller: Any):
     self.controller = controller
