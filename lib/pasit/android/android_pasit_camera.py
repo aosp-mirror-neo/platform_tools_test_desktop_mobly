@@ -15,16 +15,18 @@
 """AndroidPasitCamera handles camera operations for PASIT testing on Android devices."""
 
 from collections.abc import MutableSequence
-
-from mobly.controllers import android_device
+import datetime
 
 from lib.pasit.base import base_pasit_camera
+from mobly.controllers import android_device
 
 
 class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
   """PasitCamera for Android devices."""
 
-  def launch_camera_app(self):
+  _CAMERA_APP_PACKAGE_NAME = 'com.google.android.desktop.camera'
+
+  def launch_camera_app(self) -> bool:
     # Instruct the Activity Manager(am) to start the camera app using the
     # VIDEO_CAPTURE action. This is a typical way to launch the camera app on
     # Android devices.
@@ -33,15 +35,18 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         'start',
         '-a',
         'android.media.action.VIDEO_CAPTURE',
-        'com.google.android.desktop.camera',
+        self._CAMERA_APP_PACKAGE_NAME,
     ])
+    return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
+        timeout=datetime.timedelta(seconds=5)
+    )
 
   def close_camera_app(self):
     # Instruct the Activity Manager(am) to terminate all processes associated
     # with the camera app (uniquely identified by package name
     # com.google.android.desktop.camera).
     self.controller.adb.shell(
-        ['am', 'force-stop', 'com.google.android.desktop.camera']
+        ['am', 'force-stop', self._CAMERA_APP_PACKAGE_NAME]
     )
 
   def get_connected_cameras(self) -> MutableSequence[str]:
@@ -67,3 +72,8 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
       # False.
       return False
     return bool(output)
+
+  def switch_camera(self):
+    self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
+    ).click()

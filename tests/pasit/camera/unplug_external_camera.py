@@ -14,9 +14,7 @@
 
 """Test unplugging an external camera."""
 
-import logging
 
-from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
@@ -24,38 +22,36 @@ from pasit.camera import camera_base_test
 class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test unplugging an external camera."""
 
-  def test_external_camera_is_not_default(self):
-    """Test that the external camera is regonized by system and not used in camera app by default."""
+  def test_unplug_external_camera(self):
+    """Test unplugging an external camera.
+
+    Switch camera in the camera app, and assert that the camera app is using the
+    external camera.
+    Unplug the external camera, and assert that the camera app is using the
+    internal camera.
+    """
 
     internal_camera_devices = self.camera.get_connected_cameras()
-    logging.info('Internal camera devices: %s', internal_camera_devices)
+    self._launch_camera_app()
+    self.dut.get_screenshots(self.log_path, 'after_launch_camera_app')
 
     self._plug_in_external_camera()
-
-    external_camera_devices = self._get_external_camera_devices(
+    external_camera_devices = self._wait_for_external_camera_devices(
         internal_camera_devices
     )
-    logging.info('External camera devices: %s', external_camera_devices)
-    asserts.assert_greater(
-        len(external_camera_devices), 0, 'No external camera devices found.'
+    self.dut.get_screenshots(self.log_path, 'after_plug_in_external_camera')
+
+    self._switch_camera()
+    self._verify_camera_app_is_using_any_device(
+        external_camera_devices, 'external camera'
     )
+    self.dut.get_screenshots(self.log_path, 'after_switch_camera')
 
-    logging.info('Launching camera app')
-    self.camera.launch_camera_app()
-
-    # TODO: b/406342089 - Switch camera in the camera app, and assert that the
-    # camera app is using the external camera. Unplug the external camera, and
-    # assert that the camera app is using the internal camera.
-
-    asserts.assert_false(
-        self._is_camera_app_using_any_device(external_camera_devices),
-        'Camera app is using external camera.',
+    self._unplug_external_camera()
+    self._verify_camera_app_is_using_any_device(
+        internal_camera_devices, 'internal camera'
     )
-
-    asserts.assert_true(
-        self._is_camera_app_using_any_device(internal_camera_devices),
-        'Camera app is not using internal camera.',
-    )
+    self.dut.get_screenshots(self.log_path, 'after_unplug_external_camera')
 
 
 if __name__ == '__main__':
