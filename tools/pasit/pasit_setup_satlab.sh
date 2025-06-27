@@ -240,7 +240,7 @@ function generate_config() {
     exit 1
   fi
 
-  if ! topology_converter convert -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
+  if ! topology_converter convert --ignore-unknown-fields --ignore-unknown-fields -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
     echo -e "\n\nFailed to generate config yaml file for ${DUT_HOSTNAME}"
     exit 1
   fi

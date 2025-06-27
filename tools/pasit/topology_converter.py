@@ -42,14 +42,18 @@ from google.protobuf import text_format
 import yaml
 
 
-def parse_json(json_file: str) -> pasit_host_pb2.PasitHost:
+def parse_json(
+    json_file: str, ignore_unknown_fields: bool = False
+) -> pasit_host_pb2.PasitHost:
   """Parses the pasit topology from a JSON file.
 
   Args:
     json_file: string path to a JSON file containing a pasit topology.
+    ignore_unknown_fields: If True, unknown fields in the JSON will be ignored.
 
   Returns:
     A pasit_host_pb2.PasitHost object.
+
   Raises:
     FileNotFoundError: if the JSON file is not found.
     json_format.ParseError: if the JSON file is invalid.
@@ -57,7 +61,9 @@ def parse_json(json_file: str) -> pasit_host_pb2.PasitHost:
   pasit_host = pasit_host_pb2.PasitHost()
   with open(json_file, 'r') as f:
     data = f.read()
-    json_format.Parse(data, pasit_host)
+    json_format.Parse(
+        data, pasit_host, ignore_unknown_fields=ignore_unknown_fields
+    )
   return pasit_host
 
 
@@ -91,13 +97,18 @@ def write_to_mobly_yaml(topology: pasit_host_pb2.PasitHost, yaml_file: str):
     yaml.dump(topology, f, indent=2, sort_keys=False)
 
 
-def parse_yaml(yaml_file: str) -> pasit_host_pb2.PasitHost:
+def parse_yaml(
+    yaml_file: str, ignore_unknown_fields: bool = False
+) -> pasit_host_pb2.PasitHost:
   """Parses the pasit topology from a YAML file.
 
   Args:
     yaml_file: string path to a YAML file containing a Mobly testbed config.
+    ignore_unknown_fields: If True, unknown fields in the JSON representation
+      within the YAML will be ignored.
 
   Returns:
+
     A pasit_host_pb2.PasitHost object.
   Raises:
     FileNotFoundError: if the YAML file is not found.
@@ -149,20 +160,30 @@ def parse_yaml(yaml_file: str) -> pasit_host_pb2.PasitHost:
     )
 
   pasit_host = pasit_host_pb2.PasitHost()
-  json_format.ParseDict(topologies[topology_name], pasit_host)
+  json_format.ParseDict(
+      topologies[topology_name],
+      pasit_host,
+      ignore_unknown_fields=ignore_unknown_fields,
+  )
   return pasit_host
 
 
-def parse_textproto(textproto_file: str) -> pasit_host_pb2.PasitHost:
+def parse_textproto(
+    textproto_file: str, ignore_unknown_fields: bool = False
+) -> pasit_host_pb2.PasitHost:
   """Parses the pasit topology from a textproto file."""
   pasit_host = pasit_host_pb2.PasitHost()
   with open(textproto_file, 'r') as f:
     data = f.read()
-    text_format.Parse(data, pasit_host)
+    text_format.Parse(
+        data, pasit_host, ignore_unknown_fields=ignore_unknown_fields
+    )
   return pasit_host
 
 
-def generate_graph(input_file: str, output_file: str):
+def generate_graph(
+    input_file: str, output_file: str, ignore_unknown_fields: bool = False
+):
   """Generates a graph image from a topology file.
 
   Args:
@@ -172,11 +193,17 @@ def generate_graph(input_file: str, output_file: str):
   # extract the file type from extension
   file_type = os.path.splitext(input_file)[1]
   if file_type == '.json':
-    topology = parse_json(input_file)
+    topology = parse_json(
+        input_file, ignore_unknown_fields=ignore_unknown_fields
+    )
   elif file_type == '.yaml' or file_type == '.yml':
-    topology = parse_yaml(input_file)
+    topology = parse_yaml(
+        input_file, ignore_unknown_fields=ignore_unknown_fields
+    )
   elif file_type == '.textproto':
-    topology = parse_textproto(input_file)
+    topology = parse_textproto(
+        input_file, ignore_unknown_fields=ignore_unknown_fields
+    )
   else:
     print(f'Unsupported file type: {file_type}')
     return
@@ -225,6 +252,11 @@ def main():
   convert_parser.add_argument(
       '-o', '--output-file', help='Output file (JSON or YAML)'
   )
+  convert_parser.add_argument(
+      '--ignore-unknown-fields',
+      action='store_true',
+      help='Ignore unknown fields during protobuf parsing.',
+  )
 
   # Graph command
   graph_parser = subparsers.add_parser('graph', help='Generate a graph image')
@@ -234,9 +266,13 @@ def main():
   graph_parser.add_argument(
       '-o', '--output-file', help='Output image file (e.g., topology.png)'
   )
+  graph_parser.add_argument(
+      '--ignore-unknown-fields',
+      action='store_true',
+      help='Ignore unknown fields during protobuf parsing.',
+  )
 
   args = parser.parse_args()
-
   if args.command == 'convert':
     input_file = args.input_file
     output_file = args.output_file
@@ -246,11 +282,17 @@ def main():
       sys.exit(1)
     topology = None
     if input_file.endswith('.json'):
-      topology = parse_json(input_file)
+      topology = parse_json(
+          input_file, ignore_unknown_fields=args.ignore_unknown_fields
+      )
     elif input_file.endswith('.yaml') or input_file.endswith('.yml'):
-      topology = parse_yaml(input_file)
+      topology = parse_yaml(
+          input_file, ignore_unknown_fields=args.ignore_unknown_fields
+      )
     elif input_file.endswith('.textproto'):
-      topology = parse_textproto(input_file)
+      topology = parse_textproto(
+          input_file, ignore_unknown_fields=args.ignore_unknown_fields
+      )
     else:
       print(
           'Invalid input file type for conversion.  Input must be json, yaml,'
@@ -277,7 +319,11 @@ def main():
       parser.print_help()
       print('Input and output files are required for graph generation.')
       sys.exit(1)
-    generate_graph(args.input_file, args.output_file)
+    generate_graph(
+        args.input_file,
+        args.output_file,
+        ignore_unknown_fields=args.ignore_unknown_fields,
+    )
   else:
     parser.print_help()
     sys.exit(1)
