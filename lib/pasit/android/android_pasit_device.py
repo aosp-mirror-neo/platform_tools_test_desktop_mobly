@@ -284,21 +284,14 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     if user_id == self.controller.adb.current_user_id:
       logging.debug('Device is already logged in as user %s.', user_id)
       return
+    self.controller.adb.shell(['am', 'switch-user', '-w', str(user_id)])
     if user_id == self.LOGGED_IN_USER_ID:
-      # if switching to the logged in user ensure that login screen is shown
-      # before attempting to switch users
+      # wait for the launcher to be active before proceeding
       retry.retry(
-          lambda: self._ui_active_package_is(self.LOGIN_SCREEN_PACKAGE_NAME),
+          lambda: self._ui_active_package_is(self.LAUNCHER_PACKAGE_NAME),
           max_tries=10,
           exceptions=(UnexpectedActivePackageError,),
       )
-    self.controller.adb.shell(['am', 'switch-user', str(user_id)])
-    # wait for the launcher to be active before proceeding
-    retry.retry(
-        lambda: self._ui_active_package_is(self.LAUNCHER_PACKAGE_NAME),
-        max_tries=10,
-        exceptions=(UnexpectedActivePackageError,),
-    )
     # ensure that the user switch was successful
     if user_id != self.controller.adb.current_user_id:
       raise AndroidDeviceError(
