@@ -54,5 +54,24 @@ class BasePasitFile(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError()
 
+  @abc.abstractmethod
+  def copy_file(self, file_path: str, dest_path: str):
+    """Copies a file from one path to another on the device.
+
+    Args:
+      file_path: The path of the file on the device to copy.
+      dest_path: The destination path on the device to copy the file to.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def remove_file(self, file_path: str):
+    """Removes a file from the device.
+
+    Args:
+      file_path: The path of the file on the device to remove.
+    """
+    raise NotImplementedError()
+
   def __init__(self, controller: Any):
     self.controller = controller

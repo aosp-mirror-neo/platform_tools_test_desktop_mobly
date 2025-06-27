@@ -167,13 +167,14 @@ class StorageBaseTest(pasit_test.PasitTestClass):
         dut_file_path,
         external_storage_file_path,
     )
-    self.dut.controller.adb.shell(
-        ['cp', dut_file_path, external_storage_file_path]
-    )
+    self.file_interface.copy_file(dut_file_path, external_storage_file_path)
     return external_storage_file_path
 
   def _pull_file_from_external_storage(
-      self, external_storage_file_path: str, temp_dir: str
+      self,
+      external_storage_file_path: str,
+      temp_dir: str,
+      delete_from_storage: bool = True,
   ) -> str:
     """Pulls a file from the external storage to the host.
 
@@ -181,6 +182,8 @@ class StorageBaseTest(pasit_test.PasitTestClass):
       external_storage_file_path: The path to the file on the external storage.
       temp_dir: The temporary directory on the host into which the test file
         will be copied.
+      delete_from_storage: Whether to delete the file from the external storage
+        after pulling it.
 
     Returns:
       The path to the file on the host.
@@ -198,6 +201,13 @@ class StorageBaseTest(pasit_test.PasitTestClass):
         external_storage_file_path,
         host_file_path,
     )
+
+    if delete_from_storage:
+      logging.info(
+          'Deleting file from external storage [%s]',
+          external_storage_file_path,
+      )
+      self.file_interface.remove_file(external_storage_file_path)
     return host_file_path
 
   def _wait_for_external_mount_point(self, max_tries: int = 10) -> str:
