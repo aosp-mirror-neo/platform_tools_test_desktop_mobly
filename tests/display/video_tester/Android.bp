@@ -76,6 +76,7 @@ python_test_host {
     libs: [
         "py-display-utils",
         "py-pasit-display",
+        "py-display-painter",
     ],
 }
 

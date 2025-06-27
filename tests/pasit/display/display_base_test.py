@@ -17,6 +17,7 @@
 import logging
 from typing import Optional
 
+from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
 from lib.utils import image
@@ -60,6 +61,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   ]
 
   display: pasit_display.PasitDisplay
+  painter: display_painter.DisplayPainter
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
   camera_exposure_time_us: int = 0
 
@@ -70,6 +72,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """
     super().setup_class()
     self.display = self.create(pasit_display)
+    self.painter = self.create(display_painter)
 
   def on_fail(self, record: records.TestResultRecord) -> None:
     """Called on test failure."""
@@ -123,7 +126,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         zip(display_ids, [color.value for color in self._COLORS])
     )
     for display_id, color in display_id_to_color.items():
-      self.dut.show_color_on_display(color, display_id)
+      self.painter.show_color_on_display(color, display_id)
     return display_id_to_color
 
   def _map_displays_to_cameras(self) -> dict[str, str]:
@@ -158,7 +161,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         # if we get a match, store the exposure time to use for future
         # verification steps and image captures.
         self.camera_exposure_time_us = exposure_time_us
-        self.dut.clean_color_on_display()
+        self.painter.clean_color_on_display()
         return ret
       except signals.TestError:
         logging.debug(
@@ -181,6 +184,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     Args:
       display_id_to_color: A dictionary of display ID to color.
       exposure_time_us: The exposure time in microseconds to use for the camera.
+
     Returns:
       A dictionary of display ID to camera ID.
     Raises:

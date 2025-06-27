@@ -19,7 +19,6 @@ from collections.abc import Iterable
 import logging
 from typing import Any
 
-from lib.utils import image
 from lib.utils import servo_client
 
 
@@ -179,36 +178,6 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       output_path: The path to save the screenshots to.
       file_name_prefix: The prefix of the file name to use for the screenshots.
         The display ID will be appended to the file name.
-    """
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def show_color_on_display(self, color: image.Color, display_id: str = ''):
-    """Shows the given color on the display.
-
-    Usage:
-    Example 1: Show red color on default display.
-      self.show_color_on_display(image.Color(255, 0, 0, 255))
-
-    Example 2: Show red color on all displays.
-      display = self.create(pasit_display)
-      display_ids = display.get_display_ids()
-      for display_id in display_ids:
-        self.show_color_on_display(image.NamedColor.RED.value, display_id)
-
-    Args:
-      color: The color to show on the display.
-      display_id: The display ID to show the color on. Display ID can be
-        obtained from PasitDisplay via get_display_ids(). If empty, the color
-        will be shown on the default display.
-    """
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def clean_color_on_display(self):
-    """Cleans the color on the display.
-
-    Must be called as part of the cleanup/teardown of the test.
     """
     raise NotImplementedError
 

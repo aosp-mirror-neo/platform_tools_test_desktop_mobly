@@ -17,6 +17,19 @@ package {
 }
 
 python_library_host {
+    name: "py-display-painter",
+    srcs: [
+        "*/*display_painter.py",
+        "*display_painter.py",
+    ],
+    exclude_srcs: ["passport/*"],
+    libs: [
+        "mobly",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
     name: "py-pasit-camera",
     srcs: [
         "*/*camera.py",

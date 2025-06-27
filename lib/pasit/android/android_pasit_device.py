@@ -22,9 +22,7 @@ import threading
 import time
 
 from lib.pasit.base import base_pasit_device
-from lib.utils import image
 from lib.utils import retry
-from mobly import signals
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
@@ -79,21 +77,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       'snippet-uiautomator.apk',
   )
 
-  # ColorFillTestApp is used to display a color on the screen
-  COLOR_FILL_TEST_APP_PACKAGE_NAME = 'com.google.android.colorfilltestapp'
-  COLOR_FILL_TEST_APP_APK_PATH = os.path.join(
-      os.path.dirname(os.path.abspath(sys.argv[0])),
-      'ColorFillTest.apk',
-  )
-  COLOR_FILL_TEST_APP_ACTIVITY_NAME = (
-      'com.google.android.colorfilltestapp/.MainActivity'
-  )
-  COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION = 'Color Fill Test'
-
   def __init__(self, controller: android_device.AndroidDevice, servo_uri: str):
     super().__init__(controller, servo_uri)
-    self._colorfillapp_installed = False
-
     self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()
@@ -107,10 +92,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def __del__(self):
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()
-    if self._colorfillapp_installed:
-      apk_utils.uninstall(
-          self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
-      )
 
   def uninstall_apks(self):
     apk_utils.uninstall(self.controller, android_device.MBS_PACKAGE)
@@ -257,71 +238,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         output_path, file_name_prefix, all_displays=True
     )
 
-  def show_color_on_display(self, color: image.Color, display_id: str = ''):
-    # make sure the color fill test app is installed once to prevent
-    # closing previously opened windows
-    if not self._colorfillapp_installed:
-      apk_utils.install(
-          self.controller,
-          self.COLOR_FILL_TEST_APP_APK_PATH,
-          params=['-t'],
-      )
-      self._colorfillapp_installed = True
-
-    # set screen brightness to max to ensure color is visible
-    self._set_screen_brightness(255)
-
-    window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell(
-        [
-            'am',
-            'start',
-            '-n',
-            self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
-            '-a',
-            'android.intent.activity.MAIN',
-            '-e',
-            'color',
-            repr(color),
-        ]
-        + (['--display', display_id] if display_id else [])
-    )
-
-    window_count_after = retry.retry(
-        lambda: self._get_color_fill_test_app_window_count(),
-        until=lambda window_count: window_count == window_count_before + 1,
-        max_tries=10,
-        delay_seconds=1,
-    )
-    if window_count_after <= window_count_before:
-      raise signals.TestError(
-          'Failed to show color on display. Color fill test app window count'
-          f' did not increase by 1. Before: {window_count_before}, After:'
-          f' {window_count_after}'
-      )
-    # maximize the window that shows custom background color
-    self._maximize_color_fill_test_app_window()
-
-  def clean_color_on_display(self):
-    window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell([
-        'am',
-        'force-stop',
-        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-    ])
-    window_count_after = retry.retry(
-        lambda: self._get_color_fill_test_app_window_count(),
-        until=lambda window_count: window_count == 0,
-        max_tries=10,
-        delay_seconds=1,
-    )
-    if window_count_after != 0:
-      raise signals.TestError(
-          'Failed to clean color on display. Color fill test app window count'
-          f' did not become 0. Before: {window_count_before}, After:'
-          f' {window_count_after}'
-      )
-
   def _install_mbs(self):
     """Installs Mobly Bundled Snippets."""
     apk_utils.install(
@@ -417,26 +333,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         max_tries=max_retries,
         delay_seconds=interval,
     )
-
-  def _set_screen_brightness(self, brightness: int):
-    """Sets the screen brightness. Max brightness is 255."""
-    self.controller.adb.shell(
-        ['settings', 'put', 'system', 'screen_brightness', str(brightness)]
-    )
-
-  def _get_color_fill_test_app_window_count(self) -> int:
-    """Returns the number of windows that show custom background color."""
-    return self.controller.ui(
-        desc=(
-            f'{self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION} (Desktop windowing)'
-        )
-    ).count
-
-  def _maximize_color_fill_test_app_window(self):
-    """Maximizes the window that shows custom background color."""
-    self.controller.ui(
-        desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
-    ).click()
 
   def _adb_shell_as_user(self, user_id: int | str, cmd: list[str]) -> bytes:
     """Runs adb as the specified user."""

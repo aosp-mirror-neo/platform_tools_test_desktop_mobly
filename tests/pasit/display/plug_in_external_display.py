@@ -34,7 +34,7 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
   def teardown_test(self):
-    self.dut.clean_color_on_display()
+    self.painter.clean_color_on_display()
     super().teardown_test()
 
   def pre_run(self):
@@ -69,7 +69,7 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
     display_id_to_camera_id = self._map_displays_to_cameras()
 
     logging.info('Open red background on external display')
-    self.dut.show_color_on_display(
+    self.painter.show_color_on_display(
         image.NamedColor.RED.value, external_display_id
     )
 
