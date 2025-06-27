@@ -30,6 +30,21 @@ python_library_host {
 }
 
 python_library_host {
+    name: "py-display-helper",
+    srcs: [
+        "display_helper.py",
+    ],
+    libs: [
+        "mobly",
+        "py-pasit-display",
+        "py-display-painter",
+        "py-passport",
+        "py-desktop-utils",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
     name: "py-pasit-camera",
     srcs: [
         "*/*camera.py",

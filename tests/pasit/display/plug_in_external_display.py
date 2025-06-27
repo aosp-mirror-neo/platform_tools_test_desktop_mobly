@@ -57,16 +57,18 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
     """Test that plugs in an external display when DUT is in different states."""
     self._skip_if_servo_needed_and_not_configured(state_when_plug_display)
 
-    internal_display_id = self._get_internal_display_id()
+    internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
       self._plug_in_external_display()
 
     self._verify_display_count(2, 'after external display plug in')
-    external_display_id = self._get_external_display_id(internal_display_id)
+    external_display_id = self.helper.get_external_display_id(
+        internal_display_id
+    )
 
-    display_id_to_camera_id = self._map_displays_to_cameras()
+    display_id_to_camera_id = self.helper.map_displays_to_cameras()
 
     logging.info('Open red background on external display')
     self.painter.show_color_on_display(
