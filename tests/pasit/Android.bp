@@ -47,6 +47,7 @@ python_test_host {
     libs: [
         "DesktopPASITCameraTests",
         "DesktopPASITDisplayTests",
+        "DesktopPASITHIDTests",
         "DesktopPASITSmokeTests",
         "DesktopPASITStorageTests",
     ],
