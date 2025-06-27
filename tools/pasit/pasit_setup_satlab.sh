@@ -55,7 +55,59 @@ function usage() {
   echo ""
   echo "Example:"
   echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
+  echo ""
+  echo "For more instructions see go/write-pasit-test."
   exit 1
+}
+
+function check_ssh_access() {
+  echo -e "\n\nChecking SSH access to ${SATLAB_IP}..."
+  if ! ssh -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
+    echo -e "\n\nERROR: Failed to establish SSH connection to ${SATLAB_IP}."
+    echo "Please ensure you have passwordless SSH access configured for this Satlab and that the host key is accepted."
+    echo "See go/write-pasit-test#enter-satlab-dut for more details."
+    exit 1
+  fi
+  echo "SSH access to ${SATLAB_IP} successful."
+}
+
+function check_dependencies() {
+  echo -e "\n\nChecking script dependencies..."
+
+  # Check for always required tools
+  if ! which adb > /dev/null 2>&1; then
+    echo "ERROR: adb command not found. Please ensure adb is installed or you are running from Android build dir that has adb."
+    exit 1
+  fi
+
+  # Check for tools needed for crosfleet/shivas/provisioning steps
+  if [[ "${SKIP_LEASE}" != true || "${SKIP_SETUP_SERVO}" != true || "${PROVISION}" == true ]]; then
+    if ! which jq > /dev/null 2>&1; then
+      echo "ERROR: jq command not found. Please install jq (e.g., sudo apt install jq)."
+      exit 1
+    fi
+
+    if ! which shivas > /dev/null 2>&1; then
+      echo "ERROR: shivas command not found. Please ensure shivas is installed and on your PATH."
+      echo "See go/shivas for installation instructions."
+      exit 1
+    fi
+
+    if ! which crosfleet > /dev/null 2>&1; then
+      echo "ERROR: crosfleet command not found. Please ensure crosfleet is installed and on your PATH."
+      echo "See go/crosfleet-cli for installation instructions."
+      exit 1
+    fi
+  fi
+  echo "All required dependencies found."
+}
+
+function run_command_on_satlab_ignore_error() {
+  # runs command on satlab in a bash shell so that we get env vars
+  # and path as if we were running command from interactive shell
+  # this assumes that no variable expanision is needed on the remote
+  # ssh shell
+  ssh "${SATLAB_IP}" -t "bash -l -c '$*'"
 }
 
 function run_command_on_satlab() {
@@ -63,7 +115,11 @@ function run_command_on_satlab() {
   # and path as if we were running command from interactive shell
   # this assumes that no variable expanision is needed on the remote
   # ssh shell
-  ssh "${SATLAB_IP}" -t "bash -l -c '$*'"
+  run_command_on_satlab_ignore_error $@
+  if [[ $? -ne 0 ]]; then
+    echo -e "\n\nERROR: Failed to run command on Satlab ${SATLAB_IP}: $*"
+    exit 1
+  fi
 }
 
 function setup_tunnel() {
@@ -81,10 +137,14 @@ function setup_tunnel() {
     -L "${IP_POWER_SWITCH_TUNNEL_PORT}:${IP_POWER_SWITCH_IP}:80" \
     ${SERVO_TUNNEL} \
     "${SATLAB_IP}"
+  if [[ $? -ne 0 ]]; then
+    echo -e "\n\nERROR: Failed to start SSH tunnel to ${SATLAB_IP}"
+    exit 1
+  fi
   sleep 5
   # check if the tunnel is up
   if ! pgrep -f "${TUNNEL_PGREP}" > /dev/null 2>&1; then
-    echo -e "\n\nFailed to start SSH tunnel to ${SATLAB_IP}"
+    echo -e "\n\nERROR: Failed to start SSH tunnel to ${SATLAB_IP}"
     exit 1
   fi
   echo "SSH tunnel to ${DUT_HOSTNAME} started"
@@ -112,7 +172,7 @@ function start_passport() {
   if ! ssh "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
       \"/usr/local/bin/docker pull ${PASSPORT_DOCKER_IMAGE}\""; then
     echo "ERROR: failed to pull latest passport docker image"
-    # exit 1
+    exit 1
   fi
   # start container
   echo -e "\n\nStarting passport container ${PASSPORT_DOCKER_IMAGE}..."
@@ -130,6 +190,10 @@ function start_passport() {
   PASSPORT_IP="$(ssh "${SATLAB_IP}" "${DOCKER_CMD}" inspect -f \
     '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
     "${PASSPORT_CONTAINER}")"
+  if [[ $? -ne 0 || -z "${PASSPORT_IP}" ]]; then
+    echo -e "\n\nERROR: Failed to get Passport container IP."
+    exit 1
+  fi
 }
 
 function setup_servo() {
@@ -149,7 +213,7 @@ function setup_servo() {
     exit 1
   fi
   SERVO_SERIAL=$(jq -r '.. | .servoSerial? | select(. != null)' "${DUT_INFO_FILE}")
-  if [[ -z "${SERVO_SERIAL}" ]]; then
+  if [[ $? -ne 0 || -z "${SERVO_SERIAL}" ]]; then
     echo -e "\n\nFailed to get servo serial for ${DUT_HOSTNAME}"
     echo "Please check if the DUT is a satlab DUT and that shivas is installed and logged in."
     echo "You can try running the following command to validate shivas is working:"
@@ -169,13 +233,17 @@ function setup_servo() {
   echo "BOARD: ${BOARD}"
   echo "MODEL: ${MODEL}"
 
-  run_command_on_satlab satlab servod stop -host "${DUT_HOSTNAME}" > /dev/null 2>&1
+  run_command_on_satlab_ignore_error satlab servod stop -host "${DUT_HOSTNAME}" > /dev/null 2>&1
   if ! run_command_on_satlab satlab servod start -host "${DUT_HOSTNAME}" -board "${BOARD}" -model "${MODEL}" -servo-serial "${SERVO_SERIAL}" -servod-container-name "${SERVO_CONTAINER_NAME}"; then
     echo -e "\n\nFailed to start servod for ${DUT_HOSTNAME}"
     exit 1
   fi
 
   SERVO_IP="$(ssh "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
+  if [[ $? -ne 0 || -z "${SERVO_IP}" ]]; then
+    echo -e "\n\nERROR: Failed to get Servod container IP."
+    exit 1
+  fi
   echo "SERVO_IP: ${SERVO_IP}"
 }
 
@@ -212,6 +280,10 @@ function adb_connect_and_dut_info() {
     exit 1
   fi
   adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint
+  if [[ $? -ne 0 ]]; then
+    echo -e "\n\nERROR: Failed to get DUT info via ADB. DUT may not be connected. or may not be running Android."
+    exit 1
+  fi
 }
 
 function generate_config() {
@@ -227,6 +299,10 @@ function generate_config() {
     fi
     echo "Building topology_converter..."
     m topology_converter
+    if [[ $? -ne 0 ]]; then
+      echo -e "\n\nERROR: Failed to build topology_converter."
+      exit 1
+    fi
   fi
   echo -e "\n\nGenerating config yaml file for ${DUT_HOSTNAME}..."
   SHIVAS_JSON_FILE="$(mktemp --suffix .json)"
@@ -260,11 +336,19 @@ function lease_dut() {
         -dims "dut_name:${DUT_HOSTNAME}" \
         -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases \
         crosfleet-placeholder
+      if [[ $? -ne 0 ]]; then
+        echo -e "\n\nERROR: Failed to provision DUT ${DUT_HOSTNAME}."
+        exit 1
+      fi
       echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, waiting 3 minutes for provisioning to start before leasing ..."
       sleep 180
     fi
     echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, leasing now..."
     crosfleet dut lease -minutes "${DUT_LEASE_MINUTES}" -host "${DUT_HOSTNAME}"
+    if [[ $? -ne 0 ]]; then
+      echo -e "\n\nERROR: Failed to lease DUT ${DUT_HOSTNAME}."
+      exit 1
+    fi
   fi
 }
 
@@ -315,10 +399,14 @@ fi
 
 if [[ -z "${SATLAB_IP}" ]]; then
   echo -e "Missing Satlab IP, please provide it with the -s|--satlab_ip flag.\n\n"
-  echo "You can find the IP of your Satlab in the 'drone_server' entry of the following link:"
-  echo "https://chromeos-swarming.appspot.com/bot?id=crossk-${DUT_HOSTNAME}"
+  echo "You can find the IP of your Satlab in the 'drone_server' entry under Dimensions by clicking the link below:"
+  echo "go/fcdut/${DUT_HOSTNAME}?tab=bot-info"
   exit 1
 fi
+
+check_dependencies
+# Check SSH access early
+check_ssh_access
 
 if [[ "${SKIP_LEASE}" != true || "${SKIP_SETUP_SERVO}" != true || "${PROVISION}" == true ]]; then
   # if we are not doing these steps then we can skip the crosfleet call
@@ -341,7 +429,6 @@ if [[ "${WHOAMI}" =~ "Not logged in." ]]; then
   fi
 fi
 
-
 if [[ "${SKIP_LEASE}" != true ]]; then
   lease_dut
 fi
@@ -354,4 +441,4 @@ setup_tunnel
 adb_connect_and_dut_info
 
 echo -e "\n\nReady to run Android tests on DUT with adb serial loclahos:${DUT_HOSTNAME}..."
-echo "see go/satlab-local-pasit for more details"
+echo "see go/write-pasit-test for more details."
