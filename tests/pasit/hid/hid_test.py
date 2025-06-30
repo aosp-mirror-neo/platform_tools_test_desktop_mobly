@@ -15,6 +15,7 @@
 """PASIT HID tests that use the HID emulator to send HID events to the DUT."""
 
 from collections.abc import Iterable
+import datetime
 import logging
 
 from lib.pasit import pasit_file
@@ -60,7 +61,13 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     if self.hid_device:
       self.passport_host.hid_client.close(self.hid_device)
 
+  def teardown_test(self):
+    # ensure that switches are not disabled between tests by not calling the
+    # super class teardown_test.
+    pass
+
   def test_combo_keys_screenshot(self) -> None:
+    # TODO: b/428769831 - Move key definitions to android specific helper class
     screenshot_keys = ['Meta', 'S']
     screenshots_before = self.file_interface.list_screenshots()
     logging.info('Sending screenshot keys to DUT: %s', screenshot_keys)
@@ -88,3 +95,31 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     diff = set(screenshots_after) - set(screenshots_before)
     logging.debug('Screenshots after: %s', screenshots_after)
     return diff
+
+  def test_combo_keys_settings(self) -> None:
+    _SETTINGS_SYSTEM_PACKAGE_NAME = 'com.android.settings'
+    # TODO: b/428769831 - Move key definitions to android specific helper class
+    show_settings_keys = ['Meta', 'I']
+    home_keys = ['Meta', 'H']
+    self.passport_host.hid_client.send_keypress(
+        self.hid_device, show_settings_keys
+    )
+    asserts.assert_true(
+        # TODO: b/428769831 - Move App package names and checks to android
+        # specific helper class
+        self.dut.controller.ui(pkg=_SETTINGS_SYSTEM_PACKAGE_NAME).wait.exists(
+            timeout=datetime.timedelta(seconds=5),
+        ),
+        f'Failed to find the keyboard shortcuts window',
+    )
+    self.passport_host.hid_client.send_keypress(
+        self.hid_device, home_keys
+    )
+    asserts.assert_true(
+        # TODO: b/428769831 - Move App package names and checks to android
+        # specific helper class
+        self.dut.controller.ui(pkg=_SETTINGS_SYSTEM_PACKAGE_NAME).wait.gone(
+            timeout=datetime.timedelta(seconds=5),
+        ),
+        f'Failed to close the settings window',
+    )
