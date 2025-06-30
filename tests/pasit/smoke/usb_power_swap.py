@@ -17,11 +17,12 @@
 import logging
 import time
 
-from mobly import asserts
-from mobly import test_runner
-
 from lib.pasit import pasit_test
 from lib.pasit.passport import passport_host
+from lib.pasit.passport import passport_usb_service_client as usb
+
+from mobly import asserts
+from mobly import test_runner
 
 
 class UsbTesterHello(pasit_test.PasitTestClass):
@@ -31,54 +32,50 @@ class UsbTesterHello(pasit_test.PasitTestClass):
     super().setup_class()
     if self.passport_host.usb_tester_client is None:
       raise passport_host.PassportServiceConnectionError(
-          'USB tester client is not initialized.'
+          "USB tester client is not initialized."
       )
+    self.utc = self.passport_host.usb_tester_client
 
     # Open the USB tester with serial. TODO(danielgeorgem): move the serial to
     # the yaml file. so that the tester will be opened automatically by the
     # base class.
-    testers = self.passport_host.usb_tester_client.get_usb_testers()
-    logging.info('Found tester: %s', testers)
+    testers = self.utc.get_usb_testers()
+    logging.info("Found tester: %s", testers)
 
     # Check that the serial is in the list of testers.
     asserts.assert_true(
-        '2409C109' in [i.id for i in testers.testers], 'Serial not found.'
+        "2409C109" in [i.id for i in testers.testers], "Serial not found."
     )
-    self.passport_host.usb_tester_client.open_usb_tester('2409C109')
+    self.utc.open_usb_tester("2409C109")
 
   def teardown_test(self):
     # The tester will be closed by the base class.
     self.passport_host.reset()
 
-  def test_open_close_serial(self):
-    if self.passport_host.usb_tester_client is None:
+  def test_power_swap(self):
+    if self.utc is None:
       raise passport_host.PassportServiceConnectionError(
-          'USB tester client is not initialized.'
+          "USB tester client is not initialized."
       )
 
-    for _ in range(10):
-      # The tester is the source so the DUT should be the sink.
-      self.passport_host.usb_tester_client.set_power_role_to_src()
+    roles_utc = [usb.PowerRole.SRC, usb.PowerRole.SNK] * 5
+    roles_dut = ["SNK", "SRC"] * 5
+
+    for utc_role, dut_role in zip(roles_utc, roles_dut):
+      self.utc.power_role = utc_role
       time.sleep(10)
-      ectool_output = self.dut.shell(['ectool', 'typecstatus', '1']).decode(
-          'utf-8'
+      ectool_output = self.dut.shell(["ectool", "typecstatus", "1"]).decode(
+          "utf-8"
       )
-      logging.info('ectool_output: %s', ectool_output)
+      logging.info("ectool_output: %s", ectool_output)
       asserts.assert_true(
-          'Role:SNK' in ectool_output, 'Role did not switch to SNK'
+          f"Role:{dut_role}" in ectool_output,
+          f"DUT did not switch to {dut_role}",
       )
-
-      # The tester is the sink so the DUT should be the source.
-      self.passport_host.usb_tester_client.set_power_role_to_snk()
-      time.sleep(10)
-      ectool_output = self.dut.shell(['ectool', 'typecstatus', '1']).decode(
-          'utf-8'
-      )
-      logging.info('ectool_output: %s', ectool_output)
       asserts.assert_true(
-          'Role:SRC' in ectool_output, 'Role did not switch to SRC'
+          self.utc.power_role == utc_role, f"UTC did not switch to {utc_role}"
       )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   test_runner.main()
