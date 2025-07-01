@@ -22,6 +22,9 @@ python_library_host {
         "*.py",
     ],
     exclude_srcs: ["*_test.py"],
+    libs: [
+        "py-chromiumos-config-lsnexus",
+    ],
     pkg_path: "lib/utils",
 }
 

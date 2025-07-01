@@ -16,10 +16,13 @@
 
 import types
 from typing import Any
+import logging
+
 from mobly import base_test
 from mobly.controllers import android_device
 from lib.pasit.android import android_pasit_device
 from lib.pasit.base import base_pasit_device
+from lib.utils import servo_client
 
 
 PasitDevice = base_pasit_device.BasePasitDevice
@@ -31,21 +34,32 @@ def create_controller(
   """Creates a controller for the given test class and controller module."""
   return test_class.register_controller(controller_module)[0]
 
-
-def create(test_class: base_test.BaseTestClass) -> PasitDevice:
-  """Creates a PasitDevice for the given test class."""
-  servo_uri = ''
+def create_servo(test_class: base_test.BaseTestClass, hostname: str) -> servo_client.ServoBase:
+  """Creates a Servo controller for the specified host given the test config."""
   if test_class.user_params.get('servo_host') and test_class.user_params.get(
       'servo_port'
   ):
     servo_uri = f'http://{test_class.user_params["servo_host"]}:{test_class.user_params["servo_port"]}'  # pylint: disable=bad-whitespace
+    logging.info("Connecting to servod directly at %s" % servo_uri)
+    return servo_client.ServodClient(servo_uri)
+  elif test_class.user_params.get('lsnexus_'+hostname):
+    servo_uri = test_class.user_params["lsnexus_"+hostname]
+    logging.info("Connecting to lsnexus_%s at %s" % (hostname, servo_uri))
+    return servo_client.LSNexusClient(servo_uri)
+  else:
+    logging.info("No servod param provided, skipping")
+    return None
 
+def create(test_class: base_test.BaseTestClass) -> PasitDevice:
+  """Creates a PasitDevice for the given test class."""
   if 'AndroidDevice' in test_class.controller_configs:
-    return android_pasit_device.AndroidPasitDevice(
-        create_controller(test_class, android_device), servo_uri
-    )
+    device = create_controller(test_class, android_device)
+    hostname = device.serial.split(":")[0]
   else:
     raise ValueError(
         'No device type found for controller config:'
         f' {test_class.controller_configs}'
     )
+
+  servo = create_servo(test_class, hostname)
+  return android_pasit_device.AndroidPasitDevice(device, servo)

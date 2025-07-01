@@ -23,6 +23,7 @@ import time
 
 from lib.pasit.base import base_pasit_device
 from lib.utils import retry
+from lib.utils import servo_client
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
@@ -77,8 +78,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       'snippet-uiautomator.apk',
   )
 
-  def __init__(self, controller: android_device.AndroidDevice, servo_uri: str):
-    super().__init__(controller, servo_uri)
+  def __init__(self, controller: android_device.AndroidDevice, servo: servo_client.ServoBase):
+    super().__init__(controller, servo)
     self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()

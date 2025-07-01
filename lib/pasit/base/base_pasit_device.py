@@ -21,7 +21,6 @@ from typing import Any
 
 from lib.utils import servo_client
 
-
 class ShellError(Exception):
   """Raised when a shell command fails.
 
@@ -48,10 +47,6 @@ class ShellError(Exception):
     self.device_uri = device_uri
 
 
-class ServoConnectionError(Exception):
-  """Error when trying to connect to Servo."""
-
-
 class ServoNotConfiguredError(Exception):
   """Error when Servo is not configured."""
 
@@ -63,27 +58,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     controller: Mobly controller instance for the tested device.
   """
 
-  def __init__(self, controller: Any, servo_uri: str):
+  def __init__(self, controller: Any, servo: servo_client.ServoBase=None):
     """Initializes the PasitDevice.
 
     Args:
       controller: The controller to use for the PASIT device.
-      servo_uri: The URI of Servo. If not empty, the device will be able to
-        power cycle.
-
-    Raises:
-      ServoConnectionError: If failed to connect to Servo.
+      servo: The client to use to interact with the servo.
     """
     self.controller = controller
-    self._servo: servo_client.ServoClient = None
-
-    if servo_uri:
-      try:
-        self._servo = servo_client.ServoClient(servo_uri)
-      except Exception as e:
-        raise ServoConnectionError(
-            f'Test setup error, failed to connect to Servo at {servo_uri}: {e}'
-        ) from e
+    self._servo = servo
 
   @abc.abstractmethod
   def shell(self, params: Iterable[str]) -> bytes:
