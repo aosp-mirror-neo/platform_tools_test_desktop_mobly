@@ -14,12 +14,32 @@
 
 """Test launching the camera app with an external camera plugged in."""
 
+import logging
+
+from lib.pasit import display_helper
+from lib.pasit import display_painter
+from lib.pasit import pasit_display
+from lib.utils import image
+from lib.utils import retry
+from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
 
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
+
+  def setup_class(self):
+    """Handle the setup for the test."""
+    super().setup_class()
+    display = self.create(pasit_display)
+    self.painter = self.create(display_painter)
+    self.helper = display_helper.DisplayHelper(
+        self.passport_host,
+        display,
+        self.painter,
+        self.log_path,
+    )
 
   def test_launch_with_external_camera(self):
     """Test launching the camera app with an external camera plugged in."""
@@ -30,9 +50,72 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
 
     self._launch_camera_app()
     self.dut.get_screenshots(self.log_path, 'camera_app_launched')
+    self._verify_internal_camera_captures_real_world(
+        'Internal camera preview (on the internal display) should be showing'
+        ' real world.'
+    )
 
     self._switch_camera()
     self.dut.get_screenshots(self.log_path, 'after_switch_to_external_camera')
+    self._verify_external_camera_captures_color(
+        image.NamedColor.RED,
+        'External camera preview (on the internal display) should be showing'
+        ' red color.',
+    )
+
+  def _verify_internal_camera_captures_real_world(self, message: str):
+    """Verifies that the internal camera captures real world.
+
+    Args:
+      message: The message to use for the assertion if the verification fails.
+    """
+    # Display-testing camera, pointed at internal display.
+    camera_id = self.helper.get_display_testing_camera_id(
+        self.helper.get_internal_display_id()
+    )
+    # Internal display has the camera app open, showing internal (tested) camera
+    # capturing real world.
+    match_color = self.helper.capture_color(
+        camera_id, 'internal_camera_preview_real_world'
+    )
+    asserts.assert_is_none(match_color, message)
+
+  def _verify_external_camera_captures_color(
+      self, color: image.NamedColor, message: str
+  ):
+    """Verifies that the external camera captures the color on the display.
+
+    Args:
+      color: The color to capture.
+      message: The message to use for the assertion if the verification fails.
+    """
+    internal_display_id = self.helper.get_internal_display_id()
+    # Display-testing camera, pointed at internal display.
+    camera_id = self.helper.get_display_testing_camera_id(internal_display_id)
+
+    # External (tested) camera is pointed at external display.
+    # Show color on external display to validate external camera captures it.
+    logging.info('Plugging in external display')
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    external_display_id = self.helper.get_external_display_id(
+        internal_display_id
+    )
+    self.painter.show_color_on_display(color.value, external_display_id)
+
+    # Internal display has the camera app open, showing external (tested) camera
+    # capturing color from an external display.
+    match_color = retry.retry(
+        lambda: self.helper.capture_color(
+            camera_id, 'external_camera_preview_color'
+        ),
+        until=lambda match_color: match_color is not None,
+        max_tries=3,
+        delay_seconds=1,
+    )
+
+    self.dut.get_screenshots(self.log_path, 'external_camera_preview_color')
+    asserts.assert_is_not_none(match_color, message)
+    asserts.assert_equal(match_color.value, color.value, message)
 
 
 if __name__ == '__main__':

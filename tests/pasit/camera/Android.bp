@@ -30,9 +30,13 @@ python_test_host {
         // test APK module
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
+        ":ColorFillTest",
     ],
     libs: [
         "py-pasit-camera",
+        "py-pasit-display",
+        "py-display-painter",
+        "py-display-helper",
     ],
     pkg_path: "pasit/camera",
 }

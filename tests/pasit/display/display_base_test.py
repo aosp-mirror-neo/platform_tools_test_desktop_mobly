@@ -99,25 +99,16 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    hsv_match_percentages = self.passport_host.analyze_hsv(
-        camera_id,
-        self.helper.HSV_MASKS_PASIT,
-        self.log_path,
-        f'{camera_capture_name}_from_camera{camera_id}',
-        exposure_time_us=self.helper.camera_exposure_time_us,
+    match_color = self.helper.capture_color(
+        camera_id, f'{camera_capture_name}_from_camera{camera_id}'
     )
-    logging.debug('Verifying HSV match percentages: %s', hsv_match_percentages)
-    match_color = self.helper.get_matched_color(hsv_match_percentages)
     logging.info(
         'Camera %s detected color %s with display color %s',
         camera_id,
         expected_color,
         match_color,
     )
-    asserts.assert_is_not_none(
-        match_color,
-        failure_message,
-    )
+    asserts.assert_is_not_none(match_color, failure_message)
     asserts.assert_equal(
         match_color.value if match_color else None,
         expected_color,
