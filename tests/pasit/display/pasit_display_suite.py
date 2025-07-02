@@ -18,6 +18,7 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 from pasit.display import plug_in_external_display
+from pasit.display import shutdown_with_external_display
 from pasit.display import unplug_external_display
 
 
@@ -27,6 +28,9 @@ class PasitDisplaySuite(base_suite.BaseSuite):
   def setup_suite(self, config: config_parser.TestRunConfig):
     self.add_test_class(unplug_external_display.UnplugExternalDisplayTest)
     self.add_test_class(plug_in_external_display.PlugInExternalDisplayTest)
+    self.add_test_class(
+        shutdown_with_external_display.ShutdownWithExternalDisplayTest
+    )
 
 
 def main() -> None:

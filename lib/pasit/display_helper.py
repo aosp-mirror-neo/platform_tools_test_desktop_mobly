@@ -52,6 +52,10 @@ class DisplayHelper:
           image.HSV(h=210, s=0.5, v=0.55),
           image.HSV(h=270, s=1.0, v=1.0),
       ),
+      image.NamedColor.BLACK.name: image.HSVMask(
+          image.HSV(h=0, s=0, v=0),
+          image.HSV(h=360, s=1.0, v=0.5),
+      ),
   }
 
   # The minimum percentage of pixels that must match for a color to be
