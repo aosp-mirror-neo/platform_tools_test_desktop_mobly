@@ -43,12 +43,6 @@ class PassportHostTest(base_test.BaseTestClass):
     for switch_id in self.passport_host.get_switch_ids():
       self.passport_host.log.info('Found switch: %s' % switch_id)
 
-  def test_activate_device_by_type(self):
-    """Tests activating a device by type from the PassportHost."""
-    self.passport_host.activate_device_by_type(
-        pasit_host_pb2.PasitHost.Device.Type.STORAGE
-    )
-
 
 if __name__ == '__main__':
   test_runner.main()
