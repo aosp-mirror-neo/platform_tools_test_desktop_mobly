@@ -35,18 +35,6 @@ class AndroidDeviceError(Exception):
   """Error when trying performing an action on an Android device."""
 
 
-class UnexpectedActivePackageError(Exception):
-  """Error when the active package is not the expected package."""
-
-  def __init__(self, expected_package: str, actual_package: str):
-    super().__init__(
-        f'Expected package {expected_package} to be active, but'
-        f' {actual_package} is active.'
-    )
-    self.expected_package = expected_package
-    self.actual_package = actual_package
-
-
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
 
@@ -58,8 +46,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   OFFLINE_TIMEOUT_SECONDS = 5
 
-  LOGIN_SCREEN_PACKAGE_NAME = 'com.google.android.desktop.identity.login'
-  LAUNCHER_PACKAGE_NAME = 'com.google.android.apps.nexuslauncher'
   DEFAULT_RETRY_INTERVAL_SECONDS = 2
   DEFAULT_MAX_RETRIES_OFFLINE = 10
   # add 10 seconds to the total sleep time to account for the time it takes
@@ -286,25 +272,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       logging.debug('Device is already logged in as user %s.', user_id)
       return
     self.controller.adb.shell(['am', 'switch-user', '-w', str(user_id)])
-    if user_id == self.LOGGED_IN_USER_ID:
-      # wait for the launcher to be active before proceeding
-      retry.retry(
-          lambda: self._ui_active_package_is(self.LAUNCHER_PACKAGE_NAME),
-          max_tries=10,
-          exceptions=(UnexpectedActivePackageError,),
-      )
     # ensure that the user switch was successful
     if user_id != self.controller.adb.current_user_id:
       raise AndroidDeviceError(
           f'Failed to switch user to {user_id}, current user is'
           f' {self.controller.adb.current_user_id}.'
-      )
-
-  def _ui_active_package_is(self, expected_package: str):
-    """Checks if the active package is the expected package."""
-    if not self.controller.ui(pkg=expected_package):
-      raise UnexpectedActivePackageError(
-          expected_package, self.controller.ui.package_name
       )
 
   def _wait_for_device_offline(
