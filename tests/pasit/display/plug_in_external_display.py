@@ -64,13 +64,13 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
       self._plug_in_external_display()
 
     self._verify_display_count(2, 'after external display plug in')
+
+    display_id_to_camera_id = self._map_displays_to_cameras_with_retries()
+
+    logging.info('Open red background on external display')
     external_display_id = self.helper.get_external_display_id(
         internal_display_id
     )
-
-    display_id_to_camera_id = self.helper.map_displays_to_cameras()
-
-    logging.info('Open red background on external display')
     self.painter.show_color_on_display(
         image.NamedColor.RED.value, external_display_id
     )

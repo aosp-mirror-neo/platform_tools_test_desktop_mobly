@@ -24,6 +24,7 @@ from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
 from mobly import records
+from mobly import signals
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -113,4 +114,14 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         match_color.value if match_color else None,
         expected_color,
         failure_message,
+    )
+
+  def _map_displays_to_cameras_with_retries(self) -> dict[str, str]:
+    """Maps the displays to cameras with retry every 10 seconds."""
+    # TODO: b/431215234 - Remove the retry once the bug is fixed.
+    return retry.retry(
+        self.helper.map_displays_to_cameras,
+        max_tries=3,
+        delay_seconds=10,
+        exceptions=(signals.TestError,),
     )
