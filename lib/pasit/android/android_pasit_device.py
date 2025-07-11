@@ -195,11 +195,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.services.stop_all()
 
   def _suspend(self):
-    # temporary test if the kernel wake lock is held
-    logging.debug(
-        'Held kernel wake lock: %s',
-        self.controller.adb.shell(['cat', '/sys/power/wake_lock']),
-    )
     self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
     logging.debug('Waiting for device to suspend...')
     if not self._wait_for_device_offline():
