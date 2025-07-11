@@ -21,6 +21,7 @@ from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit.passport import passport_host
 from lib.utils import image
+from lib.utils import retry
 from mobly import signals
 
 
@@ -159,27 +160,19 @@ class DisplayHelper:
     # testing shows that lower exposure times are more reliable and less
     # affected by glare and overexposure, so start with those and then try 0
     # which is auto exposure as a last resort.
-    for exposure_time_us in [3000, 6000, 12000, 0]:
-      try:
-        logging.debug(
-            'Trying to map displays to cameras with exposure time %d us',
-            exposure_time_us,
-        )
-        ret = self._check_hsv_matches_displays(
-            display_id_to_color, exposure_time_us
-        )
-        # if we get a match, store the exposure time to use for future
-        # verification steps and image captures.
-        self.camera_exposure_time_us = exposure_time_us
-        self.painter.clean_color_on_display()
-        return ret
-      except signals.TestError:
-        logging.debug(
-            'Failed to map displays to cameras with exposure time %d us',
-            exposure_time_us,
-        )
-        if exposure_time_us == 0:
-          raise
+    exposure_times_to_try = [3000, 6000, 12000, 0]
+    exposure_times_generator = (
+        exposure_time for exposure_time in exposure_times_to_try
+    )
+    mapping_result = retry.retry(
+        lambda: self._check_hsv_matches_displays(
+            display_id_to_color, next(exposure_times_generator)
+        ),
+        max_tries=len(exposure_times_to_try),
+        exceptions=(signals.TestError,),
+    )
+    self.painter.clean_color_on_display()
+    return mapping_result
 
   def _get_matched_color(
       self,
@@ -292,13 +285,16 @@ class DisplayHelper:
     Raises:
       signals.TestError: If not all displays have a camera detected.
     """
-
+    logging.debug(
+        'Trying to map displays to cameras with exposure time %d us',
+        exposure_time_us,
+    )
     hsv_match_percentages = {
         camera_id: self.passport.analyze_hsv(
             camera_id,
             self._HSV_MASKS_PASIT,
             self.log_path,
-            f'map_displays_to_cameras{camera_id}',
+            f'camera_capture_{camera_id}_{exposure_time_us}',
             exposure_time_us=exposure_time_us,
         )
         for camera_id in self.passport.get_cameras()
@@ -341,4 +337,7 @@ class DisplayHelper:
           f'Expected {len(display_id_to_color)} displays, but got'
           f' {len(display_id_to_camera_id)}.'
       )
+    # if we get a match, store the exposure time to use for future
+    # verification steps and image captures.
+    self.camera_exposure_time_us = exposure_time_us
     return display_id_to_camera_id
