@@ -22,6 +22,8 @@ from display.utils import compliance_tests_manager
 # We disable the lint for this to keep the descriptions more readable.
 # pylint: disable=line-too-long
 
+# COMMON TESTS BETWEEN DP AND HDMI """
+
 AUDIO_TEST = compliance_tests_manager.TestGroup.from_list(
     group_id=vts.ComplianceTestGroup.GROUP_AUDIO_TEST,
     name="Audio Test",
@@ -37,6 +39,8 @@ PIXEL_LEVEL_VIDEO_TEST = compliance_tests_manager.TestGroup.from_list(
         (2, "pixel", "Compare video frame sequence with a single reference"),
     ]
 )
+
+# DP ONLY TESTS
 
 CRC_BASED_VIDEO_TEST_SET = compliance_tests_manager.TestGroup.from_list(
     group_id=vts.ComplianceTestGroup.GROUP_CRC_BASED_VIDEO_TEST,
@@ -245,3 +249,27 @@ DP_2_1_DISPLAYID_CTS_SOURCE_TEST_SET = compliance_tests_manager.TestGroup.from_l
         (10, "4.7.5.1", "DisplayID Adaptive-Sync CVT RB v3 Support"),
     ]
 )
+
+# HDMI ONLY TESTS
+
+HDMI_RX_CRC_TEST_SET = compliance_tests_manager.TestGroup.from_list(
+    group_id=vts.ComplianceTestGroup.GROUP_HDMI_RX_CRC_TEST,
+    name="HDMI RX CRC Test Set",
+    test_list=[
+        (0, "CRC_0", "CRC based single reference frame video test"),
+        (1, "CRC_1", "CRC based single frame video stability test"),
+        (2, "CRC_2", "CRC based sequence of reference frames video test"),
+        (3, "CRC_3", "CRC based continuous sequence of reference frames video test"),
+    ]
+)
+
+HDMI_RX_VRR_TEST_SET = compliance_tests_manager.TestGroup.from_list(
+    group_id=vts.ComplianceTestGroup.GROUP_HDMI_RX_VRR_TEST,
+    name="HDMI RX VRR Test Set",
+    test_list=[
+        (0, "VRR_STATIC", "VRR static test"),
+        (1, "QMS", "QMS test"),
+        (2, "VRR_DYNAMIC", "VRR dynamic test"),
+    ]
+)
+
