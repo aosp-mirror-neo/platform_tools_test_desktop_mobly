@@ -68,6 +68,8 @@ class PasitTestClass(base_test.BaseTestClass):
     self.dut = pasit_device.create(self)
     self.passport_host.reset()
 
+    self.passport_host.save_topology_diagram(self.log_path)
+
   def teardown_test(self):
     """Teardown steps after each test is executed."""
 

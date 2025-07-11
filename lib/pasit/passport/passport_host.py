@@ -32,6 +32,7 @@ from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
 from lib.utils import image
+from lib.utils import constants
 from mobly import logger as mobly_logger
 
 
@@ -736,3 +737,49 @@ class PassportHost:
     )
     with open(image_path, 'wb') as f:
       f.write(image_bytes)
+
+  def save_topology_diagram(self, log_dir: str) -> None:
+    try:
+      graph_content = '''{
+        node [shape=plain];
+        ranksep = 1.2;
+      '''
+      for device in self.topology.devices:
+        ports = ''
+        for connection in self.topology.connections:
+          if device.id == connection.parent_id:
+            if connection.parent_port:
+              conn_type = "" if connection.parent_port == '' else connection.parent_port
+              ports += f'<TR><TD PORT="p{connection.parent_port}"> Port {conn_type} </TD></TR>\n'
+
+        graph_content += (
+            f'"{device.id}"'
+            f''' [label=<
+                  <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                      <TR><TD>{device.id}<BR/>{pasit_host_pb2.PasitHost.Device.Type.Name(device.type)}</TD></TR>
+                      {ports}
+                  </TABLE>>];\n
+              '''
+      )
+      for connection in self.topology.connections:
+        parent_port = f':"p{connection.parent_port}"' if connection.parent_port != '' else ''
+        label = f'label="Tags: [{','.join(str(x) for x in connection.tags)}]"'
+        label = label if label != 'label="Tags: []"' else ''
+        graph_content += (
+            f'''"{connection.parent_id}"{parent_port} -> "{connection.child_id}" [
+                labeldistance="10",
+                {label}
+              ];\n
+            '''
+        )
+
+      graph_content += "}"
+
+      logging.info(graph_content)
+      topology_html = constants.HTML_GRAPH_TEMPLATE.format(content=graph_content)
+
+      with open(os.path.join(log_dir, "topology.html"), 'w') as f:
+        f.write(topology_html)
+    except Exception as e:
+      # Don't fail the test if we can't save the image.
+      self.log.exception(e)
