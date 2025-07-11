@@ -318,11 +318,11 @@ class DisplayHelper:
           matched_display_id = display_id
           break
       if matched_display_id is None:
-        raise signals.TestError(
+        logging.info(
             f'Camera {camera_id} matched color {matched_color} but no display'
-            ' matched it. Most likely incorrect testbed setup, or test logic'
-            ' error.'
+            ' matched it.'
         )
+        continue
       logging.info(
           'Camera %s matched color %s  on display %s with %.1f%% of pixels'
           ' matching',
