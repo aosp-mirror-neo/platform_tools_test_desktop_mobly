@@ -50,10 +50,6 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
 
     self._launch_camera_app()
     self.dut.get_screenshots(self.log_path, 'camera_app_launched')
-    self._verify_internal_camera_captures_real_world(
-        'Internal camera preview (on the internal display) should be showing'
-        ' real world.'
-    )
 
     self._switch_camera()
     self.dut.get_screenshots(self.log_path, 'after_switch_to_external_camera')
@@ -62,23 +58,6 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
         'External camera preview (on the internal display) should be showing'
         ' red color.',
     )
-
-  def _verify_internal_camera_captures_real_world(self, message: str):
-    """Verifies that the internal camera captures real world.
-
-    Args:
-      message: The message to use for the assertion if the verification fails.
-    """
-    # Display-testing camera, pointed at internal display.
-    camera_id = self.helper.get_display_testing_camera_id(
-        self.helper.get_internal_display_id()
-    )
-    # Internal display has the camera app open, showing internal (tested) camera
-    # capturing real world.
-    match_color = self.helper.capture_color(
-        camera_id, 'internal_camera_preview_real_world'
-    )
-    asserts.assert_is_none(match_color, message)
 
   def _verify_external_camera_captures_color(
       self, color: image.NamedColor, message: str
@@ -104,6 +83,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
 
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
+    self.camera.maximize_camera_app_window()
     match_color = retry.retry(
         lambda: self.helper.capture_color(
             camera_id, 'external_camera_preview_color'

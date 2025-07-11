@@ -77,3 +77,6 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     self.controller.ui(
         pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
     ).click()
+
+  def maximize_camera_app_window(self):
+    self.controller.ui(desc='Maximize Camera').click()

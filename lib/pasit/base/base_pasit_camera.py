@@ -54,3 +54,8 @@ class BasePasitCamera(metaclass=abc.ABCMeta):
   def switch_camera(self):
     """Switches to the front or back camera."""
     raise NotImplementedError()
+
+  @abc.abstractmethod
+  def maximize_camera_app_window(self):
+    """Maximizes the camera app window."""
+    raise NotImplementedError()
