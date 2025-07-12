@@ -77,10 +77,7 @@ class PasitTestClass(base_test.BaseTestClass):
       self.passport_host.capture_images_from_all_cameras(
           self.current_test_info.output_path, 'on_fail'
       )
-    if hasattr(self, 'dut'):
-      self.dut.get_screenshots(
-          self.current_test_info.output_path, 'on_fail_screenshot'
-      )
+    self._capture_screenshots('on_fail_screenshot')
     super().on_fail(record)
 
   def create(self, module: types.ModuleType) -> Any:
@@ -119,3 +116,10 @@ class PasitTestClass(base_test.BaseTestClass):
         and not self.dut.is_servo_configured(),
         'Test requires servo and servo is not configured.',
     )
+
+  def _capture_screenshots(self, name_prefix: str):
+    """Capture screenshots and save them to the test output directory."""
+    if hasattr(self, 'dut'):
+      self.dut.capture_screenshots(
+          self.current_test_info.output_path, name_prefix
+      )

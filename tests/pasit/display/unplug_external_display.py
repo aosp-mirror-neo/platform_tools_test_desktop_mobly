@@ -73,7 +73,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     )
 
     logging.info('Verify background color on external display')
-    self.dut.get_screenshots(self.log_path, 'external_display_red')
+    self._capture_screenshots('external_display_red')
     self._verify_captured_color(
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED.value,
@@ -88,7 +88,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     self._verify_display_count(1, 'after external display unplug')
 
     logging.info('Verify background color is now on internal display')
-    self.dut.get_screenshots(self.log_path, 'internal_display_red')
+    self._capture_screenshots('internal_display_red')
     self._verify_captured_color(
         display_id_to_camera_id[internal_display_id],
         image.NamedColor.RED.value,

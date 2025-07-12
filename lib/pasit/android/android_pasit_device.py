@@ -221,7 +221,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       ) from e
     return True
 
-  def get_screenshots(self, output_path: str, file_name_prefix: str):
+  def capture_screenshots(self, output_path: str, file_name_prefix: str):
     self.controller.take_screenshot(
         output_path, file_name_prefix, all_displays=True
     )
