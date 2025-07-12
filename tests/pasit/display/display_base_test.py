@@ -23,7 +23,6 @@ from lib.pasit import pasit_test
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
-from mobly import records
 from mobly import signals
 
 
@@ -49,15 +48,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.painter,
         self.log_path,
     )
-
-  def on_fail(self, record: records.TestResultRecord) -> None:
-    """Called on test failure."""
-    self.passport_host.capture_images_from_all_cameras(
-        self.current_test_info.output_path,
-        'on_fail',
-        self.helper.camera_exposure_time_us,
-    )
-    super().on_fail(record)
 
   def _plug_in_external_display(self):
     """Emulate external display plug in using passport."""

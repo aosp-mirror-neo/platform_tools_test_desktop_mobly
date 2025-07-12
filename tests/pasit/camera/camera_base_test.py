@@ -40,11 +40,6 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     super().teardown_test()
     self.camera.close_camera_app()
 
-  def on_fail(self, record):
-    """Handle the on_fail for the test."""
-    super().on_fail(record)
-    self.dut.get_screenshots(self.log_path, 'on_fail')
-
   def _launch_camera_app(self):
     """Launches the camera app.
 

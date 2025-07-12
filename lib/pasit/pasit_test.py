@@ -23,6 +23,7 @@ from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
+from mobly import records
 
 
 def get_device_type_name(
@@ -48,6 +49,7 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def setup_class(self):
     """Setup steps before any test is executed."""
+    super().setup_class()
     self.passport_host = self._create_passport_controller()
     asserts.abort_class_if(
         self.requires_device_type
@@ -67,6 +69,19 @@ class PasitTestClass(base_test.BaseTestClass):
     self.passport_host.reset()
     if self.dut.power_on_if_offline():
       asserts.fail('DUT is offline after test.')
+    super().teardown_test()
+
+  def on_fail(self, record: records.TestResultRecord):
+    """Called on test failure."""
+    if hasattr(self, 'pasport_host'):
+      self.passport_host.capture_images_from_all_cameras(
+          self.current_test_info.output_path, 'on_fail'
+      )
+    if hasattr(self, 'dut'):
+      self.dut.get_screenshots(
+          self.current_test_info.output_path, 'on_fail_screenshot'
+      )
+    super().on_fail(record)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.
