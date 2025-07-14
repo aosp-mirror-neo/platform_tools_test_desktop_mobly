@@ -49,5 +49,8 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
     ],
+    libs: [
+        "py-pasit-storage",
+    ],
     pkg_path: "pasit/smoke",
 }

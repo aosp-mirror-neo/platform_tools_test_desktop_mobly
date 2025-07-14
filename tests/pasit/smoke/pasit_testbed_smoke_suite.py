@@ -17,9 +17,9 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
-from pasit.smoke import passport_host_test
+from pasit.smoke import pasit_peripheral_test
 from pasit.smoke import pasit_servo_test
+from pasit.smoke import passport_host_test
 
 
 class PasitTestbedSmokeSuite(base_suite.BaseSuite):
@@ -35,6 +35,9 @@ class PasitTestbedSmokeSuite(base_suite.BaseSuite):
     )
     self.add_test_class(
         pasit_servo_test.ServoTest,
+    )
+    self.add_test_class(
+        pasit_peripheral_test.PasitPeripheralTest,
     )
 
 

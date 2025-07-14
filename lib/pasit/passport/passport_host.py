@@ -226,6 +226,17 @@ class PassportHost:
     )
     return self._connections_in_path(devices)
 
+  def _connections_to_device_by_id(
+      self, device_id: str
+  ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
+    """Returns the path to the device with the given device ID."""
+    devices = self._path_to_device(
+        lambda device: device.id == device_id,
+        'Passport was unable to find any connections to any devices with ID:'
+        f' {device_id} in the topology.',
+    )
+    return self._connections_in_path(devices)
+
   def _path_to_device(
       self,
       target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
@@ -284,17 +295,28 @@ class PassportHost:
     except errors.DevicePathNotFoundError:
       return False
 
+  def _set_device_enabled_state_by_id(
+      self, device_id: str, enable: bool
+  ) -> None:
+    """Activates or deactivates the device with the given device ID."""
+    connections = self._connections_to_device_by_id(device_id)
+    self._set_device_enabled_state_by_path(connections, enable)
+
   def _set_device_enabled_state_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type, enable: bool
   ) -> None:
     """Activates or deactivates the device with the given device type."""
-    self._ensure_passport_connected()
     connections = self._connections_to_device_by_type(device_type)
+    self._set_device_enabled_state_by_path(connections, enable)
+
+  def _set_device_enabled_state_by_path(
+      self, connections: MutableSequence[Any], enable: bool
+  ) -> None:
+    """Activates or deactivates the device with the given connection path."""
+    self._ensure_passport_connected()
     device_path = [connection.parent_id for connection in connections]
     self.log.info(
-        f'{"Activating" if enable else "Deactivating"} device by type:'
-        f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)}, path to'
-        f' device: {device_path}',
+        f'{"Activating" if enable else "Deactivating"}:  path: {device_path}',
     )
     for connection in connections:
       device_id = connection.parent_id
@@ -386,6 +408,26 @@ class PassportHost:
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
     self._set_device_enabled_state_by_type(device_type, False)
+
+  def activate_device_by_id(self, device_id: str) -> None:
+    """Activates the device with the given device ID.
+
+    Args:
+      device_id: The device ID to activate.
+    Raises:
+      PassportSwitchError: If the Passport was unable to set the switch state.
+    """
+    self._set_device_enabled_state_by_id(device_id, True)
+
+  def deactivate_device_by_id(self, device_id: str) -> None:
+    """Deactivates the device with the given device ID.
+
+    Args:
+      device_id: The device ID to deactivate.
+    Raises:
+      PassportSwitchError: If the Passport was unable to set the switch state.
+    """
+    self._set_device_enabled_state_by_id(device_id, False)
 
   def get_switch_ids(self) -> MutableSequence[str]:
     """Returns the switch IDs connected to the PassportHost.
