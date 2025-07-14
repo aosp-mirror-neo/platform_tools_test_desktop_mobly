@@ -24,11 +24,15 @@ when a testbed is suspected to be in a bad state to help with debugging.
 
 import logging
 
+from lib.pasit import display_helper
+from lib.pasit import display_painter
 from lib.pasit import pasit_camera
+from lib.pasit import pasit_display
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
 from lib.utils import retry
 from mobly import asserts
+from mobly import signals
 from mobly import test_runner
 
 
@@ -97,6 +101,71 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
             'No camera devices were detected as being plugged in after'
             ' activation.',
         )
+      finally:
+        self.passport_host.deactivate_device_by_id(device.id)
+
+  def test_display_count(self):
+    """Tests that we can activate and detect all display devices."""
+    self._test_display(False)
+
+  def test_display_mapping(self):
+    """Tests that we can map the displays to cameras."""
+    # even though this is additive to the display count test, it is
+    # a useful check to have it as a separate test since it requires
+    # additional verification steps and it allows simpler triaging by seeing
+    # which of the tests start failing.
+    self._test_display(True)
+
+  def _check_display_mapping(self) -> None:
+    """Checks that the display mapping is correct."""
+    painter = self.create(display_painter)
+    helper = display_helper.DisplayHelper(
+        self.passport_host,
+        self.display,
+        painter,
+        self.log_path,
+    )
+    logging.info('Trying to map displays to cameras...')
+    mapping =retry.retry(
+        helper.map_displays_to_cameras,
+        max_tries=3,
+        delay_seconds=10,
+        exceptions=(signals.TestError,),
+    )
+    logging.info('Mapped displays to cameras: %s', mapping)
+    asserts.assert_equal(len(mapping), 2, 'Unexpected number of displays to camera mappings.')
+
+  def _test_display(self, test_display_mapping: bool) -> None:
+    # skip if display is not present in the topology
+    asserts.skip_if(
+        not self.passport_host.is_device_type_present(
+            pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
+        ),
+        'Display device is not present in the topology.',
+    )
+    self.display = self.create(pasit_display)
+    for device in self.passport_host.topology.devices:
+      # TODO: b/431816213 - Add support for different display paths
+      if device.type != pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR:
+        continue
+      logging.info('Testing display device: %s', device.id)
+      self.passport_host.activate_device_by_id(device.id)
+      try:
+        display_count = retry.retry(
+            self.display.get_display_count,
+            until=lambda count: count == 2,  # 1 internal + 1 external
+            max_tries=10,
+            delay_seconds=2,
+        )
+        asserts.assert_equal(
+            display_count,
+            2,
+            'Display count is not 2, expected 1 internal + 1 external'
+            ' displays.',
+        )
+        logging.info('Display count is %d', display_count)
+        if test_display_mapping:
+          self._check_display_mapping()
       finally:
         self.passport_host.deactivate_device_by_id(device.id)
 
