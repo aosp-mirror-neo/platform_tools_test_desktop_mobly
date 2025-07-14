@@ -15,8 +15,8 @@
 """AndroidPasitFile handles file operations for PASIT testing on Android devices."""
 
 import os
+
 from lib.pasit.base import base_pasit_file
-from mobly.controllers.android_device_lib import adb
 
 
 class AndroidPasitFile(base_pasit_file.BasePasitFile):
@@ -28,19 +28,13 @@ class AndroidPasitFile(base_pasit_file.BasePasitFile):
   def pull_file(self, file_path: str, dest_path: str):
     self.controller.adb.pull([file_path, dest_path])
 
-  def list_screenshots(self) -> list[str]:
-    SCREENSHOT_PATH = '/data/media/10/Pictures/Screenshots/'
-    try:
-      files = self.controller.adb.shell(
-          ['ls', SCREENSHOT_PATH]
-      ).decode('utf-8').splitlines()
-      return [os.path.join(SCREENSHOT_PATH, file) for file in files]
-    except adb.AdbError as e:
-      # handle the case where the screenshot directory does not exist
-      if b'No such file or directory' in e.stderr:
-        return []
-      else:
-        raise
+  def list_files(self, directory_path: str) -> list[str]:
+    files = (
+        self.controller.adb.shell(['ls', directory_path])
+        .decode('utf-8')
+        .splitlines()
+    )
+    return [os.path.join(directory_path, file) for file in files]
 
   def copy_file(self, file_path: str, dest_path: str):
     self.controller.adb.shell(['cp', file_path, dest_path])

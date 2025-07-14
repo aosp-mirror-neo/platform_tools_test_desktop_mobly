@@ -46,11 +46,14 @@ class BasePasitFile(metaclass=abc.ABCMeta):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def list_screenshots(self) -> list[str]:
-    """Returns the list of file paths of the screenshots taken by the device.
+  def list_files(self, directory_path: str) -> list[str]:
+    """Returns the list of file paths of the files in the directory.
+
+    Args:
+      directory_path: The path of the directory on the device to list.
 
     Returns:
-      The list of file paths of the screenshots taken by the device.
+      A list of file paths of the files in the directory.
     """
     raise NotImplementedError()
 

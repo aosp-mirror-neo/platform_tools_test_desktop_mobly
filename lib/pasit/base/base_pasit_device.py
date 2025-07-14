@@ -164,6 +164,11 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def get_screenshots_path(self) -> str:
+    """Returns the path to the screenshots directory on the device."""
+    raise NotImplementedError
+
   def _request_power_on(self):
     """Requests the device to power on via Servo.
 
