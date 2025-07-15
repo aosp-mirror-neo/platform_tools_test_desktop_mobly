@@ -21,7 +21,6 @@ from mobly import suite_runner
 from pasit.smoke import pasit_device_test
 from pasit.smoke import passport_host_test
 
-
 class PasitSmokeSuite(base_suite.BaseSuite):
   """A suite of tests that exercise PASIT smoke tests.
 
