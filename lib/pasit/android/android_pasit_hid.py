@@ -46,6 +46,7 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
 
     Uninstalls the HidDeviceSnippet when the object is garbage collected.
     """
+    self.controller.unload_snippet('hid')
     apk_utils.uninstall(self.controller, self.HID_SNIPPET_PACKAGE_NAME)
 
   def get_hid_devices(self) -> List[base_pasit_hid.BasePasitHID.DeviceInfo]:
