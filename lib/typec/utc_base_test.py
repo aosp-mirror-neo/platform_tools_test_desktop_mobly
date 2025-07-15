@@ -41,14 +41,6 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.passport = self.register_controller(passport_host)[0]
     self.utc = self.passport.usb_tester_client
 
-    # Open the first detected tester
-    testers = self.utc.get_usb_testers()
-    try:
-      self.utc.open_usb_tester(testers.testers[0].id)
-    except IndexError as e:
-      logging.error(f"Failed to open UTC-274. {len(testers.testers)} testers detected.")
-      raise e
-
     # Set the tester's initial state.
     self._set_usb_tester_default_state()
 

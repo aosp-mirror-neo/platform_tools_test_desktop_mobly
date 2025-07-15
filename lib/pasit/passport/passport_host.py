@@ -144,6 +144,7 @@ class PassportHost:
     self._connect_to_service()
     self._parse_topology()
     self._validate_topology_switches()
+    self._activate_usb_testers()
 
   def _ensure_passport_connected(self):
     """Ensures the Passport API Service is connected."""
@@ -213,6 +214,37 @@ class PassportHost:
           raise errors.PassportConfigError(
               f'Switch {device.id} is not connected, but is in the topology.'
           )
+
+  def _activate_usb_testers(self):
+    """
+      Acivate the topology usb tester.
+
+      Raises:
+        PassportConfigError: if there are more than 1 usb tester in the topology
+          or if the tester was in the open state.
+        PassportConfigError: if there is a tester specified in the topology but it
+          is not controlled by the current instance of passport host.
+    """
+    topology_ids = [
+        device.id
+        for device in self.topology.devices
+        if device.type == pasit_host_pb2.PasitHost.Device.Type.USB_TESTER
+    ]
+    if len(topology_ids) > 1:
+      raise errors.PassportConfigError(
+        f'More than 1 usb tester found, found {len(topology_ids)} testers.'
+      )
+    if len(topology_ids) == 0:
+      logging.info('No USB testers are used in the topology.')
+      return
+    topology_id = topology_ids[0]
+    passport_testers = self.usb_tester_client.get_usb_testers()
+    passport_ids = [tester.id for tester in passport_testers.testers]
+    if topology_id not in passport_ids:
+      raise errors.PassportConfigError(
+        f'Topology tester {topology_id} is not controlled by passport host.'
+    )
+    self.usb_tester_client.open_usb_tester(topology_id)
 
   def _connections_to_device_by_type(
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
