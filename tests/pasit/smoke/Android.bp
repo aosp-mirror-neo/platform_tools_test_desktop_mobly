@@ -51,6 +51,7 @@ python_test_host {
     ],
     libs: [
         "py-pasit-storage",
+        "py-pasit-camera",
     ],
     pkg_path: "pasit/smoke",
 }

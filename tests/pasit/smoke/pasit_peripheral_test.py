@@ -24,6 +24,7 @@ when a testbed is suspected to be in a bad state to help with debugging.
 
 import logging
 
+from lib.pasit import pasit_camera
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
 from lib.utils import retry
@@ -56,6 +57,46 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
             max_tries=10,
         )
         logging.info('Found storage mount point: %s', mount_point)
+      finally:
+        self.passport_host.deactivate_device_by_id(device.id)
+
+  def _get_newly_plugged_cameras(
+      self, camera: pasit_camera.PasitCamera, existing_camera_devices: list[str]
+  ) -> list[str]:
+    """Returns the newly plugged in cameras."""
+    camera_devices = camera.get_connected_cameras()
+    return [
+        device
+        for device in camera_devices
+        if device not in existing_camera_devices
+    ]
+
+  def test_camera(self):
+    """Tests that we can activate and detect all camera devices."""
+    # skip if camera is not present in the topology
+    asserts.skip_if(
+        not self.passport_host.is_device_type_present(
+            pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
+        ),
+        'Camera device is not present in the topology.',
+    )
+    camera = self.create(pasit_camera)
+    camera_devices = camera.get_connected_cameras()
+    for device in self.passport_host.topology.devices:
+      if device.type != pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA:
+        continue
+      logging.info('Testing camera device: %s', device.id)
+      self.passport_host.activate_device_by_id(device.id)
+      try:
+        newly_plugged_cameras = retry.retry(
+            lambda: self._get_newly_plugged_cameras(camera, camera_devices),
+            until=lambda result: result,
+        )
+        asserts.assert_true(
+            newly_plugged_cameras,
+            'No camera devices were detected as being plugged in after'
+            ' activation.',
+        )
       finally:
         self.passport_host.deactivate_device_by_id(device.id)
 
