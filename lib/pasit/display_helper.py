@@ -112,6 +112,7 @@ class DisplayHelper:
           'This method should be called when there is only one display'
           ' plugged in.'
       )
+    logging.debug('Internal display id: %s', display_ids[0])
     return display_ids[0]
 
   def get_external_display_id(self, internal_display_id: str) -> str:
@@ -138,7 +139,7 @@ class DisplayHelper:
           'Unexpected number of external displays found'
           f' {len(external_display_ids)}.'
       )
-
+    logging.debug('External display id: %s', external_display_ids[0])
     return external_display_ids[0]
 
   def map_displays_to_cameras(self) -> dict[str, str]:
@@ -172,6 +173,7 @@ class DisplayHelper:
         exceptions=(signals.TestError,),
     )
     self.painter.clean_color_on_display()
+    logging.debug('Mapping result: %s', mapping_result)
     return mapping_result
 
   def _get_matched_color(

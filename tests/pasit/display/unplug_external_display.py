@@ -68,6 +68,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     external_display_id = self.helper.get_external_display_id(
         internal_display_id
     )
+
     self.painter.show_color_on_display(
         image.NamedColor.RED.value, external_display_id
     )
@@ -96,6 +97,19 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
         'Internal display should have red color.',
     )
 
+    # Replug the external display and verify the color moves back.
+    logging.info('Replugging external display.')
+    self._plug_in_external_display()
+    self._verify_display_count(2, 'after external display replug')
+
+    logging.info('Verify background color is now back on external display')
+    self.dut.get_screenshots(self.log_path, 'external_display_red_after_replug')
+    self._verify_captured_color(
+        display_id_to_camera_id[external_display_id],
+        image.NamedColor.RED.value,
+        'external_display_red_after_replug',
+        'External display should have red color after replug.',
+    )
 
 if __name__ == '__main__':
   test_runner.main()
