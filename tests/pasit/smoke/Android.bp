@@ -57,5 +57,6 @@ python_test_host {
         "py-display-painter",
         "py-display-helper",
     ],
-    pkg_path: "pasit/smoke",
+    // avoid conflict with pasit/smoke
+    pkg_path: "pasit/testbed_smoke",
 }

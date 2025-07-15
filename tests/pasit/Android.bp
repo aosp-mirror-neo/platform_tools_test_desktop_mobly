@@ -49,6 +49,7 @@ python_test_host {
         "DesktopPASITDisplayTests",
         "DesktopPASITHIDTests",
         "DesktopPASITSmokeTests",
+        "DesktopPASITTestbedSmokeTests",
         "DesktopPASITStorageTests",
     ],
 }
