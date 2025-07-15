@@ -33,3 +33,21 @@ python_test_host {
     ],
     pkg_path: "pasit/smoke",
 }
+
+python_test_host {
+    name: "DesktopPASITTestbedSmokeTests",
+    main: "pasit_testbed_smoke_suite.py",
+    srcs: ["*.py"],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+    ],
+    pkg_path: "pasit/smoke",
+}
