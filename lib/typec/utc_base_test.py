@@ -16,6 +16,7 @@
 
 import logging
 
+from lib.mobly.typec import typec_android_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
 from mobly import base_test
@@ -53,7 +54,7 @@ class UtcBaseTest(base_test.BaseTestClass):
 
     # Register android device.
     self.ads = self.register_controller(android_device)
-    self.dut = self.ads[0]
+    self.dut = typec_android_device.TypecAndroidDevice(self.ads[0])
 
   def teardown_test(self):
     # Reset the tester's state.
