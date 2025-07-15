@@ -54,6 +54,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       DEFAULT_RETRY_INTERVAL_SECONDS * DEFAULT_MAX_RETRIES_OFFLINE + 10
   )
 
+  SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
+
   # snippet apk is in same directory as this mobly executable
   SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
@@ -64,7 +66,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       'snippet-uiautomator.apk',
   )
 
-  def __init__(self, controller: android_device.AndroidDevice, servo: servo_client.ServoBase):
+  def __init__(
+      self,
+      controller: android_device.AndroidDevice,
+      servo: servo_client.ServoBase,
+  ):
     super().__init__(controller, servo)
     self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
@@ -219,6 +225,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.take_screenshot(
         output_path, file_name_prefix, all_displays=True
     )
+
+  def get_screenshots_path(self) -> str:
+    return self.SCREENSHOTS_PATH
 
   def _install_mbs(self):
     """Installs Mobly Bundled Snippets."""

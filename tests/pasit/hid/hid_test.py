@@ -69,7 +69,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
   def test_combo_keys_screenshot(self) -> None:
     # TODO: b/428769831 - Move key definitions to android specific helper class
     screenshot_keys = ['Meta', 'S']
-    screenshots_before = self.file_interface.list_screenshots()
+    screenshots_before = self.get_screenshots()
     logging.info('Sending screenshot keys to DUT: %s', screenshot_keys)
     self.passport_host.hid_client.send_keypress(
         self.hid_device, screenshot_keys
@@ -78,7 +78,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     logging.debug('Checking for new screenshots')
     new_screenshots = retry.retry(
         lambda: self._get_new_screenshots(screenshots_before),
-        until=lambda new_screenshots: len(new_screenshots) > 0,
+        until=lambda new_screenshots: new_screenshots,
     )
     asserts.assert_equal(
         len(new_screenshots),
@@ -90,7 +90,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
   def _get_new_screenshots(
       self, screenshots_before: list[str]
   ) -> Iterable[str]:
-    screenshots_after = self.file_interface.list_screenshots()
+    screenshots_after = self.get_screenshots()
     # diff the screenshots to ensure that a new screenshot was taken
     diff = set(screenshots_after) - set(screenshots_before)
     logging.debug('Screenshots after: %s', screenshots_after)
@@ -112,9 +112,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
         ),
         f'Failed to find the keyboard shortcuts window',
     )
-    self.passport_host.hid_client.send_keypress(
-        self.hid_device, home_keys
-    )
+    self.passport_host.hid_client.send_keypress(self.hid_device, home_keys)
     asserts.assert_true(
         # TODO: b/428769831 - Move App package names and checks to android
         # specific helper class
@@ -123,3 +121,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
         ),
         f'Failed to close the settings window',
     )
+
+  def get_screenshots(self) -> list[str]:
+    """Returns the list of screenshots on the DUT."""
+    return self.file_interface.list_files(self.dut.get_screenshots_path())
