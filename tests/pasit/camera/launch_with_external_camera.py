@@ -49,10 +49,10 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     self._wait_for_external_camera_devices(internal_camera_devices)
 
     self._launch_camera_app()
-    self.dut.get_screenshots(self.log_path, 'camera_app_launched')
+    self._capture_screenshots('camera_app_launched')
 
     self._switch_camera()
-    self.dut.get_screenshots(self.log_path, 'after_switch_to_external_camera')
+    self._capture_screenshots('after_switch_to_external_camera')
     self._verify_external_camera_captures_color(
         image.NamedColor.RED,
         'External camera preview (on the internal display) should be showing'
@@ -93,7 +93,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
         delay_seconds=1,
     )
 
-    self.dut.get_screenshots(self.log_path, 'external_camera_preview_color')
+    self._capture_screenshots('external_camera_preview_color')
     asserts.assert_is_not_none(match_color, message)
     asserts.assert_equal(match_color.value, color.value, message)
 

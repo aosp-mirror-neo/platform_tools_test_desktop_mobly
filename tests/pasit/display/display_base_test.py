@@ -42,11 +42,15 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.display = self.create(pasit_display)
     self.painter = self.create(display_painter)
+
+  def setup_test(self):
+    """Handle the setup for the test."""
+    super().setup_test()
     self.helper = display_helper.DisplayHelper(
         self.passport_host,
         self.display,
         self.painter,
-        self.log_path,
+        self.current_test_info.output_path,
     )
 
   def _plug_in_external_display(self):

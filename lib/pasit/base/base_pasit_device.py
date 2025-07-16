@@ -154,7 +154,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     return self._servo is not None
 
   @abc.abstractmethod
-  def get_screenshots(self, output_path: str, file_name_prefix: str):
+  def capture_screenshots(self, output_path: str, file_name_prefix: str):
     """Takes a screenshot of all the displays and saves it to the output path.
 
     Args:
