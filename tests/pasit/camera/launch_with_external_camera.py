@@ -71,18 +71,8 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
       color: The color to capture.
       message: The message to use for the assertion if the verification fails.
     """
-    internal_display_id = self.helper.get_internal_display_id()
     # Display-testing camera, pointed at internal display.
-    camera_id = self.helper.get_display_testing_camera_id(internal_display_id)
-
-    # External (tested) camera is pointed at external display.
-    # Show color on external display to validate external camera captures it.
-    logging.info('Plugging in external display')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    external_display_id = self.helper.get_external_display_id(
-        internal_display_id
-    )
-    self.painter.show_color_on_display(color.value, external_display_id)
+    camera_id = self._show_color_for_external_camera_preview(color)
 
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.

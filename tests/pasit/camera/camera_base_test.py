@@ -19,6 +19,7 @@ import logging
 
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_test
+from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
 from mobly import signals
@@ -37,8 +38,8 @@ class CameraBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     """Handle the teardown for the test."""
-    super().teardown_test()
     self.camera.close_camera_app()
+    super().teardown_test()
 
   def _launch_camera_app(self):
     """Launches the camera app.
@@ -109,3 +110,33 @@ class CameraBaseTest(pasit_test.PasitTestClass):
         ),
         f'Camera app is not using any of {device_name}.',
     )
+
+  def _show_color_for_external_camera_preview(
+      self, color: image.NamedColor
+  ) -> str:
+    """Show the color on the external display for external camera preview.
+
+    Plug in external display and show the color on the external display for the
+    external camera to capture and show on the camera app preview on the
+    internal display.
+
+    Args:
+      color: The color to show on the external display.
+
+    Returns:
+      The camera id that is pointed at the internal display.
+    """
+    internal_display_id = self.helper.get_internal_display_id()
+    # Display-testing camera, pointed at internal display.
+    camera_id = self.helper.get_display_testing_camera_id(internal_display_id)
+    external_display_id = self._plug_in_external_display(internal_display_id)
+    # Show color on external display to validate external camera captures it.
+    self.painter.show_color_on_display(color.value, external_display_id)
+    return camera_id
+
+  def _plug_in_external_display(self, internal_display_id: str) -> str:
+    """Plug in external display."""
+    # External (tested) camera is pointed at external display.
+    logging.info('Plugging in external display')
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    return self.helper.get_external_display_id(internal_display_id)

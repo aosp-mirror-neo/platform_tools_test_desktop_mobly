@@ -24,6 +24,7 @@ from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
 from mobly import records
+from mobly import signals
 
 
 def get_device_type_name(
@@ -95,14 +96,16 @@ class PasitTestClass(base_test.BaseTestClass):
     for controller_type, func in module.registry.items():
       if controller_type == type(controller):
         return func(controller)
-    raise ValueError(f'Unknown controller type: {type(controller).__name__}')
+    raise signals.TestError(
+        f'Unknown controller type: {type(controller).__name__}'
+    )
 
   def _create_passport_controller(self) -> passport_host.PassportHost:
     """Create passport host controller from the testbed configuration."""
     if 'PassportHost' in self.controller_configs:
       return self.register_controller(passport_host)[0]
     else:
-      raise ValueError(
+      raise signals.TestError(
           'No PassportHost found for controller config:'
           f' {self.controller_configs}'
       )
