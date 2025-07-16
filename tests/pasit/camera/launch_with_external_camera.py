@@ -29,6 +29,9 @@ from pasit.camera import camera_base_test
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
 
+  helper: display_helper.DisplayHelper
+  painter: display_painter.DisplayPainter
+
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
