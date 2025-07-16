@@ -140,5 +140,11 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     )
 
   def get_screenshots(self) -> list[str]:
-    """Returns the list of screenshots on the DUT."""
-    return self.file_interface.list_files(self.dut.get_screenshots_path())
+    """Returns the list of screenshots on the DUT.
+
+    If the screenshots directory does not exist, returns an empty list.
+    """
+    try:
+      return self.file_interface.list_files(self.dut.get_screenshots_path())
+    except FileNotFoundError:
+      return []
