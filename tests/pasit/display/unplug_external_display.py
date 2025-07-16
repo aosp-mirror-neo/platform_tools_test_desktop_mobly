@@ -103,7 +103,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     self._verify_display_count(2, 'after external display replug')
 
     logging.info('Verify background color is now back on external display')
-    self.dut.get_screenshots(self.log_path, 'external_display_red_after_replug')
+    self._capture_screenshots('external_display_red_after_replug')
     self._verify_captured_color(
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED.value,

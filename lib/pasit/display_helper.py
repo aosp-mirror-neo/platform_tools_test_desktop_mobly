@@ -366,10 +366,11 @@ class DisplayHelper:
             matched_color.name if matched_color else 'None',
         )
       else:
+        color_name = matched_color.name if matched_color else 'None'
         logging.info(
             'Camera %s captured color %s that matched display %s.',
             camera_id,
-            matched_color.name,
+            color_name,
             matched_display_id,
         )
         # store the association between the matched display id and the camera id
