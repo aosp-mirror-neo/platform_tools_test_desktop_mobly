@@ -53,5 +53,14 @@ class PASITLibImportsTest(unittest.TestCase):
   def test_import_pasit_pasport(self):
     from lib.pasit.passport import passport_host
 
+  def test_import_pasit_hid(self):
+    from lib.pasit import pasit_hid
+
+  def test_display_helper(self):
+    from lib.pasit import display_helper
+
+  def test_display_painter(self):
+    from lib.pasit import display_painter
+
 if __name__ == '__main__':
   unittest.main()
