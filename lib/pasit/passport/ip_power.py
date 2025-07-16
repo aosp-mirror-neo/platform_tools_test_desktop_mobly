@@ -54,6 +54,7 @@ class PassportRPMError(errors.PassportBaseError):
       power_state: The state that was attempted to be set.
     """
     super().__init__(message)
+    self.message = message
     self.endpoint = endpoint
     self.power_state = power_state
 
