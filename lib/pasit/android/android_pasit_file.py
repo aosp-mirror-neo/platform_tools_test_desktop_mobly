@@ -17,6 +17,7 @@
 import os
 
 from lib.pasit.base import base_pasit_file
+from mobly.controllers.android_device_lib import adb
 
 
 class AndroidPasitFile(base_pasit_file.BasePasitFile):
@@ -29,12 +30,20 @@ class AndroidPasitFile(base_pasit_file.BasePasitFile):
     self.controller.adb.pull([file_path, dest_path])
 
   def list_files(self, directory_path: str) -> list[str]:
-    files = (
-        self.controller.adb.shell(['ls', directory_path])
-        .decode('utf-8')
-        .splitlines()
-    )
-    return [os.path.join(directory_path, file) for file in files]
+    try:
+      files = (
+          self.controller.adb.shell(['ls', directory_path])
+          .decode('utf-8')
+          .splitlines()
+      )
+      return [os.path.join(directory_path, file) for file in files]
+    except adb.AdbError as e:
+      if b'No such file or directory' in e.stderr:
+        raise FileNotFoundError(
+            f'Directory {directory_path} does not exist on the device.'
+        ) from e
+      else:
+        raise
 
   def copy_file(self, file_path: str, dest_path: str):
     self.controller.adb.shell(['cp', file_path, dest_path])

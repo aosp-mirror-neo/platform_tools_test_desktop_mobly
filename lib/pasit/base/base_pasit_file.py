@@ -54,6 +54,8 @@ class BasePasitFile(metaclass=abc.ABCMeta):
 
     Returns:
       A list of file paths of the files in the directory.
+    Raises:
+      FileNotFoundError: If the directory does not exist.
     """
     raise NotImplementedError()
 
