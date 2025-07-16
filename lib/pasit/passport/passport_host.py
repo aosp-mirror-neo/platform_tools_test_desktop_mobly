@@ -361,7 +361,7 @@ class PassportHost:
     if self._switch_client:
       self._switch_client.reset_all_switches()
     if self.usb_tester_client and self.usb_tester_client.is_open():
-      self.usb_tester_client.replug_usb_tester()
+      self.usb_tester_client.replug()
     if self._ip_power_clients.get('dock'):
       self._ip_power_clients['dock'].set_ip_power_state(ip_power.PowerState.OFF)
 

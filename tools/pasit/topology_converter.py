@@ -176,7 +176,7 @@ def parse_textproto(
   with open(textproto_file, 'r') as f:
     data = f.read()
     text_format.Parse(
-        data, pasit_host, ignore_unknown_fields=ignore_unknown_fields
+        data, pasit_host, allow_unknown_field=ignore_unknown_fields
     )
   return pasit_host
 

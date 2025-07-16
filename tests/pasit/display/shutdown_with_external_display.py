@@ -23,7 +23,7 @@ from pasit.display import display_base_test
 class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that shuts down DUT with external display plugged in."""
 
-  def test_shutdown_with_external_display(self) -> str:
+  def test_shutdown_with_external_display(self):
     """Get the test name for the given test args."""
     self._skip_if_servo_needed_and_not_configured(
         dut_state_manager.PowerState.OFF

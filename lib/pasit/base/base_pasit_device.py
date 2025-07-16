@@ -21,6 +21,7 @@ from typing import Any
 
 from lib.utils import servo_client
 
+
 class ShellError(Exception):
   """Raised when a shell command fails.
 
@@ -58,7 +59,9 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     controller: Mobly controller instance for the tested device.
   """
 
-  def __init__(self, controller: Any, servo: servo_client.ServoBase=None):
+  def __init__(
+      self, controller: Any, servo: servo_client.ServoBase | None = None
+  ):
     """Initializes the PasitDevice.
 
     Args:
@@ -122,6 +125,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
     Args:
       wakeup_timeout_seconds: The timeout in seconds to wake up the device in.
+
     Raises:
       Implementation specific exceptions, if the device fails to suspend or
       fails to reconnect after wakeup_timeout_seconds of suspend.
