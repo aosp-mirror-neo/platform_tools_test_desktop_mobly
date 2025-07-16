@@ -19,6 +19,7 @@ import datetime
 import logging
 
 from lib.pasit import pasit_file
+from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
 from lib.utils import retry
 from mobly import asserts
@@ -40,11 +41,14 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     """Handle the setup for the test."""
     super().setup_class()
     self.file_interface = self.create(pasit_file)
+    self.hid = self.create(pasit_hid)
+    default_hid_devices = self.hid.get_hid_devices()
     # Initialize HID once before all tests. HID must be connected to the DUT
     # before initialization to provide power to HID emulator.
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
+    # After activation, HID devices should be visible to passport
     hid_devices = self.passport_host.hid_client.get_hid_devices()
-    logging.info('HID devices: %s', hid_devices)
+    logging.info('Passport HID devices: %s', hid_devices)
     if len(hid_devices) != 1:
       raise signals.TestError(
           'Expected 1 HID device connected to the Passport host, but found'
@@ -54,6 +58,19 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
       )
     self.hid_device = hid_devices[0]
     self.passport_host.hid_client.open(self.hid_device)
+
+    # after activation the HID devices should be visible to the DUT
+    updated_hid_devices = self.hid.get_hid_devices()
+    new_hid_devices = [
+        dev for dev in updated_hid_devices if dev not in default_hid_devices
+    ]
+    logging.info('New HID devices seen by DUT: %s', new_hid_devices)
+    asserts.assert_equal(
+        len(new_hid_devices),
+        3,
+        'Expected DUT to have 3 new HID devices after activation of HID'
+        ' emulator.',
+    )
 
   def teardown_class(self):
     """Handle the teardown for the class."""

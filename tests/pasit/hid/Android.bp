@@ -30,9 +30,11 @@ python_test_host {
         // test APK module
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
+        ":HidDeviceSnippet",
     ],
     libs: [
         "py-pasit-file",
+        "py-pasit-hid",
     ],
     pkg_path: "pasit/hid",
 }

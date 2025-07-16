@@ -28,6 +28,7 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
+from lib.pasit import pasit_hid
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
 from lib.utils import retry
@@ -168,6 +169,40 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           self._check_display_mapping()
       finally:
         self.passport_host.deactivate_device_by_id(device.id)
+
+  def test_hid(self):
+    """Tests that we can activate and detect all HID emulators."""
+    # skip if HID is not present in the topology
+    asserts.skip_if(
+        not self.passport_host.is_device_type_present(
+            pasit_test.PasitTestClass.DEVICE_TYPE_HID
+        ),
+        'HID device is not present in the topology.',
+    )
+    hid = self.create(pasit_hid)
+    default_hid = hid.get_hid_devices()
+    for device in self.passport_host.topology.devices:
+      if device.type != pasit_test.PasitTestClass.DEVICE_TYPE_HID:
+        continue
+      logging.info('Testing HID device: %s', device.id)
+      self.passport_host.activate_device_by_id(device.id)
+      passport_hid_devices = self.passport_host.hid_client.get_hid_devices()
+      logging.info('Passport HID devices: %s', passport_hid_devices)
+      asserts.assert_true(
+          passport_hid_devices,
+          'Expected passport to have an HID device after activation.',
+      )
+      updated_hid_devices = hid.get_hid_devices()
+      new_hid_devices = [
+          dev for dev in updated_hid_devices if dev not in default_hid
+      ]
+      logging.info('New DUT HID devices: %s', new_hid_devices)
+      asserts.assert_equal(
+          len(new_hid_devices),
+          3,
+          'Expected DUT to have 3 new HID devices after activation of HID'
+          ' emulator.',
+      )
 
 
 if __name__ == '__main__':

@@ -49,11 +49,13 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
         ":ColorFillTest",
+        ":HidDeviceSnippet",
     ],
     libs: [
         "py-pasit-storage",
         "py-pasit-camera",
         "py-pasit-display",
+        "py-pasit-hid",
         "py-display-painter",
         "py-display-helper",
     ],
