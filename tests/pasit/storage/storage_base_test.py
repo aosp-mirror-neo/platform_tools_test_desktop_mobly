@@ -25,6 +25,7 @@ from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
 from lib.utils import retry
 from mobly import asserts
+from mobly import signals
 
 
 _DUT_TMP_DIR = '/data/local/tmp/'
@@ -64,7 +65,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
       external storage path for testing.
 
     Raises:
-      ValueError: If no external storage is found.
+      TestError: If no external storage is found.
     """
     logging.info('Waiting for external storage to mount')
     mount_point = self._wait_for_external_mount_point()
@@ -72,7 +73,9 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     if not mount_point:
       logging.info('External storage not mounted, formatting and trying again.')
       if not self.storage.format_external_storage():
-        raise ValueError('No USB storage device found.')
+        raise signals.TestError(
+            'Formatting external storage failed: no USB storage device found.'
+        )
 
       # Unplug and replug the external storage to ensure that the storage is
       # mounted after formatting.

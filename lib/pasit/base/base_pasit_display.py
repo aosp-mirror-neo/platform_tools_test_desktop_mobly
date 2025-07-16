@@ -28,9 +28,9 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_display_count(self) -> int:
     """Returns the number of connected displays."""
-    raise NotImplementedError()
+    raise NotImplementedError
 
   @abc.abstractmethod
   def get_display_ids(self) -> list[str]:
     """Returns the display IDs."""
-    raise NotImplementedError()
+    raise NotImplementedError

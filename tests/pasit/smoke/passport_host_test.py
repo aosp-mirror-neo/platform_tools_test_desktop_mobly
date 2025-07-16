@@ -19,6 +19,7 @@ from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
+from mobly import signals
 from mobly import test_runner
 
 
@@ -29,7 +30,7 @@ class PassportHostTest(base_test.BaseTestClass):
     if 'PassportHost' in self.controller_configs:
       self.passport_host = self.register_controller(passport_host)[0]
     else:
-      raise ValueError(
+      raise signals.TestError(
           'No PassportHost found for controller config:'
           f' {self.controller_configs}'
       )
