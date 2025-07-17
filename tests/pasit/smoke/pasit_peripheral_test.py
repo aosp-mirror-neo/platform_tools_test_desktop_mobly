@@ -64,6 +64,10 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
             max_tries=10,
         )
         logging.info('Found storage mount point: %s', mount_point)
+        asserts.assert_true(
+            mount_point,
+            'No external storage device found.',
+        )
       finally:
         self.passport_host.deactivate_device_by_id(device.id)
 
@@ -129,14 +133,16 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         self.log_path,
     )
     logging.info('Trying to map displays to cameras...')
-    mapping =retry.retry(
+    mapping = retry.retry(
         helper.map_displays_to_cameras,
         max_tries=3,
         delay_seconds=10,
         exceptions=(signals.TestError,),
     )
     logging.info('Mapped displays to cameras: %s', mapping)
-    asserts.assert_equal(len(mapping), 2, 'Unexpected number of displays to camera mappings.')
+    asserts.assert_equal(
+        len(mapping), 2, 'Unexpected number of displays to camera mappings.'
+    )
 
   def _test_display(self, test_display_mapping: bool) -> None:
     # skip if display is not present in the topology
