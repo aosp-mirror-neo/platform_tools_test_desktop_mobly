@@ -35,9 +35,9 @@ class ServoTest(base_test.BaseTestClass):
         'Servo is not configured, PASIT testbeds expect Servo to be'
         ' configured.',
     )
-    # explicitly call this for clarity of intent of the test.
-    self.dut._servo._verify_connected()
-
+    if self.dut._servo:
+      # explicitly call this for clarity of intent of the test.
+      self.dut._servo.verify_connected()
 
 
 if __name__ == '__main__':

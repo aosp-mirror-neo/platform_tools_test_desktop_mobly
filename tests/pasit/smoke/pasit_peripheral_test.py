@@ -39,6 +39,8 @@ from mobly import test_runner
 
 class PasitPeripheralTest(pasit_test.PasitTestClass):
 
+  display: pasit_display.PasitDisplay
+
   def test_storage(self):
     """Tests that we can activate and detect all storage devices."""
     # skip if storage is not present in the topology
@@ -179,6 +181,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         ),
         'HID device is not present in the topology.',
     )
+    hid_client = self.passport_host.hid_client
+    if hid_client is None:
+      raise signals.TestError('Passport does not have a HID client.')
     hid = self.create(pasit_hid)
     default_hid = hid.get_hid_devices()
     for device in self.passport_host.topology.devices:
@@ -186,7 +191,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         continue
       logging.info('Testing HID device: %s', device.id)
       self.passport_host.activate_device_by_id(device.id)
-      passport_hid_devices = self.passport_host.hid_client.get_hid_devices()
+      passport_hid_devices = hid_client.get_hid_devices()
       logging.info('Passport HID devices: %s', passport_hid_devices)
       asserts.assert_true(
           passport_hid_devices,
