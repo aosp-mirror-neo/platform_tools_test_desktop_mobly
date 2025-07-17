@@ -33,10 +33,6 @@ _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
-  def teardown_test(self):
-    self.painter.clean_color_on_display()
-    super().teardown_test()
-
   def pre_run(self):
     """Generate tests for each test case."""
     self.generate_tests(

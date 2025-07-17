@@ -14,11 +14,6 @@
 
 """Test launching the camera app with an external camera plugged in."""
 
-import logging
-
-from lib.pasit import display_helper
-from lib.pasit import display_painter
-from lib.pasit import pasit_display
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
@@ -28,21 +23,6 @@ from pasit.camera import camera_base_test
 
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
-
-  helper: display_helper.DisplayHelper
-  painter: display_painter.DisplayPainter
-
-  def setup_class(self):
-    """Handle the setup for the test."""
-    super().setup_class()
-    display = self.create(pasit_display)
-    self.painter = self.create(display_painter)
-    self.helper = display_helper.DisplayHelper(
-        self.passport_host,
-        display,
-        self.painter,
-        self.log_path,
-    )
 
   def test_launch_with_external_camera(self):
     """Test launching the camera app with an external camera plugged in."""

@@ -53,6 +53,10 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.current_test_info.output_path,
     )
 
+  def teardown_test(self):
+    self.painter.clean_color_on_display()
+    super().teardown_test()
+
   def _plug_in_external_display(self):
     """Emulate external display plug in using passport."""
     logging.info('Plugging in external display')

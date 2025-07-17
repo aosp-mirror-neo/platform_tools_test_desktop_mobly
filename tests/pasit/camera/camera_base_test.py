@@ -17,7 +17,10 @@
 from collections.abc import Iterable, MutableSequence
 import logging
 
+from lib.pasit import display_helper
+from lib.pasit import display_painter
 from lib.pasit import pasit_camera
+from lib.pasit import pasit_display
 from lib.pasit import pasit_test
 from lib.utils import image
 from lib.utils import retry
@@ -31,10 +34,26 @@ class CameraBaseTest(pasit_test.PasitTestClass):
   camera: pasit_camera.PasitCamera
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
 
+  helper: display_helper.DisplayHelper
+  painter: display_painter.DisplayPainter
+  display: pasit_display.PasitDisplay
+
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
     self.camera = self.create(pasit_camera)
+    self.display = self.create(pasit_display)
+    self.painter = self.create(display_painter)
+
+  def setup_test(self):
+    """Handle the setup for the test."""
+    super().setup_test()
+    self.helper = display_helper.DisplayHelper(
+        self.passport_host,
+        self.display,
+        self.painter,
+        self.current_test_info.output_path,
+    )
 
   def teardown_test(self):
     """Handle the teardown for the test."""
