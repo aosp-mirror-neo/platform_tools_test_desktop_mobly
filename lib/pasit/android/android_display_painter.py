@@ -65,7 +65,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         params=['-t'],  # to allow installing test packages
     )
 
-  def __del__(self):
+  def cleanup(self):
     """Cleans up after testing.
 
     Uninstalls the ColorFillTestApp when the object is garbage collected.

@@ -60,6 +60,11 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     self.camera.close_camera_app()
     super().teardown_test()
 
+  def teardown_class(self):
+    """Handle the teardown for the class."""
+    self.painter.cleanup()
+    super().teardown_class()
+
   def _launch_camera_app(self):
     """Launches the camera app.
 
