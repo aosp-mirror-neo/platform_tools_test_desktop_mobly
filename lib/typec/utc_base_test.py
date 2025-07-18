@@ -14,8 +14,6 @@
 
 """Base class for UTC-274 tests that sets tester state between tests."""
 
-import logging
-
 from lib.mobly.typec import typec_android_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
