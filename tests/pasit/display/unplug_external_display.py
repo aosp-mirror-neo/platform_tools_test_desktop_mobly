@@ -26,6 +26,7 @@ from pasit.display import display_base_test
 # PowerState indicating the DUT state when external display is unplugged.
 _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
     (dut_state_manager.PowerState.ON,),
+    (dut_state_manager.PowerState.OFF,),
     (dut_state_manager.PowerState.SUSPEND,),
 )
 
@@ -84,28 +85,31 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
       self._unplug_external_display()
     self._verify_display_count(1, 'after external display unplug')
 
-    logging.info('Verify background color is now on internal display')
-    self._capture_screenshots('internal_display_red')
-    self._verify_captured_color(
-        display_id_to_camera_id[internal_display_id],
-        image.NamedColor.RED.value,
-        'internal_display_red',
-        'Internal display should have red color.',
-    )
+    # Verify the background color window switching between external and internal
+    # display.
+    if state_when_unplug_display != dut_state_manager.PowerState.OFF:
+      logging.info('Verify background color is now on internal display')
+      self._capture_screenshots('internal_display_red')
+      self._verify_captured_color(
+          display_id_to_camera_id[internal_display_id],
+          image.NamedColor.RED.value,
+          'internal_display_red',
+          'Internal display should have red color.',
+      )
 
-    # Replug the external display and verify the color moves back.
-    logging.info('Replugging external display.')
-    self._plug_in_external_display()
-    self._verify_display_count(2, 'after external display replug')
+      # Replug the external display and verify the color moves back.
+      logging.info('Replugging external display.')
+      self._plug_in_external_display()
+      self._verify_display_count(2, 'after external display replug')
 
-    logging.info('Verify background color is now back on external display')
-    self._capture_screenshots('external_display_red_after_replug')
-    self._verify_captured_color(
-        display_id_to_camera_id[external_display_id],
-        image.NamedColor.RED.value,
-        'external_display_red_after_replug',
-        'External display should have red color after replug.',
-    )
+      logging.info('Verify background color is now back on external display')
+      self._capture_screenshots('external_display_red_after_replug')
+      self._verify_captured_color(
+          display_id_to_camera_id[external_display_id],
+          image.NamedColor.RED.value,
+          'external_display_red_after_replug',
+          'External display should have red color after replug.',
+      )
 
 if __name__ == '__main__':
   test_runner.main()
