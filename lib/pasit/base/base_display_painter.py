@@ -31,6 +31,10 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
     """
     self.controller = controller
 
+  def cleanup(self):
+    """Cleans up after testing."""
+    raise NotImplementedError
+
   @abc.abstractmethod
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
     """Shows the given color on the display.
