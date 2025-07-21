@@ -14,6 +14,7 @@
 
 """AndroidDisplayPainter shows colors on Android device displays for testing."""
 
+import datetime
 import os
 import sys
 
@@ -114,12 +115,11 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         'force-stop',
         self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
     ])
-    window_count_after = retry.retry(
-        lambda: self._get_color_fill_test_app_window_count(),
-        until=lambda window_count: window_count == 0,
-        max_tries=10,
-        delay_seconds=1,
-    )
+
+    self.controller.ui(
+        desc=self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION
+    ).wait.gone(timeout=datetime.timedelta(seconds=10))
+    window_count_after = self._get_color_fill_test_app_window_count()
     if window_count_after != 0:
       raise signals.TestError(
           'Failed to clean color on display. Color fill test app window count'
