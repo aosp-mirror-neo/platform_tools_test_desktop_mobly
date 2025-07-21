@@ -30,6 +30,7 @@ class UTCParams:
     self.port = params["port"]
     self.flip = params["flip"]
     self.name = params["name"]
+    self.iterations = params.get("iterations", 1)
 
     # Attributes used for UTC-274 initialization.
     self.params = params
