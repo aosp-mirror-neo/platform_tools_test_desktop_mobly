@@ -48,5 +48,8 @@ class AndroidPasitFile(base_pasit_file.BasePasitFile):
   def copy_file(self, file_path: str, dest_path: str):
     self.controller.adb.shell(['cp', file_path, dest_path])
 
-  def remove_file(self, file_path: str):
-    self.controller.adb.shell(['rm', file_path])
+  def remove_file(self, file_path: str, force: bool = False):
+    if force:
+      self.controller.adb.shell(['rm', '-f', file_path])
+    else:
+      self.controller.adb.shell(['rm', file_path])

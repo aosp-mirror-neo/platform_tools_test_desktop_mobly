@@ -80,6 +80,11 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     logging.info('Switching camera')
     self.camera.switch_camera()
 
+  def _switch_mode(self, mode: pasit_camera.PasitCamera.Mode):
+    logging.info('Switching to %s mode', mode.name)
+    if not self.camera.switch_mode(mode):
+      raise signals.TestError(f'Failed to switch to {mode.name} mode')
+
   def _plug_in_external_camera(self):
     """Emulate external camera plug in using passport."""
     logging.info('Plugging in external camera')

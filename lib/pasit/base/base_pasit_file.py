@@ -31,7 +31,7 @@ class BasePasitFile(metaclass=abc.ABCMeta):
       file_path: The path of the file on the host to push.
       dest_path: The destination path on the device to push the file to.
     """
-    raise NotImplementedError()
+    raise NotImplementedError
 
   @abc.abstractmethod
   def pull_file(self, file_path: str, dest_path: str):
@@ -43,7 +43,7 @@ class BasePasitFile(metaclass=abc.ABCMeta):
       file_path: The path of the file on the device to pull.
       dest_path: The destination path on the host to pull the file to.
     """
-    raise NotImplementedError()
+    raise NotImplementedError
 
   @abc.abstractmethod
   def list_files(self, directory_path: str) -> list[str]:
@@ -57,7 +57,7 @@ class BasePasitFile(metaclass=abc.ABCMeta):
     Raises:
       FileNotFoundError: If the directory does not exist.
     """
-    raise NotImplementedError()
+    raise NotImplementedError
 
   @abc.abstractmethod
   def copy_file(self, file_path: str, dest_path: str):
@@ -67,16 +67,17 @@ class BasePasitFile(metaclass=abc.ABCMeta):
       file_path: The path of the file on the device to copy.
       dest_path: The destination path on the device to copy the file to.
     """
-    raise NotImplementedError()
+    raise NotImplementedError
 
   @abc.abstractmethod
-  def remove_file(self, file_path: str):
+  def remove_file(self, file_path: str, force: bool = False):
     """Removes a file from the device.
 
     Args:
       file_path: The path of the file on the device to remove.
+      force: Whether to force the removal of the file.
     """
-    raise NotImplementedError()
+    raise NotImplementedError
 
   def __init__(self, controller: Any):
     self.controller = controller
