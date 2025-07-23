@@ -18,7 +18,10 @@ from collections.abc import MutableSequence
 import datetime
 
 from lib.pasit.base import base_pasit_camera
+from lib.utils import retry
 from mobly.controllers import android_device
+
+Mode = base_pasit_camera.BasePasitCamera.Mode
 
 
 class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
@@ -26,15 +29,39 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
 
   _CAMERA_APP_PACKAGE_NAME = 'com.google.android.desktop.camera'
 
-  def launch_camera_app(self) -> bool:
-    # Instruct the Activity Manager(am) to start the camera app using the
-    # VIDEO_CAPTURE action. This is a typical way to launch the camera app on
-    # Android devices.
+  _CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION = 'Start recording'
+  _CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION = 'Stop recording'
+  _CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION = 'Take photo'
+
+  _CAMERA_APP_PHOTO_MODE_BUTTON_DESCRIPTION = 'Photo Mode'
+  _CAMERA_APP_VIDEO_MODE_BUTTON_DESCRIPTION = 'Video Mode'
+
+  _CAMERA_APP_FILES_PATH = '/data/media/10/DCIM/Camera/'
+
+  _switch_mode_button_description = {
+      Mode.VIDEO: _CAMERA_APP_VIDEO_MODE_BUTTON_DESCRIPTION,
+      Mode.PHOTO: _CAMERA_APP_PHOTO_MODE_BUTTON_DESCRIPTION,
+  }
+
+  _action_button_description = {
+      Mode.VIDEO: _CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
+      Mode.PHOTO: _CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
+  }
+
+  _camera_app_action = {
+      Mode.VIDEO: 'android.media.action.VIDEO_CAMERA',
+      Mode.PHOTO: 'android.media.action.STILL_IMAGE_CAMERA',
+  }
+
+  def launch_camera_app(
+      self,
+      mode: Mode = Mode.PHOTO,
+  ) -> bool:
     self.controller.adb.shell([
         'am',
         'start',
         '-a',
-        'android.media.action.VIDEO_CAPTURE',
+        self._camera_app_action[mode],
         self._CAMERA_APP_PACKAGE_NAME,
     ])
     return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
@@ -77,6 +104,62 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     self.controller.ui(
         pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
     ).click()
+
+  def switch_mode(self, mode: Mode) -> bool:
+    # Both the photo and video mode buttons are in the same view. Clicking
+    # either button toggles to the opposite mode.
+    # Retry logic is used to click a button until the desired mode is active.
+    retry.retry(
+        lambda: self.controller.ui(
+            pkg=self._CAMERA_APP_PACKAGE_NAME,
+            desc=self._switch_mode_button_description[mode],
+        ).click(),
+        until=lambda _: self._mode_action_button_exists(mode),
+        max_tries=3,
+        delay_seconds=0,
+    )
+    return self._mode_action_button_exists(mode)
+
+  def take_photo(self):
+    self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
+    ).click()
+
+  def start_recording_video(self):
+    self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
+    ).click()
+
+  def stop_recording_video(self):
+    self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
+    ).click()
+
+  def get_files_path(self) -> str:
+    return self._CAMERA_APP_FILES_PATH
+
+  def _mode_action_button_exists(
+      self,
+      mode: Mode,
+      timeout_seconds: int = 5,
+  ) -> bool:
+    """Finds the capture photo or video action button.
+
+    Args:
+      mode: The capture mode to get the action button for.
+      timeout_seconds: The timeout in seconds to wait for the action button to
+        exist.
+
+    Returns:
+      True if the mode action button exists, False otherwise.
+    """
+    return self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._action_button_description[mode],
+    ).wait.exists(datetime.timedelta(seconds=timeout_seconds))
 
   def maximize_camera_app_window(self):
     self.controller.ui(desc='Maximize Camera').click()
