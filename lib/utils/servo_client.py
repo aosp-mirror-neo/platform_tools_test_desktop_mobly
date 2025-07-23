@@ -83,6 +83,7 @@ class LSNexusClient(ServoBase):
 
   def _call_servod(self, request: lsnexus_service_pb2.CallServodRequest):
     response = self._stub.CallServod(request)
+    logging.debug('Call servod %s -> %s', request, response)
     if response.HasField('failure'):
       raise ValueError(response.failure.msg)
     return response.Success
