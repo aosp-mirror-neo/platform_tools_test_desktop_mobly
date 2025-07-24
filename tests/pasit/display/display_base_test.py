@@ -84,6 +84,16 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_count,
         f'Display count is not {expected_count} {event_to_log}.',
     )
+    asserts.assert_equal(
+        retry.retry(
+            lambda: len(self.display.get_display_ids()),
+            until=lambda ids_count: ids_count == expected_count,
+            max_tries=10,
+            delay_seconds=2,
+        ),
+        expected_count,
+        f'Display IDs count is not {expected_count} {event_to_log}.',
+    )
 
   def _verify_captured_color(
       self,
