@@ -59,7 +59,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
   def teardown_class(self):
     """Handle the teardown for the class."""
-    self.painter.cleanup()
+    if hasattr(self, 'painter'):
+      self.painter.cleanup()
     super().teardown_class()
 
   def _plug_in_external_display(self):
