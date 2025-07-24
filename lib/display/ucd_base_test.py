@@ -52,7 +52,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.passport_host.video_tester_client
     )
-    self._ucd_manager.reset_ucd_displays_state_to_default()
+    self._ucd_manager.unplug_and_destroy_all_displays()
     # Set the max number of displays that can be tested.
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
     theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
@@ -66,11 +66,25 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     )
 
   def teardown_test(self):
-    self._ucd_manager.reset_ucd_displays_state_to_default()
-    if self.dut.is_servo_configured():
-      self.dut.power_on_if_offline()
+    try:
+      # When we finish the test, ;et's check that the most basic functionalities are working.
+      # If they're not, let's reset our system so we can start fresh after.
+      self._perform_sanity_check()
+      logging.debug("Sanity check passed.")
+    except PassportBaseError:
+      logging.info("Sanity check failed.")
+      # If we fail, either the DUT or the UCD are having trouble.
+      # Let's reconnect the UCD and reboot the DUT.
+      self._ucd_manager.disconnect_ucd()
+      self.dut.reboot()
+      self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
+          self.passport_host.video_tester_client
+      )
+      # After a reboot, unplug everything (unplugging might have failed earlier).
+      self._ucd_manager.unplug_and_destroy_all_displays()
 
   def teardown_class(self):
+    self._ucd_manager.reset_ucd_displays_state_to_default()
     self._ucd_manager.disconnect_ucd()
     self.dut.reboot()
 
@@ -157,3 +171,10 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
     with open(filepath, "wb") as f:
       f.write(data)
+
+  def _perform_sanity_check(self):
+    """Performs a sanity check on the DUT and UCD."""
+    logging.debug("performing sanity check..")
+    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.plug_additional_displays_to_active_displays(1)
+    self._ucd_manager.unplug_and_destroy_all_displays()

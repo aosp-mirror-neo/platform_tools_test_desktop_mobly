@@ -14,11 +14,11 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
+import time
+
 from display.utils import interface_types
 from display.utils import ucd_base_test
 from lib.pasit.passport import errors
-from lib.utils import retry
-
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
@@ -97,7 +97,8 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
     for i in range(display_count):
       display_count_to_test = i + 1
       self._ucd_manager.plug_additional_displays_to_active_displays(
-          additional_display_count=1
+          additional_display_count=1,
+          force_mst=True,
       )
       self.check_all_screenshots_for_displays(display_count_to_test)
 
@@ -115,13 +116,16 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
     self.skip_if_display_count_not_supported(display_count)
 
     self._ucd_manager.plug_additional_displays_to_active_displays(
-        display_count
+        display_count,
+        force_mst=True,
     )
 
     for i in range(display_count, 0, -1):
       self.check_all_screenshots_for_displays(i)
 
-      self._ucd_manager.destroy_the_most_recently_attached_display()
+      self._ucd_manager.destroy_the_most_recently_attached_display(
+          force_mst=True
+      )
 
   def plug_n_at_once(self, display_count: int):
     """Tests the system's ability to plug in and out displays at once."""
@@ -131,8 +135,6 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
     self._ucd_manager.plug_additional_displays_to_active_displays(
         additional_display_count=display_count)
     self.check_all_screenshots_for_displays(display_count)
-
-    self._ucd_manager.unplug_and_destroy_all_displays()
 
   def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
     """Tests the system's ability to toggle MST and SBM."""
@@ -149,8 +151,10 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         mst_sink_count=1,
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
+    time.sleep(5)
     if not self.passport_host.video_tester_client.perform_attach_operation(True):
       raise PassportBaseError("Failed to attach to the DUT.")
+    time.sleep(5)
 
     asserts.assert_true(
         self._ucd_manager.are_displays_reporting_stream_info(1),
