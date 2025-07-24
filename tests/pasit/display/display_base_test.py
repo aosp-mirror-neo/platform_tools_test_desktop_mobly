@@ -109,8 +109,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     logging.info(
         'Camera %s detected color %s with display color %s',
         camera_id,
+        match_color.name if match_color else 'None',
         expected_color,
-        match_color,
     )
     asserts.assert_is_not_none(match_color, failure_message)
     asserts.assert_equal(
