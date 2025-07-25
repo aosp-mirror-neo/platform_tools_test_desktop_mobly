@@ -39,7 +39,6 @@ python_library_host {
         "py-pasit-display",
         "py-display-painter",
         "py-passport",
-        "py-desktop-utils",
     ],
     pkg_path: "lib/pasit",
 }
@@ -146,11 +145,13 @@ python_library_host {
 python_library_host {
     name: "py-passport",
     srcs: ["passport/*.py"],
+    exclude_srcs: ["passport/*_test.py"],
     libs: [
         "py-grpcio",
         "libprotobuf-python",
         "mobly",
         "py-chromiumos-config-passport",
+        "py-desktop-utils",
     ],
     pkg_path: "lib/pasit",
 }
