@@ -17,6 +17,7 @@
 import logging
 from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit.passport import passport_host
+from lib.pasit.passport import utils
 from mobly import asserts
 from mobly import base_test
 from mobly import signals
@@ -78,7 +79,10 @@ class PassportHostTest(base_test.BaseTestClass):
     for the internal display.
     """
     external_display_count = sum([
-        1 if device.type == pasit_host_pb2.PasitHost.Device.Type.MONITOR else 0
+        1
+        if (device.type == pasit_host_pb2.PasitHost.Device.Type.MONITOR
+        and not utils.is_edid(self.passport_host.topology, device.id))
+        else 0
         for device in self.passport_host.topology.devices
     ])
     logging.info('External display count: %s' % external_display_count)

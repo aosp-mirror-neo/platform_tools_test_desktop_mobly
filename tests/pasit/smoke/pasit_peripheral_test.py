@@ -26,13 +26,13 @@ import logging
 
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
-from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit.passport import utils
 from lib.utils import retry
 from mobly import asserts
 from mobly import signals
@@ -177,7 +177,8 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     """Generate tests for each test case based on the topology."""
     storage_devices = []
     camera_devices = []
-    display_devices = []
+    display_count_test_devices = []
+    display_mapping_test_devices = []
     hid_devices = []
     # pre-run is run before setup_class, so we need to read from the config
     # instead of from the passport host.
@@ -199,7 +200,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       elif device.type == pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA:
         camera_devices.append((device.id,))
       elif device.type == pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR:
-        display_devices.append((device.id,))
+        display_count_test_devices.append((device.id,))
+        if not utils.is_edid(topology, device.id):
+          display_mapping_test_devices.append((device.id,))
       elif device.type == pasit_test.PasitTestClass.DEVICE_TYPE_HID:
         hid_devices.append((device.id,))
 
@@ -215,16 +218,17 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           name_func=lambda id: self._get_test_name('camera', id),
           arg_sets=camera_devices,
       )
-    if display_devices:
+    if display_count_test_devices:
       self.generate_tests(
           test_logic=self._display_count_test_logic,
           name_func=lambda id: self._get_test_name('display_count', id),
-          arg_sets=display_devices,
+          arg_sets=display_count_test_devices,
       )
+    if display_mapping_test_devices:
       self.generate_tests(
           test_logic=self._display_mapping_test_logic,
           name_func=lambda id: self._get_test_name('display_mapping', id),
-          arg_sets=display_devices,
+          arg_sets=display_mapping_test_devices,
       )
     if hid_devices:
       self.generate_tests(
