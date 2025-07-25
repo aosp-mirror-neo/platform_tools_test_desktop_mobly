@@ -216,14 +216,13 @@ class PassportHost:
           )
 
   def _activate_usb_testers(self):
-    """
-      Acivate the topology usb tester.
+    """Acivate the topology usb tester.
 
-      Raises:
-        PassportConfigError: if there are more than 1 usb tester in the topology
-          or if the tester was in the open state.
-        PassportConfigError: if there is a tester specified in the topology but it
-          is not controlled by the current instance of passport host.
+    Raises:
+      PassportConfigError: if there are more than 1 usb tester in the topology
+        or if the tester was in the open state.
+      PassportConfigError: if there is a tester specified in the topology but it
+        is not controlled by the current instance of passport host.
     """
     topology_ids = [
         device.id
@@ -232,7 +231,7 @@ class PassportHost:
     ]
     if len(topology_ids) > 1:
       raise errors.PassportConfigError(
-        f'More than 1 usb tester found, found {len(topology_ids)} testers.'
+          f'More than 1 usb tester found, found {len(topology_ids)} testers.'
       )
     if len(topology_ids) == 0:
       logging.info('No USB testers are used in the topology.')
@@ -242,16 +241,19 @@ class PassportHost:
     passport_ids = [tester.id for tester in passport_testers.testers]
     if topology_id not in passport_ids:
       raise errors.PassportConfigError(
-        f'Topology tester {topology_id} is not controlled by passport host.'
-    )
+          f'Topology tester {topology_id} is not controlled by passport host.'
+      )
     self.usb_tester_client.open_usb_tester(topology_id)
 
   def _connections_to_device_by_type(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None,
   ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
     """Returns the path to the device with the given device type."""
     devices = self._path_to_device(
         lambda device: device.type == device_type,
+        tag,
         'Passport was unable to find any connections to any devices of type:'
         f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)} in the'
         ' topology.',
@@ -259,11 +261,14 @@ class PassportHost:
     return self._connections_in_path(devices)
 
   def _connections_to_device_by_id(
-      self, device_id: str
+      self,
+      device_id: str,
+      tag: str | None,
   ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
     """Returns the path to the device with the given device ID."""
     devices = self._path_to_device(
         lambda device: device.id == device_id,
+        tag,
         'Passport was unable to find any connections to any devices with ID:'
         f' {device_id} in the topology.',
     )
@@ -272,6 +277,7 @@ class PassportHost:
   def _path_to_device(
       self,
       target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
+      tag: str | None,
       error_message: str,
   ) -> MutableSequence[str]:
     """Returns the path to the device that matches the given function."""
@@ -289,6 +295,8 @@ class PassportHost:
 
       for node in self._connections[current]:
         if visited.get(node.child_id, False):
+          continue
+        if tag and tag not in node.tags:
           continue
         stack.append(node.child_id)
         visited[node.child_id] = True
@@ -318,27 +326,37 @@ class PassportHost:
     return connections
 
   def is_device_type_present(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type
+      self, device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None,
   ) -> bool:
-    """Returns True if the device type is present in the topology."""
+    """Returns True if the device type is present in the topology.
+
+    Args:
+      device_type: The device type to check.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
+    """
     try:
-      self._connections_to_device_by_type(device_type)
+      self._connections_to_device_by_type(device_type, tag)
       return True
     except errors.DevicePathNotFoundError:
       return False
 
   def _set_device_enabled_state_by_id(
-      self, device_id: str, enable: bool
+      self, device_id: str, enable: bool, tag: str | None,
   ) -> None:
     """Activates or deactivates the device with the given device ID."""
-    connections = self._connections_to_device_by_id(device_id)
+    connections = self._connections_to_device_by_id(device_id, tag)
     self._set_device_enabled_state_by_path(connections, enable)
 
   def _set_device_enabled_state_by_type(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type, enable: bool
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      enable: bool,
+      tag: str | None,
   ) -> None:
     """Activates or deactivates the device with the given device type."""
-    connections = self._connections_to_device_by_type(device_type)
+    connections = self._connections_to_device_by_type(device_type, tag)
     self._set_device_enabled_state_by_path(connections, enable)
 
   def _set_device_enabled_state_by_path(
@@ -408,12 +426,16 @@ class PassportHost:
       self.usb_tester_client = None
 
   def activate_device_by_type(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None = None,
   ) -> None:
     """Activates the device with the given device type.
 
     Args:
       device_type: The device type to activate.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
 
     Raises:
       DevicePathNotFoundError: If the Passport was unable to find the device
@@ -422,15 +444,19 @@ class PassportHost:
         switch state.
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
-    self._set_device_enabled_state_by_type(device_type, True)
+    self._set_device_enabled_state_by_type(device_type, True, tag)
 
   def deactivate_device_by_type(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None = None,
   ) -> None:
     """Deactivates the device with the given device type.
 
     Args:
       device_type: The device type to deactivate.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
 
     Raises:
       DevicePathNotFoundError: If the Passport was unable to find the device
@@ -439,27 +465,37 @@ class PassportHost:
         switch state.
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
-    self._set_device_enabled_state_by_type(device_type, False)
+    self._set_device_enabled_state_by_type(device_type, False, tag)
 
-  def activate_device_by_id(self, device_id: str) -> None:
+  def activate_device_by_id(
+      self, device_id: str, tag: str | None = None
+  ) -> None:
     """Activates the device with the given device ID.
 
     Args:
       device_id: The device ID to activate.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
+
     Raises:
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
-    self._set_device_enabled_state_by_id(device_id, True)
+    self._set_device_enabled_state_by_id(device_id, True, tag)
 
-  def deactivate_device_by_id(self, device_id: str) -> None:
+  def deactivate_device_by_id(
+      self, device_id: str, tag: str | None = None
+  ) -> None:
     """Deactivates the device with the given device ID.
 
     Args:
       device_id: The device ID to deactivate.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
+
     Raises:
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
-    self._set_device_enabled_state_by_id(device_id, False)
+    self._set_device_enabled_state_by_id(device_id, False, tag)
 
   def get_switch_ids(self) -> MutableSequence[str]:
     """Returns the switch IDs connected to the PassportHost.
