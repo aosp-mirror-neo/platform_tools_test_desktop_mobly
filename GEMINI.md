@@ -94,7 +94,7 @@ not CrOS classic. Your prcp call should have the info if you need the -p flag,
 if `label-os_type` is `OS_TYPE_CROS` then you need the `-p` flag.  The -p flag
 adds 20 minutes or more to setup so only use it when necessary being sure to
 check the output of prpc for ALL DUTs.  If possible you can hack together
-a run of just the provisioning step for ALL DUTs that need provisioing at the
+a run of just the provisioning step for ALL DUTs that need provisioning at the
 start, the crosfleet command to provision can be kicked off in parallel on all
 DUTs then the script would run without the -p flag if that step was done
 separately.

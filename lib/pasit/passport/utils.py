@@ -58,7 +58,7 @@ def get_child_tags(
     topology: pasit_host_pb2.PasitHost,
     device_id: str,
     filter_list: list[str] | None = None,
-) -> list[str]:
+) -> list[str | None]:
   """Returns the tags for all child nodes of the given device.
 
   Args:
