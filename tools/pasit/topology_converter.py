@@ -216,11 +216,14 @@ def generate_graph(
     )
   for connection in topology.connections:
     port_info = ''
+    tags_info = ''
     if connection.parent_port:
       port_info = f'Port {connection.parent_port}: '
+    if connection.tags:
+      tags_info = f'\nTags: {", ".join(connection.tags)}'
     graph_content += (
         f'    "{connection.parent_id}" -> "{connection  .child_id}"'
-        f' [label="{port_info}{connection.type}"];\n'
+        f' [label="{port_info}{connection.type}{tags_info}"];\n'
     )
   graph_content += '}'
 
