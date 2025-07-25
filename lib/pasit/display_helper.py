@@ -14,6 +14,7 @@
 
 """Helper class for display testing tools for PASIT tests."""
 
+import enum
 import logging
 from typing import Optional
 
@@ -23,6 +24,13 @@ from lib.pasit.passport import passport_host
 from lib.utils import image
 from lib.utils import retry
 from mobly import signals
+
+
+class DisplayPaths(enum.Enum):
+  """Enum for the different display paths."""
+  DOCK = 'DOCK'
+  DOCKLESS = 'DOCKLESS'
+  DAISY_CHAIN = 'DAISY_CHAIN'
 
 
 class DisplayHelper:
@@ -69,6 +77,11 @@ class DisplayHelper:
       image.NamedColor.RED,
       image.NamedColor.GREEN,
       image.NamedColor.BLUE,
+  ]
+
+  DISPLAY_TOPOLOGY_TAGS = [
+      'DISPLAY_TOPOLOGY',
+      'DISPLAY_TOPOLOGY_WITH_EDID',
   ]
 
   passport: passport_host.PassportHost
