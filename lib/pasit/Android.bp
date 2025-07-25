@@ -62,6 +62,7 @@ python_library_host {
         "*/*device.py",
         "*device.py",
         "dut_state_manager.py",
+        "android/apk_tools.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [

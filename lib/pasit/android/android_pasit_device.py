@@ -16,19 +16,15 @@
 
 from collections.abc import Iterable
 import logging
-import os
-import sys
 import threading
 import time
 
+from lib.pasit.android import apk_tools
 from lib.pasit.base import base_pasit_device
 from lib.utils import retry
 from lib.utils import servo_client
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
-from mobly.controllers.android_device_lib import apk_utils
-from mobly.controllers.android_device_lib import snippet_client_v2
-from snippet_uiautomator import uiautomator
 
 
 class AndroidDeviceError(Exception):
@@ -56,39 +52,24 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
 
-  # snippet apk is in same directory as this mobly executable
-  SNIPPET_APK_PATH = os.path.join(
-      os.path.dirname(os.path.abspath(sys.argv[0])),
-      'mobly-bundled-snippets.apk',
-  )
-  UIAUTOMATOR_APK_PATH = os.path.join(
-      os.path.dirname(os.path.abspath(sys.argv[0])),
-      'snippet-uiautomator.apk',
-  )
-
   def __init__(
       self,
       controller: android_device.AndroidDevice,
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
+    self.apk = apk_tools.ApkTools(self.controller)
+
     self._test_settings()
-    # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
-    self.uninstall_apks()
-    self._install_mbs()
-    self._load_mbs()
-    self._register_uiautomator()
+    self.apk.install_all(self.LOGIN_SCREEN_USER_ID)
     self.controller.root_adb()
     self._skip_oobe()
     self._bypass_login_screen()
 
-  def __del__(self):
+  def clean_up(self):
+    self._stop_services()
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
-    self.uninstall_apks()
-
-  def uninstall_apks(self):
-    apk_utils.uninstall(self.controller, android_device.MBS_PACKAGE)
-    apk_utils.uninstall(self.controller, uiautomator.UIAUTOMATOR_PACKAGE_NAME)
+    self.apk.uninstall_all()
 
   def _test_settings(self):
     # settings are same settings set by tradefed for GoogleDeviceSetup
@@ -137,7 +118,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     )
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
-    self._install_mbs()
+    self.apk.install_mbs(self.LOGIN_SCREEN_USER_ID)
     self.controller.root_adb()
     logging.debug('Starting services...')
     self.controller.services.start_all()
@@ -228,31 +209,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def get_screenshots_path(self) -> str:
     return self.SCREENSHOTS_PATH
-
-  def _install_mbs(self):
-    """Installs Mobly Bundled Snippets."""
-    apk_utils.install(
-        self.controller,
-        self.SNIPPET_APK_PATH,
-        user_id=self.LOGIN_SCREEN_USER_ID,
-    )
-
-  def _register_uiautomator(self):
-    """Installs UI Automator."""
-    snippet = uiautomator.Snippet()
-    snippet.file_path = str(self.UIAUTOMATOR_APK_PATH)
-    self.controller.services.register(
-        uiautomator.ANDROID_SERVICE_NAME,
-        uiautomator.UiAutomatorService,
-        configs=uiautomator.UiAutomatorConfigs(snippet=snippet),
-    )
-
-  def _load_mbs(self):
-    self.controller.load_snippet(
-        'mbs',
-        android_device.MBS_PACKAGE,
-        config=snippet_client_v2.Config(user_id=self.LOGIN_SCREEN_USER_ID),
-    )
 
   def _skip_oobe(self):
     """Skips the OOBE flow."""

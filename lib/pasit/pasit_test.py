@@ -72,6 +72,12 @@ class PasitTestClass(base_test.BaseTestClass):
       asserts.fail('DUT is offline after test.')
     super().teardown_test()
 
+  def teardown_class(self):
+    """Teardown steps after all tests are executed."""
+    if hasattr(self, 'dut'):
+      self.dut.clean_up()
+    super().teardown_class()
+
   def on_fail(self, record: records.TestResultRecord):
     """Called on test failure."""
     if hasattr(self, 'pasport_host'):
