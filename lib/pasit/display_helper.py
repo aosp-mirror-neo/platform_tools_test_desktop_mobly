@@ -50,20 +50,20 @@ class DisplayHelper:
   # end to make it pass on sample set of images in passport unit tests.
   _HSV_MASKS_PASIT = {
       image.NamedColor.RED.name: image.HSVMask(
-          image.HSV(h=330, s=0.5, v=0.55),
+          image.HSV(h=330, s=0.45, v=0.55),
           image.HSV(h=30, s=1.0, v=1.0),
       ),
       image.NamedColor.GREEN.name: image.HSVMask(
-          image.HSV(h=90, s=0.5, v=0.55),
+          image.HSV(h=90, s=0.45, v=0.55),
           image.HSV(h=165, s=1.0, v=1.0),
       ),
       image.NamedColor.BLUE.name: image.HSVMask(
-          image.HSV(h=210, s=0.5, v=0.55),
+          image.HSV(h=210, s=0.45, v=0.55),
           image.HSV(h=270, s=1.0, v=1.0),
       ),
       image.NamedColor.BLACK.name: image.HSVMask(
           image.HSV(h=0, s=0, v=0),
-          image.HSV(h=360, s=1.0, v=0.5),
+          image.HSV(h=360, s=0.4, v=0.6),
       ),
   }
 
