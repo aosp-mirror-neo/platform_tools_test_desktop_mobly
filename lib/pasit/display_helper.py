@@ -16,7 +16,6 @@
 
 import enum
 import logging
-from typing import Optional
 
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
@@ -41,8 +40,8 @@ class DisplayHelper:
     display: The display to use for the display tools.
     painter: The painter to use for the display tools.
     log_path: The log path to use for the display tools.
-    camera_exposure_time_us: The camera exposure time in microseconds to use for
-      the display tools.
+    camera_exposure_time_us: Exposure times to use for each camera. This is used
+      to capture images from the cameras and verify the colors on the displays.
   """
 
   # HSV masks for PASIT displays. +/-30 degrees from the expected color gives
@@ -89,7 +88,7 @@ class DisplayHelper:
   painter: display_painter.DisplayPainter
   log_path: str
 
-  camera_exposure_time_us: int = 0
+  camera_exposure_time_us: dict[str, int] = {}
 
   def __init__(
       self,
@@ -170,41 +169,63 @@ class DisplayHelper:
     """
     logging.info('Mapping displays to cameras')
     display_id_to_color = self._open_rgb_images_on_displays()
+    mapping_result = {}
 
-    # Try different exposure times to see if we can get a good match.
-    # testing shows that lower exposure times are more reliable and less
-    # affected by glare and overexposure, so start with those and then try 0
-    # which is auto exposure as a last resort.
-    exposure_times_to_try = [3000, 6000, 12000, 0]
-    exposure_times_generator = (
-        exposure_time for exposure_time in exposure_times_to_try
-    )
-    mapping_result = retry.retry(
-        lambda: self._try_map_displays_to_cameras_with_exposure_time(
-            display_id_to_color, next(exposure_times_generator)
-        ),
-        until=lambda mapping_result: mapping_result,
-        max_tries=len(exposure_times_to_try),
-    )
+    for camera_id in self.passport.get_cameras():
+      display_id = self._try_match_display_to_camera(
+          camera_id, display_id_to_color
+      )
+
+      if not display_id:
+        logging.warning(
+            'Camera %s did not match any display. Skipping.', camera_id
+        )
+        continue
+
+      if display_id in mapping_result:
+        logging.warning(
+            'Camera %s matched display id %s, but it is already mapped to'
+            ' camera id %s',
+            camera_id,
+            display_id,
+            mapping_result[display_id],
+        )
+        continue
+
+      logging.info(
+          'Camera %s matched display id %s',
+          camera_id,
+          display_id,
+      )
+      mapping_result[display_id] = camera_id
+
     self.painter.clean_color_on_display()
 
-    if not mapping_result:
+    if len(mapping_result) != len(display_id_to_color):
+      logging.warning(
+          'Displays %s did not match any camera.',
+          [
+              display_id
+              for display_id in display_id_to_color
+              if display_id not in mapping_result
+          ],
+      )
       raise signals.TestError(
           'Failed to map displays to cameras. Check that cameras are aligned'
           ' and displays are functioning.'
       )
+
     logging.debug('Mapping result: %s', mapping_result)
     return mapping_result
 
   def _get_matched_color(
       self,
       hsv_match_percentages: dict[str, float],
-  ) -> Optional[image.NamedColor]:
+  ) -> image.NamedColor | None:
     """Returns the matched color from the HSV match percentages."""
     # handle the case where are hsv percentage values are 0 since protobuf
     # optimizes out the 0 values we end up with an empty dict.
     if not hsv_match_percentages:
-      logging.debug('HSV match percentages are empty')
       return None
     match_color = max(
         hsv_match_percentages,
@@ -245,7 +266,7 @@ class DisplayHelper:
       self,
       camera_id: str,
       camera_capture_prefix: str = '',
-  ) -> Optional[image.NamedColor]:
+  ) -> image.NamedColor | None:
     """Returns the color captured from the camera.
 
     Args:
@@ -260,7 +281,7 @@ class DisplayHelper:
         self._HSV_MASKS_PASIT,
         self.log_path,
         camera_capture_prefix,
-        self.camera_exposure_time_us,
+        self.camera_exposure_time_us.get(camera_id, 0),
     )
     logging.debug(
         'HSV match percentages for camera %s: %s',
@@ -269,7 +290,7 @@ class DisplayHelper:
     )
     return self._get_matched_color(hsv_match_percentages)
 
-  def _open_rgb_images_on_displays(self) -> dict[str, image.Color]:
+  def _open_rgb_images_on_displays(self) -> dict[str, image.NamedColor]:
     """Opens RGB images on the displays.
 
     Returns:
@@ -285,116 +306,96 @@ class DisplayHelper:
           f' {len(self._COLORS)} displays, but got {len(display_ids)}.'
       )
 
-    display_id_to_color = dict(
-        zip(display_ids, [color.value for color in self._COLORS])
-    )
+    display_id_to_color = dict(zip(display_ids, self._COLORS))
     for display_id, color in display_id_to_color.items():
-      self.painter.show_color_on_display(color, display_id)
+      self.painter.show_color_on_display(color.value, display_id)
     return display_id_to_color
 
-  def _try_map_displays_to_cameras_with_exposure_time(
-      self, display_id_to_color: dict[str, image.Color], exposure_time_us: int
-  ) -> dict[str, str]:
-    """Tries to map displays to cameras with the given exposure time.
+  def _try_match_display_to_camera(
+      self,
+      camera_id: str,
+      display_id_to_color: dict[str, image.NamedColor],
+  ) -> str | None:
+    """Tries to match the display to the camera."""
+    # Try different exposure times to see if we can get a good match.
+    # testing shows that lower exposure times are more reliable and less
+    # affected by glare and overexposure, so start with those and then try 0
+    # which is auto exposure as a last resort.
+    exposure_times_to_try = [3000, 6000, 12000, 0]
+    exposure_times_generator = (
+        exposure_time for exposure_time in exposure_times_to_try
+    )
+    return retry.retry(
+        lambda: self._try_match_display_to_camera_with_exposure_time(
+            camera_id, display_id_to_color, next(exposure_times_generator)
+        ),
+        until=lambda display_id: display_id,
+        max_tries=len(exposure_times_to_try),
+    )
+
+  def _try_match_display_to_camera_with_exposure_time(
+      self,
+      camera_id: str,
+      display_id_to_color: dict[str, image.NamedColor],
+      exposure_time_us: int,
+  ) -> str | None:
+    """Tries to map a display to a camera with the given exposure time.
 
     Matches the color displayed on the display to the color captured from the
-    cameras to displays using HSV analysis:
-    - first captures an image from each camera with the specified exposure time,
+    camera using HSV analysis:
+    - first captures an image from the camera with the specified exposure time,
     - then uses the data from the passport HSV analysis to find a matched color,
     - then finds a display that rendered the matched color.
 
     Args:
+      camera_id: The camera ID to use for the mapping.
       display_id_to_color: A dictionary of display ID to color rendered on this
         display.
       exposure_time_us: The exposure time in microseconds to use for the camera.
 
     Returns:
-      A dictionary of display ID to camera ID. If mapping fails, prints a
-      warning and returns an empty dictionary.
+      A display ID that matched the camera. If mapping fails returns None.
     """
     logging.debug(
-        'Trying to map displays to cameras with exposure time %d us',
+        'Trying to map display to camera %s with exposure time %d us',
+        camera_id,
         exposure_time_us,
     )
-    camera_id_to_hsv_match_info = {
-        camera_id: self.passport.analyze_hsv(
-            camera_id,
-            self._HSV_MASKS_PASIT,
-            self.log_path,
-            f'hsv_match_camera{camera_id}_{exposure_time_us}',
-            exposure_time_us=exposure_time_us,
-        )
-        for camera_id in self.passport.get_cameras()
+
+    color_names = [color.name for color in display_id_to_color.values()]
+    hsv_masks = {
+        color_name: self._HSV_MASKS_PASIT[color_name]
+        for color_name in color_names
     }
-    logging.debug('HSV match percentages: %s', camera_id_to_hsv_match_info)
-
-    display_id_to_camera_id = self._map_display_id_to_camera_id(
-        camera_id_to_hsv_match_info, display_id_to_color
+    hsv_match_info = self.passport.analyze_hsv(
+        camera_id,
+        hsv_masks,
+        self.log_path,
+        f'hsv_match_camera{camera_id}_{exposure_time_us}',
+        exposure_time_us=exposure_time_us,
     )
-    logging.debug('Display id to camera id: %s', display_id_to_camera_id)
+    logging.debug('HSV match percentages: %s', hsv_match_info)
 
-    if len(display_id_to_camera_id) != len(display_id_to_color):
-      logging.warning(
-          'Displays %s did not match any camera. Check that cameras are aligned'
-          ' and displays are functioning.',
-          [
-              display_id
-              for display_id in display_id_to_color
-              if display_id not in display_id_to_camera_id
-          ],
-      )
-      return {}
+    matched_color = self._get_matched_color(hsv_match_info)
+    if matched_color is None:
+      logging.debug("Camera didn't match any color.")
+      return None
 
-    # if we get a match, store the exposure time to use for future
-    # verification steps and image captures.
-    self.camera_exposure_time_us = exposure_time_us
-    return display_id_to_camera_id
+    display_id = self._get_matched_display_id(
+        matched_color, display_id_to_color
+    )
+    if display_id:
+      # If we get a match, store the exposure time to use for future
+      # verification steps and image captures.
+      self.camera_exposure_time_us[camera_id] = exposure_time_us
 
-  def _map_display_id_to_camera_id(
-      self,
-      camera_id_to_hsv_match_info: dict[str, dict[str, float]],
-      display_id_to_color: dict[str, image.Color],
-  ) -> dict[str, str]:
-    """Maps the display ID to the camera ID.
-
-    There can only be one camera per display.
-
-    Args:
-      camera_id_to_hsv_match_info: A dictionary of camera ID to HSV match info.
-      display_id_to_color: A dictionary of display ID to color.
-
-    Returns:
-      A dictionary of display ID to camera ID.
-    """
-    display_id_to_camera_id = dict()
-    for camera_id, hsv_match_info in camera_id_to_hsv_match_info.items():
-      matched_color = self._get_matched_color(hsv_match_info)
-      matched_display_id = self._get_matched_display_id(
-          matched_color, display_id_to_color
-      )
-      if matched_display_id is None:
-        logging.info(
-            'Camera %s captured color %s that did not match any display.',
-            camera_id,
-            matched_color.name if matched_color else 'None',
-        )
-      else:
-        color_name = matched_color.name if matched_color else 'None'
-        logging.info(
-            'Camera %s captured color %s that matched display %s.',
-            camera_id,
-            color_name,
-            matched_display_id,
-        )
-        # store the association between the matched display id and the camera id
-        display_id_to_camera_id[matched_display_id] = camera_id
-    return display_id_to_camera_id
+    return display_id
 
   def _get_matched_display_id(
       self,
       matched_color: image.NamedColor,
-      display_id_to_color: dict[str, image.Color],
-  ) -> Optional[str]:
+      display_id_to_color: dict[str, image.NamedColor],
+  ) -> str | None:
     """Returns the display ID that matches the color captured from the camera.
 
     Args:
@@ -406,27 +407,31 @@ class DisplayHelper:
       The display ID that matches the color captured from the camera, or None if
       no display matches the color.
     """
-    if matched_color is None:
-      logging.debug("Camera didn't match any color or is not properly aligned.")
-      return None
-
     matched_display_ids = [
         display_id
         for display_id, color in display_id_to_color.items()
-        if color == matched_color.value
+        if color == matched_color
     ]
 
     if len(matched_display_ids) > 1:
       logging.debug(
-          'Camera matched color %s but multiple displays matched it.',
-          matched_color,
+          'Camera matched color %s but multiple displays matched it: %s.',
+          matched_color.name,
+          matched_display_ids,
       )
       return None
 
     if not matched_display_ids:
       logging.debug(
-          'Camera matched color %s but no display matched it.', matched_color
+          'Camera matched color %s but no display matched it.',
+          matched_color.name,
       )
       return None
 
-    return matched_display_ids[0]
+    matched_display_id = matched_display_ids[0]
+    logging.debug(
+        'Camera captured color %s that matched display %s.',
+        matched_color.name,
+        matched_display_id,
+    )
+    return matched_display_id
