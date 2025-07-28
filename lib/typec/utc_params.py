@@ -42,8 +42,7 @@ class UTCParams:
     utc.pd_init_state = self.params["pd_init_state"]
     utc.source_pdo_count = self.params["source_pdo_count"]
 
-    utc.cable_mode = usb.CableMode.ELEC_TEST
-    utc.active_cc = self.params["active_cc"]
+    # TODO(b/434628173) - Add cable flip once the bug is fixed.
 
 
 def generate_utc_params(
@@ -64,6 +63,9 @@ def generate_utc_params(
     A list of generated UTCParams objects.
   """
   params = []
+  # TODO(b/434628173) - Add cable flip once the bug is fixed.
+  flipped = False
+
   for port in ports:
     for flip in [True, False] if flipped else [False]:
       params.append(
