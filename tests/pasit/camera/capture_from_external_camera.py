@@ -39,6 +39,8 @@ _TEST_ARGUMENTS: tuple[tuple[pasit_camera.PasitCamera.Mode, ...], ...] = (
 class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test recording from an external camera."""
 
+  file: pasit_file.PasitFile
+
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()

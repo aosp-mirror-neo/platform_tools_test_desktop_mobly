@@ -55,7 +55,7 @@ class PasitTestClass(base_test.BaseTestClass):
     asserts.abort_class_if(
         self.requires_device_type
         and not self.passport_host.is_device_type_present(
-            self.requires_device_type
+            self.requires_device_type, None
         ),
         'Device type '
         f'{get_device_type_name(self.requires_device_type)}'

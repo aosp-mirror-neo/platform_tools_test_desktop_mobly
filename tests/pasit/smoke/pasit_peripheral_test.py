@@ -207,7 +207,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     return json_format.ParseDict(topology_cfg, pasit_host_pb2.PasitHost())
 
   def _get_devices_from_topology(
-      self, topology: pasit_host_pb2.PasitHost, device_type: str
+      self,
+      topology: pasit_host_pb2.PasitHost,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
   ) -> list[tuple[str]]:
     """Gets a list of device ids from the topology for a given device type."""
     return [
@@ -257,7 +259,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     for device in display_devices:
       # leaf node tags are used to determine what paths can be used to enable a display
       tags = utils.get_child_tags(
-          topology, device.id, [item.value for item in display_helper.DisplayPaths]
+          topology,
+          device.id,
+          [item.value for item in display_helper.DisplayPaths],
       )
       for tag in tags:
         if (
