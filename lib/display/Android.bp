@@ -25,6 +25,7 @@ python_library_host {
         "mobly",
         "py-chromiumos-config-passport",
         "py-desktop-utils",
+        "py-pasit-display",
     ],
     pkg_path: "display/utils",
 }

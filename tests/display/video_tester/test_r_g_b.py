@@ -55,8 +55,6 @@ class RGBTest(ucd_base_test.UcdBaseTest):
 
   def setup_class(self):
     super().setup_class()
-
-    self.display = self.create(pasit_display)
     self.painter = self.create(display_painter)
 
     display_ids = self.display.get_display_ids()
@@ -82,7 +80,7 @@ class RGBTest(ucd_base_test.UcdBaseTest):
     self.skip_if_display_count_not_supported(display_count)
 
     self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
-    external_display_ids = self._get_external_display_ids()
+    external_display_ids = self.get_external_display_ids()
     asserts.assert_equal(
         len(external_display_ids),
         display_count,
@@ -98,17 +96,6 @@ class RGBTest(ucd_base_test.UcdBaseTest):
       time.sleep(self._DISPLAY_STABILIZATION_TIME_SECONDS)
 
     self.check_all_screenshots_for_displays(display_count, color.value)
-
-  def _get_external_display_ids(self):
-    """Get the IDs of all external displays connected to the DUT."""
-    display_ids = self.display.get_display_ids()
-    external_display_ids = [
-        display_id
-        for display_id in display_ids
-        if display_id != self.internal_display_id
-    ]
-    return external_display_ids
-
 
 class RGBTestSuite(base_suite.BaseSuite):
   """Test suite for testing displays with different colors."""

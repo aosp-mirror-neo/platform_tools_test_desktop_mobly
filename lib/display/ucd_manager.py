@@ -205,7 +205,7 @@ class UcdManager(abc.ABC):
           "The number of EDIDs does not match the number of displays."
       )
 
-    current_connected_displays_count = self._get_valid_streams_count()
+    current_connected_displays_count = len(self.get_valid_streams())
     total_expected_display_count = (
         current_connected_displays_count + additional_display_count
     )
@@ -264,7 +264,7 @@ class UcdManager(abc.ABC):
 
     valid_streams_count = 0
     while time.time() - start_time < timeout_sec:
-      valid_streams_count = self._get_valid_streams_count()
+      valid_streams_count = len(self.get_valid_streams())
       if valid_streams_count != expected_total_display_count:
         logging.debug(
             f"Waiting for {expected_total_display_count} displays to report"
@@ -286,16 +286,16 @@ class UcdManager(abc.ABC):
     )
     return False
 
-  def _get_valid_streams_count(self) -> int:
-    """Returns the number of valid streams from the stream info list."""
+  def get_valid_streams(self) -> list[passport_video_service_client.video_tester_service_pb2.StreamInfoVideoTester]:
+    """Returns all the valid streams from the stream info list."""
     streams = self._vsc.get_stream_info_for_all_streams()
-    valid_streams_count = 0
-    for stream_info in streams:
-      does_have_size = stream_info.hactive > 0 and stream_info.vactive > 1
-      does_have_crc = any(crc != 0 for crc in stream_info.crc)
+    valid_streams = []
+    for stream in streams:
+      does_have_size = stream.hactive > 0 and stream.vactive > 1
+      does_have_crc = any(crc != 0 for crc in stream.crc)
       if does_have_size or does_have_crc:
-        valid_streams_count += 1
-    return valid_streams_count
+        valid_streams.append(stream)
+    return valid_streams
 
   def get_screenshot_display(self, display_idx: int) -> bytes:
     """Captures a screenshot from a stream of the open video tester."""
