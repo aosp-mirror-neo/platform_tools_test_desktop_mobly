@@ -58,12 +58,9 @@ class UtcBaseTest(base_test.BaseTestClass):
 
   def _set_usb_tester_default_state(self):
     """Sets the USB tester state."""
-    self.utc.active_port = 0
+    self.utc.active_port = None
     self.utc.pd_init_state = usb.InitPdState.PD_DRP
     self.utc.usb_channel = usb.UsbChannel.USB_3
     self.utc.usb_path = usb.UsbPath.USB_PATH_INTERNAL
     self.utc.cable_mode = usb.CableMode.NORMAL
     self.utc.source_pdo_count = usb.DEFAULT_SRC_PDO_COUNT
-    # TODO(b/427189159): Deactive tester port when new API is available.
-    self.utc.active_port = 1
-    self.utc.replug()

@@ -37,16 +37,13 @@ class UTCParams:
 
   def apply(self, utc: usb.PassportUsbServiceClient):
     """Applies the UTC params to the UTC-274."""
-    utc.active_port = self.params["port"]
+    utc.active_port = None
     utc.usb_channel = self.params["usb_channel"]
     utc.pd_init_state = self.params["pd_init_state"]
     utc.source_pdo_count = self.params["source_pdo_count"]
 
     utc.cable_mode = usb.CableMode.ELEC_TEST
     utc.active_cc = self.params["active_cc"]
-
-    # TODO(b/427189159): Deactive tester port when new API is available.
-    utc.active_port = 0 if self.params["port"] == 1 else 1
 
 
 def generate_utc_params(

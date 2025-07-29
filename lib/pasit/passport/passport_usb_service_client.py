@@ -15,6 +15,7 @@
 """Passport USB service client."""
 
 import enum
+import typing
 
 from chromiumos.test.lab.api.passport import usb_tester_service_pb2 as uts_pb
 from chromiumos.test.lab.api.passport import usb_tester_service_pb2_grpc as uts_grpc
@@ -29,6 +30,7 @@ class PowerRole(enum.Enum):
   SRC: Source device supplying power.
   SNK: Sink device receiving power.
   """
+
   POWER_ROLE_NOT_SET = uts_pb.POWER_ROLE_NOT_SET
   SRC = uts_pb.SRC
   SNK = uts_pb.SNK
@@ -40,6 +42,7 @@ class DataRole(enum.Enum):
   UFP: Uplink facing port - periheral device.
   DFP: Downlink facing port - host of the connection.
   """
+
   DATA_ROLE_NOT_SET = uts_pb.DATA_ROLE_NOT_SET
   UFP = uts_pb.DATA_UFP
   DFP = uts_pb.DATA_DFP
@@ -47,6 +50,7 @@ class DataRole(enum.Enum):
 
 class UsbChannel(enum.Enum):
   """USB channel of the USB tester."""
+
   USB_CHANNEL_NOT_SET = uts_pb.USB_CHANNEL_NOT_SET
   USB_2 = uts_pb.USB_2_HS
   USB_3 = uts_pb.USB_3_AND_2_HS
@@ -59,6 +63,7 @@ class InitPdState(enum.Enum):
   PD_DFP: Downlink facing port - host of the connection (source).
   PD_DRP: Device is Dual Role Port - can be both sink and source.
   """
+
   PD_INIT_STATE_NOT_SET = uts_pb.INIT_PD_STATE_NOT_SET
   PD_UFP = uts_pb.PD_UFP
   PD_DFP = uts_pb.PD_DFP
@@ -71,6 +76,7 @@ class UsbPath(enum.Enum):
   USB_PATH_INTERNAL: Use internal storage.
   USB_PATH_EXTERNAL: Use device connected to external USB port.
   """
+
   USB_PATH_NOT_SET = uts_pb.USB_PATH_NOT_SET
   USB_PATH_INTERNAL = uts_pb.USB_PATH_INTERNAL
   USB_PATH_EXTERNAL = uts_pb.USB_PATH_EXTERNAL
@@ -78,6 +84,7 @@ class UsbPath(enum.Enum):
 
 class ActiveCC(enum.Enum):
   """Active CC of the USB tester."""
+
   ACTIVE_CC_NOT_SET = uts_pb.ACTIVE_CC_NOT_SET
   CC1 = uts_pb.CC1
   CC2 = uts_pb.CC2
@@ -85,6 +92,7 @@ class ActiveCC(enum.Enum):
 
 class CableMode(enum.Enum):
   """Cable mode of the USB tester."""
+
   CABLE_MODE_NOT_SET = uts_pb.CABLE_MODE_NOT_SET
   NORMAL = uts_pb.NORMAL
   ELEC_TEST = uts_pb.ELEC_TEST
@@ -137,21 +145,36 @@ class PassportUsbServiceClient:
     self._tester_serial = None
 
   @property
-  def active_port(self) -> int:
+  def active_port(self) -> typing.Literal[0, 1] | None:
     """Gets the active port."""
     ret = self._stub.GetActivePort(
         uts_pb.GetActivePortRequest(id=self._tester_serial)
     )
     self._validate_reply(ret)
-    return ret.port_id
+    return ret.port_id if ret.state == uts_pb.PortState.PORT_STATE_ON else None
 
   @active_port.setter
-  def active_port(self, port_id: int) -> None:
+  def active_port(self, port_id: typing.Literal[0, 1] | None) -> None:
     """Sets the active port."""
-    ret = self._stub.SetActivePort(
-        uts_pb.SetActivePortRequest(id=self._tester_serial, port_id=port_id)
-    )
-    self._validate_reply(ret)
+    if port_id is None:
+      for port_id_deactivate in range(2):
+        req = uts_pb.SetActivePortRequest(
+            id=self._tester_serial,
+            port_id=port_id_deactivate,
+            state=uts_pb.PortState.PORT_STATE_OFF,
+        )
+        self._validate_reply(self._stub.SetActivePort(req))
+    else:
+      for port_id_action, action in zip(
+          [1 ^ port_id, port_id],
+          [uts_pb.PortState.PORT_STATE_OFF, uts_pb.PortState.PORT_STATE_ON],
+      ):
+        req = uts_pb.SetActivePortRequest(
+            id=self._tester_serial,
+            port_id=port_id_action,
+            state=action,
+        )
+        self._validate_reply(self._stub.SetActivePort(req))
 
   def hard_reset(self) -> None:
     """Hard resets the USB tester."""
@@ -221,8 +244,7 @@ class PassportUsbServiceClient:
     """Sets the data role."""
     self._set_capability(
         uts_pb.SetUsbTesterCapabilityRequest(
-            capability=uts_pb.DATA_ROLE,
-            data_role=data_role.value
+            capability=uts_pb.DATA_ROLE, data_role=data_role.value
         )
     )
 
@@ -357,8 +379,8 @@ class PassportUsbServiceClient:
   def usb_path(self) -> UsbPath:
     """Gets the USB path that the tester is connected to.
 
-      External USB path is connected to external USB device,
-      internal USB path is connected to the tester's internal storage.
+    External USB path is connected to external USB device,
+    internal USB path is connected to the tester's internal storage.
     """
     ret = self._get_capability(capability=uts_pb.USB_PATH)
     return UsbPath(ret.usb_path)
@@ -395,8 +417,7 @@ class PassportUsbServiceClient:
   def cable_mode(self, cable_mode: CableMode) -> None:
     self._set_capability(
         uts_pb.SetUsbTesterCapabilityRequest(
-            capability=uts_pb.CABLE_MODE,
-            cable_mode=cable_mode.value
+            capability=uts_pb.CABLE_MODE, cable_mode=cable_mode.value
         )
     )
 
