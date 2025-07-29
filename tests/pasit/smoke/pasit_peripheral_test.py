@@ -175,7 +175,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         self.passport_host,
         self.display,
         painter,
-        self.log_path,
+        self.current_test_info.output_path,
     )
     logging.info('Trying to map displays to cameras...')
     mapping = retry.retry(
