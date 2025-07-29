@@ -104,7 +104,7 @@ class PassportHost:
     # and the IP power switch is set in the topology. For now,
     # try the default IP and localhost:8080 for port forward dev testing
     # ignoring the error if both fail.
-    dock_power = _get_dock_power('192.168.1.110', '1')
+    dock_power = _get_dock_power('192.168.231.110', '1')
     if dock_power is None:
       dock_power = _get_dock_power('localhost:8080', '1')
     if dock_power is not None:
