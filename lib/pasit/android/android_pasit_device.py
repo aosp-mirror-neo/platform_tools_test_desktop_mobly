@@ -20,6 +20,7 @@ import threading
 import time
 
 from lib.pasit.android import apk_tools
+from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
 from lib.utils import retry
 from lib.utils import servo_client
@@ -34,11 +35,6 @@ class AndroidDeviceError(Exception):
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
 
-  FOUR_CORNER_EXIT_ACTION_ERROR = (
-      'Activity not started, unable to resolve Intent'
-  )
-  LOGGED_IN_USER_ID = 10
-  LOGIN_SCREEN_USER_ID = 0
   BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   OFFLINE_TIMEOUT_SECONDS = 5
 
@@ -59,11 +55,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   ):
     super().__init__(controller, servo)
     self.apk = apk_tools.ApkTools(self.controller)
+    self.user_session = user_session_tools.UserSessionTools(self.controller)
 
     self._test_settings()
-    self.apk.install_all(self.LOGIN_SCREEN_USER_ID)
+    self.apk.install_all(user_session_tools.LOGIN_SCREEN_USER_ID)
     self.controller.root_adb()
-    self._skip_oobe()
+    self.user_session.skip_oobe()
     self._bypass_login_screen()
 
   def clean_up(self):
@@ -107,7 +104,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._bypass_login_screen()
 
   def _bypass_login_screen(self):
-    self._switch_user(self.LOGGED_IN_USER_ID)
+    self.user_session.switch_user(user_session_tools.LOGGED_IN_USER_ID)
 
   def power_on(self):
     self._request_power_on()
@@ -118,7 +115,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     )
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
-    self.apk.install_mbs(self.LOGIN_SCREEN_USER_ID)
+    self.apk.install_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
     self.controller.root_adb()
     logging.debug('Starting services...')
     self.controller.services.start_all()
@@ -209,35 +206,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def get_screenshots_path(self) -> str:
     return self.SCREENSHOTS_PATH
-
-  def _skip_oobe(self):
-    """Skips the OOBE flow."""
-    # Skip OOBE/Setup Wizard - go/skip-oobe
-    try:
-      self.controller.adb.shell(
-          ['am', 'start', '-a', 'com.android.setupwizard.FOUR_CORNER_EXIT']
-      )
-    except adb.AdbError as e:
-      if self.FOUR_CORNER_EXIT_ACTION_ERROR in str(e.stderr):
-        # The four corner exit action will not run if the device is already
-        # logged in or if the device is not rooted.
-        self.controller.log.debug('Ignoring failure to skip OOBE/Setup Wizard.')
-        self.controller.log.debug(e)
-      else:
-        raise e
-
-  def _switch_user(self, user_id: int):
-    """Switches the user on the device."""
-    if user_id == self.controller.adb.current_user_id:
-      logging.debug('Device is already logged in as user %s.', user_id)
-      return
-    self.controller.adb.shell(['am', 'switch-user', '-w', str(user_id)])
-    # ensure that the user switch was successful
-    if user_id != self.controller.adb.current_user_id:
-      raise AndroidDeviceError(
-          f'Failed to switch user to {user_id}, current user is'
-          f' {self.controller.adb.current_user_id}.'
-      )
 
   def _wait_for_device_offline(
       self,
