@@ -1,0 +1,50 @@
+# This is an example topology for the ethernet legion.
+TestBeds:
+- Name: LocalAndroidTestbed
+  Controllers:
+    AndroidDevice:
+    - serial: "localhost:45135"
+    PassportHost:
+    - service_host: "localhost"
+      service_port: 8300
+      host_topology:
+        devices:
+        - id: local_dut
+          type: DUT
+        - id: "3478463290"
+          type: SWITCH_FIXTURE
+        # first pair
+        - id: "00:0e:c6:c8:26:7c"
+          type: NETWORK
+          model: "unitek_big_dongle"
+        - id: "00:e0:4c:f0:05:86"
+          type: NETWORK
+          model: "unitek_small_dongle"
+        # second pair
+        - id: "14:eb:b6:85:36:df"
+          type: NETWORK
+          model: "unitek_white"
+        - id: "00:50:b6:15:ad:3f"
+          type: NETWORK
+          model: "gigabit_usb_3_0"
+        connections:
+        # first pair
+        - parent_port: "2"
+          parent_id: "3478463290"
+          child_id: "00:0e:c6:c8:26:7c"
+        - parent_port: "0"
+          parent_id: "3478463290"
+          child_id: "00:e0:4c:f0:05:86"
+        - parent_id: "00:e0:4c:f0:05:86"
+          child_id: "00:0e:c6:c8:26:7c"
+        # second pair
+        - parent_port: "6"
+          parent_id: "3478463290"
+          child_id: "14:eb:b6:85:36:df"
+        - parent_port: "4"
+          parent_id: "3478463290"
+          child_id: "00:50:b6:15:ad:3f"
+        - parent_id: "14:eb:b6:85:36:df"
+          child_id: "00:50:b6:15:ad:3f"
+
+MoblyParams: {LogPath: ./}
