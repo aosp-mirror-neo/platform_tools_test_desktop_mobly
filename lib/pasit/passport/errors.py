@@ -28,3 +28,6 @@ class PassportServiceConnectionError(PassportBaseError):
 
 class PassportConfigError(PassportBaseError):
   """Error class for the PassportHost controller configuration."""
+
+class PassportRPMError(PassportBaseError):
+  """Error class for connecting to an RPM for a device via passport."""

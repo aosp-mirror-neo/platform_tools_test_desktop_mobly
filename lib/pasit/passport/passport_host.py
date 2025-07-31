@@ -20,6 +20,7 @@ import os
 from typing import Any
 
 from chromiumos.test.lab.api import pasit_host_pb2
+from chromiumos.test.lab.api import rpm_pb2
 from google.protobuf import json_format
 from lib.pasit.passport import errors
 from lib.pasit.passport import hid_service_client
@@ -30,6 +31,7 @@ from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
 from lib.utils import image
+from mobly import asserts
 from mobly import logger as mobly_logger
 
 
@@ -100,20 +102,6 @@ class PassportHost:
             )
         },
     )
-    # TODO: b/401048925 - remove this once the proto changes are complete
-    # and the IP power switch is set in the topology. For now,
-    # try the default IP and localhost:8080 for port forward dev testing
-    # ignoring the error if both fail.
-    dock_power = _get_dock_power('192.168.231.110', '1')
-    if dock_power is None:
-      dock_power = _get_dock_power('localhost:8080', '1')
-    if dock_power is not None:
-      logging.info(
-          'Using IP power switch %s:%s for dock.',
-          dock_power.power_unit_endpoint,
-          dock_power.power_unit_outlet,
-      )
-      self._ip_power_clients['dock'] = dock_power
 
     topology = self._config.get('host_topology', None)
     if topology is None:
@@ -145,6 +133,7 @@ class PassportHost:
     self._parse_topology()
     self._validate_topology_switches()
     self._activate_usb_testers()
+    self._setup_ip_power_clients()
 
   def _ensure_passport_connected(self):
     """Ensures the Passport API Service is connected."""
@@ -214,6 +203,51 @@ class PassportHost:
           raise errors.PassportConfigError(
               f'Switch {device.id} is not connected, but is in the topology.'
           )
+
+  def _setup_ip_power_clients(self):
+    """Sets up the IP power clients."""
+    dock_device_id = ''
+    for device in self.topology.devices:
+      if device.rpm.present:
+        if not device.rpm.type == rpm_pb2.RPMType.RPM_TYPE_IP9850:
+          raise errors.PassportConfigError('Only IP9850 RPMs are supported.')
+        logging.info('Setting up IP power client for: %s', device.id)
+        endpoint = f'{device.rpm.power_unit_hostname.address}'
+        if device.rpm.power_unit_hostname.port:
+          endpoint = f'{endpoint}:{device.rpm.power_unit_hostname.port}'
+        self._ip_power_clients[device.id] = ip_9850.IP9850(
+            endpoint, device.rpm.power_unit_outlet
+        )
+        if not self._ip_power_clients[device.id].is_online():
+          raise errors.PassportRPMError(
+              f'IP power client for device {device.id}  at {endpoint} is not'
+              ' online',
+          )
+      if device.type == pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION:
+        dock_device_id = device.id
+
+    if not self._ip_power_clients and dock_device_id:
+      # If no IP power clients are used in the topology, try to use known
+      # defaults.
+      # TODO: b/401048925 - remove this once the proto changes are complete
+      # and the IP power switch is set in the topology. For now,
+      # try the default IP and localhost:8080 for port forward dev testing
+      # ignoring the error if both fail.
+      logging.debug(
+          'No IP power clients are used in the topology falling back to try'
+          ' known defaults.'
+      )
+      dock_power = _get_dock_power('192.168.231.110', '1')
+      if dock_power is None:
+        dock_power = _get_dock_power('localhost:8080', '1')
+      if dock_power is not None:
+        logging.debug(
+            'Using IP power switch %s:%s for %s.',
+            dock_power.power_unit_endpoint,
+            dock_power.power_unit_outlet,
+            dock_device_id,
+        )
+        self._ip_power_clients[dock_device_id] = dock_power
 
   def _activate_usb_testers(self):
     """Acivate the topology usb tester.
@@ -326,7 +360,8 @@ class PassportHost:
     return connections
 
   def is_device_type_present(
-      self, device_type: pasit_host_pb2.PasitHost.Device.Type,
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
       tag: str | None,
   ) -> bool:
     """Returns True if the device type is present in the topology.
@@ -343,7 +378,10 @@ class PassportHost:
       return False
 
   def _set_device_enabled_state_by_id(
-      self, device_id: str, enable: bool, tag: str | None,
+      self,
+      device_id: str,
+      enable: bool,
+      tag: str | None,
   ) -> None:
     """Activates or deactivates the device with the given device ID."""
     connections = self._connections_to_device_by_id(device_id, tag)
@@ -385,14 +423,10 @@ class PassportHost:
           self._switch_client.enable_switch(device_id, port_id)
         else:
           self._switch_client.disable_switch(device_id, port_id)
-      elif (
-          self._devices[device_id].type
-          == pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION
-      ):
-        if self._ip_power_clients.get('dock'):
-          self._ip_power_clients['dock'].set_ip_power_state(
-              ip_power.PowerState.from_bool(enable)
-          )
+      if self._ip_power_clients.get(device_id):
+        self._ip_power_clients[device_id].set_ip_power_state(
+            ip_power.PowerState.from_bool(enable)
+        )
 
   @property
   def address(self) -> str:
@@ -412,8 +446,8 @@ class PassportHost:
       self._switch_client.reset_all_switches()
     if self.usb_tester_client and self.usb_tester_client.is_open():
       self.usb_tester_client.replug()
-    if self._ip_power_clients.get('dock'):
-      self._ip_power_clients['dock'].set_ip_power_state(ip_power.PowerState.OFF)
+    for ip_power_client in self._ip_power_clients.values():
+      ip_power_client.set_ip_power_state(ip_power.PowerState.OFF)
 
   def teardown(self):
     """Tears down the PassportHost."""
