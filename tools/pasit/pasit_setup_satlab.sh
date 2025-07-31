@@ -28,19 +28,22 @@
 #   - jq command installed (`sudo apt install jq`)
 
 
-# constants
-DUT_LEASE_MINUTES=120
+# default tunnel ports
 DUT_ADB_TUNNEL_PORT=5555
 PASSPORT_TUNNEL_PORT=8300
 DUT_SSH_TUNNEL_PORT=2200
 IP_POWER_SWITCH_TUNNEL_PORT=8080
+SERVOD_TUNNEL_PORT=9999
+
+# constants
+DUT_LEASE_MINUTES=120
 SERVOD_PORT=9999
 IP_POWER_SWITCH_IP="192.168.231.110"
-
 PASSPORT_DOCKER_REGISTRY="us-docker.pkg.dev/cros-passport"
 PASSPORT_DOCKER_IMAGE="${PASSPORT_DOCKER_REGISTRY}/passport/passport:latest"
 PASSPORT_CONTAINER="passport-dev"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 function usage() {
   echo "Usage: pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-p]"
@@ -53,6 +56,7 @@ function usage() {
   echo "                  data from shivas pasit topology."
   echo "  --skip-lease: Skip leasing the DUT."
   echo "  --skip-servo-setup: Skip setting up servod container."
+  echo "  --port-offset: An integer to offset all the tunnel ports by."
   echo "  --cros: Run the script to test CrOS devices (default is Android)."
   echo ""
   echo "Example:"
@@ -125,12 +129,15 @@ function run_command_on_satlab() {
 }
 
 function setup_tunnel() {
-  TUNNEL_PGREP="ssh -fNT -L.*"
-  echo "Killing existing tunnels to satlab-*..."
+  TUNNEL_PGREP="ssh -fNT -L.*${DUT_ADB_TUNNEL_PORT}"
+  if [[ "${CROS_TESTING}" == true ]]; then
+    TUNNEL_PGREP="ssh -fNT -L.*${DUT_SSH_TUNNEL_PORT}"
+  fi
+  echo "Killing existing tunnels to ${TUNNEL_PGREP}..."
   pgrep -f "${TUNNEL_PGREP}" | xargs kill -9 > /dev/null 2>&1
   # background tunnel to the DUT
   if [[ ! -z "${SERVO_IP}" ]]; then
-    SERVO_TUNNEL="-L ${SERVOD_PORT}:${SERVO_IP}:${SERVOD_PORT}"
+    SERVO_TUNNEL="-L ${SERVOD_TUNNEL_PORT}:${SERVO_IP}:${SERVOD_PORT}"
   fi
 
   local DUT_TUNNEL
@@ -283,6 +290,7 @@ function adb_connect_and_dut_info() {
     echo -e "\n\nFailed to connect to DUT ${DUT_HOSTNAME} via ADB"
     exit 1
   fi
+  sleep 2
   adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint
   if [[ $? -ne 0 ]]; then
     echo -e "\n\nERROR: Failed to get DUT info via ADB. DUT may not be connected. or may not be running Android."
@@ -294,7 +302,11 @@ function generate_config() {
   if [[ -z "${CONFIG_OUTPUT_FILE}" ]]; then
     return
   fi
-  if  ! which topology_converter; then
+  TOPOLOGY_CONVERTER_CMD="topology_converter"
+  if [[ -x ${SCRIPT_DIR}/topology_converter ]]; then
+    # allow using prebuilt binary from shared prebuilt dir
+    TOPOLOGY_CONVERTER_CMD="${SCRIPT_DIR}/topology_converter"
+  elif  ! which topology_converter; then
     if [[ -z "${ANDROID_BUILD_TOP}" ]]; then
       echo -e "\n\n-c flag was provided and topology_converter is not installed"
       echo -e "\tEnsure this script is run from the android checkout directory,"
@@ -320,11 +332,18 @@ function generate_config() {
     exit 1
   fi
 
-  if ! topology_converter convert --ignore-unknown-fields --ignore-unknown-fields -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
+  if ! "${TOPOLOGY_CONVERTER_CMD}" convert --ignore-unknown-fields --ignore-unknown-fields -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
     echo -e "\n\nFailed to generate config yaml file for ${DUT_HOSTNAME}"
     exit 1
   fi
   rm "${SHIVAS_JSON_FILE}"
+  if [[ "${PORT_OFFSET}" -ne 0 ]]; then
+    echo "Updating ports in config file with offset ${PORT_OFFSET}..."
+    sed -i "s/5555/${DUT_ADB_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
+    sed -i "s/8300/${PASSPORT_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
+    sed -i "s/8080/${IP_POWER_SWITCH_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
+    sed -i "s/9999/${SERVOD_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
+  fi
   if [[ "${CROS_TESTING}" == true ]]; then
     echo "Modifying config file for CROS testing..."
     sed -i "s/AndroidDevice:.*/CrosDevice:\n    - hostname: localhost\n      custom_ssh_port: ${DUT_SSH_TUNNEL_PORT}/" "${CONFIG_OUTPUT_FILE}"
@@ -402,6 +421,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_SETUP_SERVO=true
       shift
       ;;
+    --port-offset)
+      PORT_OFFSET="$2"
+      shift; shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -418,6 +441,15 @@ if [[ -z "${SATLAB_IP}" ]]; then
   echo "You can find the IP of your Satlab in the 'drone_server' entry under Dimensions by clicking the link below:"
   echo "go/fcdut/${DUT_HOSTNAME}?tab=bot-info"
   exit 1
+fi
+
+if [[ "${PORT_OFFSET}" -ne 0 ]]; then
+  echo "Using port offset: ${PORT_OFFSET}"
+  DUT_ADB_TUNNEL_PORT=$((DUT_ADB_TUNNEL_PORT + PORT_OFFSET))
+  PASSPORT_TUNNEL_PORT=$((PASSPORT_TUNNEL_PORT + PORT_OFFSET))
+  DUT_SSH_TUNNEL_PORT=$((DUT_SSH_TUNNEL_PORT + PORT_OFFSET))
+  IP_POWER_SWITCH_TUNNEL_PORT=$((IP_POWER_SWITCH_TUNNEL_PORT + PORT_OFFSET))
+  SERVOD_TUNNEL_PORT=$((SERVOD_TUNNEL_PORT + PORT_OFFSET))
 fi
 
 check_dependencies
@@ -458,6 +490,6 @@ if [[ "${CROS_TESTING}" == true ]]; then
   echo -e "\n\nReady to run CrOS tests on DUT with ssh localhost:${DUT_SSH_TUNNEL_PORT}..."
 else
   adb_connect_and_dut_info
-  echo -e "\n\nReady to run Android tests on DUT with adb serial loclahost:${DUT_HOSTNAME}..."
+  echo -e "\n\nReady to run Android tests on DUT with adb serial loclahost:${DUT_ADB_TUNNEL_PORT}..."
   echo "see go/write-pasit-test for more details."
 fi
