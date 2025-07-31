@@ -32,6 +32,7 @@
 DUT_LEASE_MINUTES=120
 DUT_ADB_TUNNEL_PORT=5555
 PASSPORT_TUNNEL_PORT=8300
+DUT_SSH_TUNNEL_PORT=2200
 IP_POWER_SWITCH_TUNNEL_PORT=8080
 SERVOD_PORT=9999
 IP_POWER_SWITCH_IP="192.168.231.110"
@@ -52,6 +53,7 @@ function usage() {
   echo "                  data from shivas pasit topology."
   echo "  --skip-lease: Skip leasing the DUT."
   echo "  --skip-servo-setup: Skip setting up servod container."
+  echo "  --cros: Run the script to test CrOS devices (default is Android)."
   echo ""
   echo "Example:"
   echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
@@ -130,20 +132,22 @@ function setup_tunnel() {
   if [[ ! -z "${SERVO_IP}" ]]; then
     SERVO_TUNNEL="-L ${SERVOD_PORT}:${SERVO_IP}:${SERVOD_PORT}"
   fi
+
+  local DUT_TUNNEL
+  if [[ "${CROS_TESTING}" == true ]]; then
+    DUT_TUNNEL="-L ${DUT_SSH_TUNNEL_PORT}:${DUT_HOSTNAME}:22"
+  else
+    DUT_TUNNEL="-L ${DUT_ADB_TUNNEL_PORT}:${DUT_HOSTNAME}:5555"
+  fi
+
   # shellcheck disable=SC2086
   ssh -fNT \
-    -L "${DUT_ADB_TUNNEL_PORT}:${DUT_HOSTNAME}:5555" \
+    "${DUT_TUNNEL}" \
     -L "${PASSPORT_TUNNEL_PORT}:${PASSPORT_IP}:8300" \
     -L "${IP_POWER_SWITCH_TUNNEL_PORT}:${IP_POWER_SWITCH_IP}:80" \
     ${SERVO_TUNNEL} \
     "${SATLAB_IP}"
   if [[ $? -ne 0 ]]; then
-    echo -e "\n\nERROR: Failed to start SSH tunnel to ${SATLAB_IP}"
-    exit 1
-  fi
-  sleep 5
-  # check if the tunnel is up
-  if ! pgrep -f "${TUNNEL_PGREP}" > /dev/null 2>&1; then
     echo -e "\n\nERROR: Failed to start SSH tunnel to ${SATLAB_IP}"
     exit 1
   fi
@@ -321,6 +325,10 @@ function generate_config() {
     exit 1
   fi
   rm "${SHIVAS_JSON_FILE}"
+  if [[ "${CROS_TESTING}" == true ]]; then
+    echo "Modifying config file for CROS testing..."
+    sed -i "s/AndroidDevice:.*/CrosDevice:\n    - hostname: localhost\n      custom_ssh_port: ${DUT_SSH_TUNNEL_PORT}/" "${CONFIG_OUTPUT_FILE}"
+  fi
 }
 
 function lease_dut() {
@@ -328,14 +336,18 @@ function lease_dut() {
   #check that DUT is leased and if not lease it
   if ! crosfleet dut leases | grep -q "${DUT_HOSTNAME}"; then
     if [[ "${PROVISION}" == true ]]; then
+      RUN_TYPE="suite"
+      OS_SPECIFIC_ARGS="-desktop -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases crosfleet-placeholder"
+      if [[ "${CROS_TESTING}" == true ]]; then
+        RUN_TYPE="test"
+        OS_SPECIFIC_ARGS="-harness tast example.Pass"
+      fi
       echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, provisioning before leasing ...\n\n"
-      crosfleet run suite \
-        -desktop \
+      crosfleet run ${RUN_TYPE} \
         -board "${BOARD}" \
         -pool "${POOL}" \
         -dims "dut_name:${DUT_HOSTNAME}" \
-        -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases \
-        crosfleet-placeholder
+        ${OS_SPECIFIC_ARGS}
       if [[ $? -ne 0 ]]; then
         echo -e "\n\nERROR: Failed to provision DUT ${DUT_HOSTNAME}."
         exit 1
@@ -357,6 +369,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
       usage
+      ;;
+    --cros)
+      CROS_TESTING=true
+      shift
       ;;
     -d|--dut_hostname)
       DUT_HOSTNAME="$2"
@@ -438,7 +454,10 @@ if [[ "${SKIP_SETUP_SERVO}" != true ]]; then
   setup_servo
 fi
 setup_tunnel
-adb_connect_and_dut_info
-
-echo -e "\n\nReady to run Android tests on DUT with adb serial loclahos:${DUT_HOSTNAME}..."
-echo "see go/write-pasit-test for more details."
+if [[ "${CROS_TESTING}" == true ]]; then
+  echo -e "\n\nReady to run CrOS tests on DUT with ssh localhost:${DUT_SSH_TUNNEL_PORT}..."
+else
+  adb_connect_and_dut_info
+  echo -e "\n\nReady to run Android tests on DUT with adb serial loclahost:${DUT_HOSTNAME}..."
+  echo "see go/write-pasit-test for more details."
+fi
