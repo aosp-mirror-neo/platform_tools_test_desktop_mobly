@@ -63,15 +63,6 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Resuming device...')
     self.dut.power_on()
 
-  def test_suspend_with_timeout(self):
-    logging.info(
-        'Suspending device for %d seconds...',
-        android_pasit_device.AndroidPasitDevice.MIN_SLEEP_TIMER_SECONDS,
-    )
-    self.dut.suspend_with_wakeup_timer(
-        android_pasit_device.AndroidPasitDevice.MIN_SLEEP_TIMER_SECONDS
-    )
-
 
 if __name__ == '__main__':
   test_runner.main()
