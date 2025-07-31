@@ -452,6 +452,13 @@ class PassportUsbServiceClient:
     """Returns True if the USB tester is open, False otherwise."""
     return self._tester_serial is not None
 
+  def pd_reset(self, soft: bool) -> None:
+    """Sends a soft or hard reset command to the DUT."""
+    ret = self._stub.ResetPd(
+        uts_pb.ResetPdRequest(id=self._tester_serial, soft=soft)
+    )
+    self._validate_reply(ret)
+
   def _validate_reply(
       self,
       reply: (
@@ -462,6 +469,7 @@ class PassportUsbServiceClient:
           | uts_pb.GetActivePortReply
           | uts_pb.SetActivePortReply
           | uts_pb.HardResetTesterReply
+          | uts_pb.ResetPdReply
           | uts_pb.DoCableReplugReply
           | uts_pb.LoadEdidReply
           | uts_pb.GetPdosReply

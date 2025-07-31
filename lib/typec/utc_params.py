@@ -75,9 +75,7 @@ def generate_utc_params(
                   "port": port,
                   "flip": flip,
                   "name": name,
-                  "active_cc": (
-                      usb.ActiveCC.CC2 if flip else usb.ActiveCC.CC1
-                  ),
+                  "active_cc": usb.ActiveCC.CC2 if flip else usb.ActiveCC.CC1,
                   "usb_channel": usb.UsbChannel.USB_3,
                   "pd_init_state": usb.InitPdState.PD_DRP,
                   "source_pdo_count": usb.DEFAULT_SRC_PDO_COUNT,
