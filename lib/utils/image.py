@@ -17,6 +17,9 @@
 import enum
 import math
 
+OVEREXPOSED = 'over'
+UNDEREXPOSED = 'under'
+
 
 class Color:
   """Represents a color in RGB with Alpha.
@@ -266,3 +269,55 @@ def color_distance(color1: Color, color2: Color) -> float:
       + (color1.b - color2.b) ** 2
   )
   return result
+
+
+def binary_search_exposure(
+    min_exposure: int,
+    max_exposure: int,
+    tolerance: int = 100,
+    max_iterations: int = 10,
+):
+  """A stateless binary search generator for determining correct exposure.
+
+  Args:
+      min_exposure (int): The minimum possible exposure value.
+      max_exposure (int): The maximum possible exposure value.
+      tolerance (int): The maximum acceptable range difference between
+        min_exposure and max_exposure to consider the search converged (default:
+        100).
+      max_iterations (int): Maximum iterations to prevent infinite loops
+        (default: 10).
+
+  Yields:
+      int: The suggested exposure value to test.
+
+  Returns (after None signal or convergence):
+      int: The final estimated correct exposure.
+  """
+  current_min = min_exposure
+  current_max = max_exposure
+  iteration_count = 0
+
+  while iteration_count < max_iterations:
+    # Calculate the midpoint as the next exposure to test
+    suggested_exposure = int((current_min + current_max) / 2)
+
+    # Yield the suggested exposure to the caller
+    # The caller is expected to provide feedback ('over', 'under', None)
+    feedback = yield suggested_exposure
+    if feedback == OVEREXPOSED:
+      current_max = suggested_exposure
+    elif feedback == UNDEREXPOSED:
+      current_min = suggested_exposure
+    else:
+      return 0
+
+    # Check for convergence and return 0 for auto-exposure if
+    # we have not found a good exposure yet.
+    if abs(current_max - current_min) < tolerance:
+      return 0
+
+    iteration_count += 1
+
+  # If max_iterations reached without 'good' or convergence within tolerance
+  return 0
