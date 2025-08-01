@@ -82,7 +82,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._skip_oobe()
     self._bypass_login_screen()
 
-  def __del__(self):
+  def cleanup(self):
+    self._stop_services()
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()
 
@@ -139,8 +140,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # service uninstalls the mbs apk.
     self._install_mbs()
     self.controller.root_adb()
-    logging.debug('Starting services...')
-    self.controller.services.start_all()
+    self._start_services()
     self._bypass_login_screen()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -189,12 +189,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.wait_for_boot_completion(
         timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
     )
-    logging.debug('Starting services...')
-    self.controller.services.start_all()
+    self._start_services()
 
   def suspend(self):
     self._stop_services()
     self._suspend()
+
+  def _start_services(self):
+    logging.debug('Current user: %s', self.controller.adb.current_user_id)
+    logging.debug('Starting services...')
+    self.controller.services.start_all()
 
   def _stop_services(self):
     logging.debug('Stopping services...')
@@ -232,8 +236,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def _install_mbs(self):
     """Installs Mobly Bundled Snippets."""
     apk_utils.install(
-        self.controller,
-        self.SNIPPET_APK_PATH,
+        device=self.controller,
+        apk_path=self.SNIPPET_APK_PATH,
+        timeout=10,
         user_id=self.LOGIN_SCREEN_USER_ID,
     )
 
