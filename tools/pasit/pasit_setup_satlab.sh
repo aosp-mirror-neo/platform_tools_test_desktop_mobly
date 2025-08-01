@@ -129,10 +129,7 @@ function run_command_on_satlab() {
 }
 
 function setup_tunnel() {
-  TUNNEL_PGREP="ssh -fNT -L.*${DUT_ADB_TUNNEL_PORT}"
-  if [[ "${CROS_TESTING}" == true ]]; then
-    TUNNEL_PGREP="ssh -fNT -L.*${DUT_SSH_TUNNEL_PORT}"
-  fi
+  TUNNEL_PGREP="ssh -fNT -L.*(${DUT_ADB_TUNNEL_PORT}|${DUT_SSH_TUNNEL_PORT})"
   echo "Killing existing tunnels to ${TUNNEL_PGREP}..."
   pgrep -f "${TUNNEL_PGREP}" | xargs kill -9 > /dev/null 2>&1
   # background tunnel to the DUT
