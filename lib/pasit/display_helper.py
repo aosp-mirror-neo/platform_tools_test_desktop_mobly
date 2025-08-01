@@ -21,12 +21,12 @@ from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit.passport import passport_host
 from lib.utils import image
-from lib.utils import retry
 from mobly import signals
 
 
 class DisplayPaths(enum.Enum):
   """Enum for the different display paths."""
+
   DOCK = 'DOCK'
   DOCKLESS = 'DOCKLESS'
   DAISY_CHAIN = 'DAISY_CHAIN'
@@ -63,6 +63,14 @@ class DisplayHelper:
       image.NamedColor.BLACK.name: image.HSVMask(
           image.HSV(h=0, s=0, v=0),
           image.HSV(h=360, s=0.4, v=0.6),
+      ),
+      image.UNDEREXPOSED: image.HSVMask(
+          image.HSV(h=0, s=0, v=0),
+          image.HSV(h=360, s=1.0, v=0.5),
+      ),
+      image.OVEREXPOSED: image.HSVMask(
+          image.HSV(h=0, s=0, v=0.85),
+          image.HSV(h=360, s=1.0, v=1.0),
       ),
   }
 
@@ -239,8 +247,22 @@ class DisplayHelper:
           match_percentage,
       )
       return None
-    match_color = image.NamedColor[match_color]
-    return match_color
+    try:
+      return image.NamedColor[match_color]
+    except KeyError:
+      return None
+
+  def _get_exposure_feedback(
+      self, hsv_match_info: dict[str, float]
+  ) -> str | None:
+    """Returns the exposure feedback from the HSV match info."""
+    overexposed_percent = hsv_match_info.get(image.OVEREXPOSED, 0)
+    underexposed_percent = hsv_match_info.get(image.UNDEREXPOSED, 0)
+    if overexposed_percent > underexposed_percent:
+      return image.OVEREXPOSED
+    if underexposed_percent > overexposed_percent:
+      return image.UNDEREXPOSED
+    return None
 
   def get_display_testing_camera_id(self, display_id: str) -> str:
     """Returns an ID for the camera that is pointed at the given display.
@@ -316,29 +338,6 @@ class DisplayHelper:
       camera_id: str,
       display_id_to_color: dict[str, image.NamedColor],
   ) -> str | None:
-    """Tries to match the display to the camera."""
-    # Try different exposure times to see if we can get a good match.
-    # testing shows that lower exposure times are more reliable and less
-    # affected by glare and overexposure, so start with those and then try 0
-    # which is auto exposure as a last resort.
-    exposure_times_to_try = [3000, 6000, 12000, 0]
-    exposure_times_generator = (
-        exposure_time for exposure_time in exposure_times_to_try
-    )
-    return retry.retry(
-        lambda: self._try_match_display_to_camera_with_exposure_time(
-            camera_id, display_id_to_color, next(exposure_times_generator)
-        ),
-        until=lambda display_id: display_id,
-        max_tries=len(exposure_times_to_try),
-    )
-
-  def _try_match_display_to_camera_with_exposure_time(
-      self,
-      camera_id: str,
-      display_id_to_color: dict[str, image.NamedColor],
-      exposure_time_us: int,
-  ) -> str | None:
     """Tries to map a display to a camera with the given exposure time.
 
     Matches the color displayed on the display to the color captured from the
@@ -351,45 +350,49 @@ class DisplayHelper:
       camera_id: The camera ID to use for the mapping.
       display_id_to_color: A dictionary of display ID to color rendered on this
         display.
-      exposure_time_us: The exposure time in microseconds to use for the camera.
 
     Returns:
       A display ID that matched the camera. If mapping fails returns None.
     """
-    logging.debug(
-        'Trying to map display to camera %s with exposure time %d us',
-        camera_id,
-        exposure_time_us,
+    exposure_times_generator = image.binary_search_exposure(
+        min_exposure=2000, max_exposure=50000
     )
+    exposure_feedback = None
+    # TODO: b/435720733 - clean up loop logic
+    while True:
+      try:
+        exposure_time_us = exposure_times_generator.send(exposure_feedback)
+      except StopIteration:
+        logging.debug('No more exposure times to try.')
+        return None
+      logging.debug(f'Camera {camera_id} Exposure time: {exposure_time_us}')
+      hsv_match_info = self.passport.analyze_hsv(
+          camera_id,
+          self._HSV_MASKS_PASIT,
+          self.log_path,
+          f'hsv_match_camera{camera_id}_{exposure_time_us}',
+          exposure_time_us=exposure_time_us,
+      )
+      logging.debug('HSV match percentages: %s', hsv_match_info)
 
-    color_names = [color.name for color in display_id_to_color.values()]
-    hsv_masks = {
-        color_name: self._HSV_MASKS_PASIT[color_name]
-        for color_name in color_names
-    }
-    hsv_match_info = self.passport.analyze_hsv(
-        camera_id,
-        hsv_masks,
-        self.log_path,
-        f'hsv_match_camera{camera_id}_{exposure_time_us}',
-        exposure_time_us=exposure_time_us,
-    )
-    logging.debug('HSV match percentages: %s', hsv_match_info)
+      exposure_feedback = self._get_exposure_feedback(hsv_match_info)
+      logging.debug(f'Exposure feedback: {exposure_feedback}')
+      matched_color = self._get_matched_color(hsv_match_info)
+      if matched_color is None:
+        if exposure_time_us == 0:
+          logging.info(f"Camera didn't match any color {matched_color}.")
+          return None
+        continue
 
-    matched_color = self._get_matched_color(hsv_match_info)
-    if matched_color is None:
-      logging.debug("Camera didn't match any color.")
-      return None
+      display_id = self._get_matched_display_id(
+          matched_color, display_id_to_color
+      )
+      if display_id:
+        # If we get a match, store the exposure time to use for future
+        # verification steps and image captures.
+        self.camera_exposure_time_us[camera_id] = exposure_time_us
 
-    display_id = self._get_matched_display_id(
-        matched_color, display_id_to_color
-    )
-    if display_id:
-      # If we get a match, store the exposure time to use for future
-      # verification steps and image captures.
-      self.camera_exposure_time_us[camera_id] = exposure_time_us
-
-    return display_id
+      return display_id
 
   def _get_matched_display_id(
       self,
