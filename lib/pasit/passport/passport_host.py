@@ -31,7 +31,6 @@ from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
 from lib.utils import image
-from mobly import asserts
 from mobly import logger as mobly_logger
 
 
@@ -675,10 +674,7 @@ class PassportHost:
     resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
     if image_name_prefix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_prefix)
-    ret = {}
-    for name, percentage in resp.percentage_matched.items():
-      ret[name] = percentage
-    return ret
+    return {item.key: item.value for item in resp.percentage_matched}
 
   def _save_image(
       self, image_bytes: bytes, log_dir: str, image_name_prefix: str

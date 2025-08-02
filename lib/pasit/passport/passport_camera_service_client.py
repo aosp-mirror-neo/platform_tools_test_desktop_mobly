@@ -19,12 +19,21 @@ def _hsv_to_proto(hsv: image.HSV) -> camera_service_pb2.HSV:
 
   Args:
     hsv: The HSV object to convert.
+
   Returns:
     The proto HSV object.
   """
   return camera_service_pb2.HSV(
       hue=hsv.hue, saturation=hsv.saturation, value=hsv.value
   )
+
+
+def _mask_to_proto(mask: image.HSVMask) -> camera_service_pb2.HSVMask:
+  """Converts an HSVMask object to a proto HSVMask object."""
+  mask_proto = camera_service_pb2.HSVMask()
+  mask_proto.min.CopyFrom(_hsv_to_proto(mask.min))
+  mask_proto.max.CopyFrom(_hsv_to_proto(mask.max))
+  return mask_proto
 
 
 class PassportCameraServiceClient:
@@ -76,6 +85,7 @@ class PassportCameraServiceClient:
         GetAveragePixel.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
+
     Returns:
       The GetAveragePixelResponse from the Passport server with the average
       pixel color detected by the specified camera and the frame.
@@ -106,24 +116,24 @@ class PassportCameraServiceClient:
       masks: A dictionary of mask names to HSVMasks to compare against.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
+
     Returns:
       The AnalyzeHSVResponse from the Passport server with the HSV analysis
       results for each mask.
     Raises:
       PassportCameraClientError: If the RPC fails.
     """
-    request_masks = {}
-    for name, mask in masks.items():
-      request_masks[name] = camera_service_pb2.HSVMask(
-          min=_hsv_to_proto(mask.min),
-          max=_hsv_to_proto(mask.max),
-      )
+    request = camera_service_pb2.AnalyzeHSVRequest(
+        device_id=camera_id,
+        exposure_microseconds=exposure_time_us,
+        masks=[
+            camera_service_pb2.AnalyzeHSVRequest.MasksEntry(
+                key=name, value=_mask_to_proto(mask)
+            )
+            for name, mask in masks.items()
+        ],
+    )
     try:
-      request = camera_service_pb2.AnalyzeHSVRequest(
-          device_id=camera_id,
-          masks=request_masks,
-          exposure_microseconds=exposure_time_us,
-      )
       return self.stub.AnalyzeImageHSV(request)
     except grpc.RpcError as e:
       raise PassportCameraClientError(
