@@ -487,6 +487,6 @@ if [[ "${CROS_TESTING}" == true ]]; then
   echo -e "\n\nReady to run CrOS tests on DUT with ssh localhost:${DUT_SSH_TUNNEL_PORT}..."
 else
   adb_connect_and_dut_info
-  echo -e "\n\nReady to run Android tests on DUT with adb serial loclahost:${DUT_ADB_TUNNEL_PORT}..."
+  echo -e "\n\nReady to run Android tests on DUT with adb serial localhost:${DUT_ADB_TUNNEL_PORT}..."
   echo "see go/write-pasit-test for more details."
 fi
