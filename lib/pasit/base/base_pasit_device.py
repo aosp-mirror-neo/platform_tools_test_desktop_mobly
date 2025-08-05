@@ -72,6 +72,11 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     self._servo = servo
 
   @abc.abstractmethod
+  def cleanup(self):
+    """Cleans up the device after testing."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def shell(self, params: Iterable[str]) -> bytes:
     """Sends the given parameters to the console.
 

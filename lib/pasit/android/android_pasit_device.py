@@ -72,9 +72,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
+    # for consistency across all runs
+    # and to make sure that mbs is installed under the login screen user
+    self._switch_to_login_screen_user()
+
     self._test_settings()
+
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()
+
     self._install_mbs()
     self._load_mbs()
     self._register_uiautomator()
@@ -127,7 +133,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._bypass_login_screen()
 
   def _bypass_login_screen(self):
-    self._switch_user(self.LOGGED_IN_USER_ID)
+    self._switch_to_logged_in_user()
 
   def power_on(self):
     self._request_power_on()
@@ -136,6 +142,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.wait_for_boot_completion(
         timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
     )
+    # for consistency across all runs, switch to the login screen user first
+    # and to make sure that mbs is installed under the login screen user
+    self._switch_to_login_screen_user()
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
     self._install_mbs()
@@ -274,6 +283,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         self.controller.log.debug(e)
       else:
         raise e
+
+  def _switch_to_login_screen_user(self):
+    self._switch_user(self.LOGIN_SCREEN_USER_ID)
+
+  def _switch_to_logged_in_user(self):
+    self._switch_user(self.LOGGED_IN_USER_ID)
 
   def _switch_user(self, user_id: int):
     """Switches the user on the device."""
