@@ -674,7 +674,7 @@ class PassportHost:
     resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
     if image_name_prefix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_prefix)
-    return {item.key: item.value for item in resp.percentage_matched}
+    return {key: value for key, value in resp.percentage_matched.items()}
 
   def _save_image(
       self, image_bytes: bytes, log_dir: str, image_name_prefix: str

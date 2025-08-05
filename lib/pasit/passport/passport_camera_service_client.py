@@ -30,9 +30,9 @@ def _hsv_to_proto(hsv: image.HSV) -> camera_service_pb2.HSV:
 
 def _mask_to_proto(mask: image.HSVMask) -> camera_service_pb2.HSVMask:
   """Converts an HSVMask object to a proto HSVMask object."""
-  mask_proto = camera_service_pb2.HSVMask()
-  mask_proto.min.CopyFrom(_hsv_to_proto(mask.min))
-  mask_proto.max.CopyFrom(_hsv_to_proto(mask.max))
+  mask_proto = camera_service_pb2.HSVMask(
+      min=_hsv_to_proto(mask.min), max=_hsv_to_proto(mask.max)
+  )
   return mask_proto
 
 
@@ -126,12 +126,7 @@ class PassportCameraServiceClient:
     request = camera_service_pb2.AnalyzeHSVRequest(
         device_id=camera_id,
         exposure_microseconds=exposure_time_us,
-        masks=[
-            camera_service_pb2.AnalyzeHSVRequest.MasksEntry(
-                key=name, value=_mask_to_proto(mask)
-            )
-            for name, mask in masks.items()
-        ],
+        masks={name: _mask_to_proto(mask) for name, mask in masks.items()},
     )
     try:
       return self.stub.AnalyzeImageHSV(request)
