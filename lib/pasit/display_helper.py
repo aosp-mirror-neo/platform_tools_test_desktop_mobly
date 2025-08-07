@@ -338,12 +338,13 @@ class DisplayHelper:
       camera_id: str,
       display_id_to_color: dict[str, image.NamedColor],
   ) -> str | None:
-    """Tries to map a display to a camera with the given exposure time.
+    """Tries to map a display to a camera.
 
     Matches the color displayed on the display to the color captured from the
     camera using HSV analysis:
-    - first captures an image from the camera with the specified exposure time,
-    - then uses the data from the passport HSV analysis to find a matched color,
+    - iterates through the exposure times using binary search,
+    - for each exposure time, captures an image from the camera,
+    - and uses the data from the passport HSV analysis to find a matched color,
     - then finds a display that rendered the matched color.
 
     Args:
@@ -364,35 +365,49 @@ class DisplayHelper:
         exposure_time_us = exposure_times_generator.send(exposure_feedback)
       except StopIteration:
         logging.debug('No more exposure times to try.')
-        return None
-      logging.debug(f'Camera {camera_id} Exposure time: {exposure_time_us}')
-      hsv_match_info = self.passport.analyze_hsv(
+        break
+
+      hsv_match_info = self._get_hsv_match_info(
           camera_id,
-          self._HSV_MASKS_PASIT,
-          self.log_path,
-          f'hsv_match_camera{camera_id}_{exposure_time_us}',
-          exposure_time_us=exposure_time_us,
+          f'hsv_match_camera',
+          exposure_time_us,
       )
-      logging.debug('HSV match percentages: %s', hsv_match_info)
 
       exposure_feedback = self._get_exposure_feedback(hsv_match_info)
       logging.debug(f'Exposure feedback: {exposure_feedback}')
       matched_color = self._get_matched_color(hsv_match_info)
       if matched_color is None:
-        if exposure_time_us == 0:
-          logging.info(f"Camera didn't match any color {matched_color}.")
-          return None
         continue
 
       display_id = self._get_matched_display_id(
           matched_color, display_id_to_color
       )
-      if display_id:
-        # If we get a match, store the exposure time to use for future
-        # verification steps and image captures.
-        self.camera_exposure_time_us[camera_id] = exposure_time_us
+      if display_id is None:
+        continue
 
+      # If we get a match, store the exposure time to use for future
+      # verification steps and image captures.
+      self.camera_exposure_time_us[camera_id] = exposure_time_us
       return display_id
+
+    return None
+
+  def _get_hsv_match_info(
+      self,
+      camera_id: str,
+      camera_capture_prefix: str,
+      exposure_time_us: int,
+  ) -> dict[str, float]:
+    logging.debug(f'Camera {camera_id} Exposure time: {exposure_time_us}')
+    hsv_match_info = self.passport.analyze_hsv(
+        camera_id,
+        self._HSV_MASKS_PASIT,
+        self.log_path,
+        f'{camera_capture_prefix}{camera_id}_{exposure_time_us}',
+        exposure_time_us,
+    )
+    logging.debug('HSV match percentages: %s', hsv_match_info)
+    return hsv_match_info
 
   def _get_matched_display_id(
       self,
