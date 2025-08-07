@@ -290,9 +290,6 @@ def binary_search_exposure(
 
   Yields:
       int: The suggested exposure value to test.
-
-  Returns (after None signal or convergence):
-      int: The final estimated correct exposure.
   """
   current_min = min_exposure
   current_max = max_exposure
@@ -310,14 +307,18 @@ def binary_search_exposure(
     elif feedback == UNDEREXPOSED:
       current_min = suggested_exposure
     else:
-      return 0
+      # feedback is None, which means that the suggested exposure is good. Stop
+      # the search.
+      return
 
     # Check for convergence and return 0 for auto-exposure if
     # we have not found a good exposure yet.
     if abs(current_max - current_min) < tolerance:
-      return 0
+      # min and max have converged, so break out of the loop.
+      break
 
     iteration_count += 1
 
-  # If max_iterations reached without 'good' or convergence within tolerance
-  return 0
+  # If we have not found a good exposure yet, yield 0 for auto-exposure.
+  yield 0
+  return
