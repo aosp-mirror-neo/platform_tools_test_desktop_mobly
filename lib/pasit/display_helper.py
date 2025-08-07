@@ -355,7 +355,7 @@ class DisplayHelper:
       A display ID that matched the camera. If mapping fails returns None.
     """
     exposure_times_generator = image.binary_search_exposure(
-        min_exposure=2000, max_exposure=50000
+        min_exposure=0, max_exposure=50000
     )
     exposure_feedback = None
     # TODO: b/435720733 - clean up loop logic
