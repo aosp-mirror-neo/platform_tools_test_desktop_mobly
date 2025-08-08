@@ -64,11 +64,11 @@ class DisplayHelper:
           image.HSV(h=0, s=0, v=0),
           image.HSV(h=360, s=0.4, v=0.6),
       ),
-      image.UNDEREXPOSED: image.HSVMask(
+      image.ExposureFeedback.UNDEREXPOSED: image.HSVMask(
           image.HSV(h=0, s=0, v=0),
           image.HSV(h=360, s=1.0, v=0.5),
       ),
-      image.OVEREXPOSED: image.HSVMask(
+      image.ExposureFeedback.OVEREXPOSED: image.HSVMask(
           image.HSV(h=0, s=0, v=0.85),
           image.HSV(h=360, s=1.0, v=1.0),
       ),
@@ -254,15 +254,16 @@ class DisplayHelper:
 
   def _get_exposure_feedback(
       self, hsv_match_info: dict[str, float]
-  ) -> str | None:
+  ) -> image.ExposureFeedback:
     """Returns the exposure feedback from the HSV match info."""
-    overexposed_percent = hsv_match_info.get(image.OVEREXPOSED, 0)
-    underexposed_percent = hsv_match_info.get(image.UNDEREXPOSED, 0)
-    if overexposed_percent > underexposed_percent:
-      return image.OVEREXPOSED
-    if underexposed_percent > overexposed_percent:
-      return image.UNDEREXPOSED
-    return None
+    return max(
+        {
+            key: value
+            for key, value in hsv_match_info.items()
+            if key in image.ExposureFeedback
+        },
+        key=hsv_match_info.get,
+    )
 
   def get_display_testing_camera_id(self, display_id: str) -> str:
     """Returns an ID for the camera that is pointed at the given display.

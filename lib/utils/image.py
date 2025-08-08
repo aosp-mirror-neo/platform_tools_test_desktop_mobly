@@ -17,8 +17,13 @@
 import enum
 import math
 
-OVEREXPOSED = 'over'
-UNDEREXPOSED = 'under'
+
+class ExposureFeedback(enum.StrEnum):
+  """Enum for the feedback from an exposure test."""
+
+  OVEREXPOSED = 'over'
+  UNDEREXPOSED = 'under'
+  BALANCED = 'balanced'
 
 
 class Color:
@@ -302,14 +307,17 @@ def binary_search_exposure(
     # Yield the suggested exposure to the caller
     # The caller is expected to provide feedback ('over', 'under', None)
     feedback = yield suggested_exposure
-    if feedback == OVEREXPOSED:
-      current_max = suggested_exposure
-    elif feedback == UNDEREXPOSED:
-      current_min = suggested_exposure
-    else:
-      # feedback is None, which means that the suggested exposure is good. Stop
-      # the search.
-      return
+    match feedback:
+      case ExposureFeedback.OVEREXPOSED:
+        current_max = suggested_exposure
+      case ExposureFeedback.UNDEREXPOSED:
+        current_min = suggested_exposure
+      case ExposureFeedback.BALANCED:
+        # stop the search
+        return
+      case _:
+        # invalid feedback, raise an error
+        raise ValueError(f'Invalid feedback: {feedback}')
 
     # Check for convergence and return 0 for auto-exposure if
     # we have not found a good exposure yet.
