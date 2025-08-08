@@ -256,13 +256,13 @@ class DisplayHelper:
       self, hsv_match_info: dict[str, float]
   ) -> image.ExposureFeedback:
     """Returns the exposure feedback from the HSV match info."""
-    return max(
-        {
-            key: value
-            for key, value in hsv_match_info.items()
-            if key in image.ExposureFeedback
-        },
-        key=hsv_match_info.get,
+    exposure_feedback_info = dict(
+        filter(lambda x: x[0] in image.ExposureFeedback, hsv_match_info.items())
+    )
+    return (
+        max(exposure_feedback_info.items(), key=lambda x: x[1])[0]
+        if exposure_feedback_info
+        else image.ExposureFeedback.BALANCED
     )
 
   def get_display_testing_camera_id(self, display_id: str) -> str:
