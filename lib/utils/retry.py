@@ -76,7 +76,7 @@ def retry(
       return func_result
 
     if tries >= max_tries:
-      logging.info("Retry failed after %d attempts.", max_tries)
+      logging.debug("Retry failed after %d attempts.", max_tries)
       return func_result
 
     # If the function failed or did not meet the exit predicate, log the error
@@ -126,7 +126,7 @@ def _try_function(
       # The function failed, but there are more tries, so return (False, None)
       return (False, None)
     else:
-      logging.info(
+      logging.debug(
           "Retry failed after %d attempts. Last exception: %s",
           max_tries,
           e,
