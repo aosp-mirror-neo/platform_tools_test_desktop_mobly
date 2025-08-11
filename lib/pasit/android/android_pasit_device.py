@@ -55,6 +55,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   )
 
   SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
+  TMP_DIR = '/data/local/tmp/'
 
   # snippet apk is in same directory as this mobly executable
   SNIPPET_APK_PATH = os.path.join(
@@ -241,6 +242,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def get_screenshots_path(self) -> str:
     return self.SCREENSHOTS_PATH
+
+  def get_temp_dir(self) -> str:
+    return self.TMP_DIR
 
   def _install_mbs(self):
     """Installs Mobly Bundled Snippets."""
