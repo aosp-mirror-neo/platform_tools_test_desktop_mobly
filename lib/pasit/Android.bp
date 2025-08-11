@@ -33,6 +33,7 @@ python_library_host {
     name: "py-display-helper",
     srcs: [
         "display_helper.py",
+        "color_capturer.py",
     ],
     libs: [
         "mobly",

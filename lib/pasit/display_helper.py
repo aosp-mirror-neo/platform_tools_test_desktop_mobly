@@ -17,6 +17,7 @@
 import enum
 import logging
 
+from lib.pasit import color_capturer
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit.passport import passport_host
@@ -40,45 +41,7 @@ class DisplayHelper:
     display: The display to use for the display tools.
     painter: The painter to use for the display tools.
     log_path: The log path to use for the display tools.
-    camera_exposure_time_us: Exposure times to use for each camera. This is used
-      to capture images from the cameras and verify the colors on the displays.
   """
-
-  # HSV masks for PASIT displays. +/-30 degrees from the expected color gives
-  # reasonable results, with the exception of green which has more on the plus
-  # end to make it pass on sample set of images in passport unit tests.
-  _HSV_MASKS_PASIT = {
-      image.NamedColor.RED.name: image.HSVMask(
-          image.HSV(h=330, s=0.45, v=0.55),
-          image.HSV(h=30, s=1.0, v=1.0),
-      ),
-      image.NamedColor.GREEN.name: image.HSVMask(
-          image.HSV(h=90, s=0.45, v=0.55),
-          image.HSV(h=165, s=1.0, v=1.0),
-      ),
-      image.NamedColor.BLUE.name: image.HSVMask(
-          image.HSV(h=210, s=0.45, v=0.55),
-          image.HSV(h=270, s=1.0, v=1.0),
-      ),
-      image.NamedColor.BLACK.name: image.HSVMask(
-          image.HSV(h=0, s=0, v=0),
-          image.HSV(h=360, s=0.4, v=0.6),
-      ),
-      image.ExposureFeedback.UNDEREXPOSED: image.HSVMask(
-          image.HSV(h=0, s=0, v=0),
-          image.HSV(h=360, s=1.0, v=0.5),
-      ),
-      image.ExposureFeedback.OVEREXPOSED: image.HSVMask(
-          image.HSV(h=0, s=0, v=0.85),
-          image.HSV(h=360, s=1.0, v=1.0),
-      ),
-  }
-
-  # The minimum percentage of pixels that must match for a color to be
-  # considered a match, we set this to a low value because glare on the display
-  # can cause a lot of pixels to be washed out and close to white rather than
-  # the expected color.
-  _MATCH_PERCENTAGE_THRESHOLD = 40.0
 
   _COLORS = [
       image.NamedColor.RED,
@@ -95,8 +58,6 @@ class DisplayHelper:
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
   log_path: str
-
-  camera_exposure_time_us: dict[str, int] = {}
 
   def __init__(
       self,
@@ -226,45 +187,6 @@ class DisplayHelper:
     logging.debug('Mapping result: %s', mapping_result)
     return mapping_result
 
-  def _get_matched_color(
-      self,
-      hsv_match_percentages: dict[str, float],
-  ) -> image.NamedColor | None:
-    """Returns the matched color from the HSV match percentages."""
-    # handle the case where are hsv percentage values are 0 since protobuf
-    # optimizes out the 0 values we end up with an empty dict.
-    if not hsv_match_percentages:
-      return None
-    match_color = max(
-        hsv_match_percentages,
-        key=hsv_match_percentages.get,
-    )
-    match_percentage = hsv_match_percentages[match_color]
-    if match_percentage < self._MATCH_PERCENTAGE_THRESHOLD:
-      logging.debug(
-          'Did not match any color, max match percentage is %s:%.2f',
-          match_color,
-          match_percentage,
-      )
-      return None
-    try:
-      return image.NamedColor[match_color]
-    except KeyError:
-      return None
-
-  def _get_exposure_feedback(
-      self, hsv_match_info: dict[str, float]
-  ) -> image.ExposureFeedback:
-    """Returns the exposure feedback from the HSV match info."""
-    exposure_feedback_info = dict(
-        filter(lambda x: x[0] in image.ExposureFeedback, hsv_match_info.items())
-    )
-    return (
-        max(exposure_feedback_info.items(), key=lambda x: x[1])[0]
-        if exposure_feedback_info
-        else image.ExposureFeedback.BALANCED
-    )
-
   def get_display_testing_camera_id(self, display_id: str) -> str:
     """Returns an ID for the camera that is pointed at the given display.
 
@@ -299,19 +221,14 @@ class DisplayHelper:
     Returns:
       The color from the camera, or None if no color is matched.
     """
-    hsv_match_percentages = self.passport.analyze_hsv(
-        camera_id,
-        self._HSV_MASKS_PASIT,
-        self.log_path,
-        camera_capture_prefix,
-        self.camera_exposure_time_us.get(camera_id, 0),
-    )
-    logging.debug(
-        'HSV match percentages for camera %s: %s',
-        camera_id,
-        hsv_match_percentages,
-    )
-    return self._get_matched_color(hsv_match_percentages)
+    # return the first matched color that is not None, or None if no color is
+    # matched.
+    for matched_color in self._get_color_iterator(
+        camera_id, camera_capture_prefix
+    ):
+      if matched_color:
+        return matched_color
+    return None
 
   def _open_rgb_images_on_displays(self) -> dict[str, image.NamedColor]:
     """Opens RGB images on the displays.
@@ -356,63 +273,35 @@ class DisplayHelper:
     Returns:
       A display ID that matched the camera. If mapping fails returns None.
     """
-    exposure_times_generator = image.binary_search_exposure(
-        min_exposure=0, max_exposure=50000
-    )
-    exposure_feedback = None
-    # TODO: b/435720733 - clean up loop logic
-    while True:
-      try:
-        exposure_time_us = exposure_times_generator.send(exposure_feedback)
-      except StopIteration:
-        logging.debug('No more exposure times to try.')
-        break
 
-      hsv_match_info = self._get_hsv_match_info(
-          camera_id,
-          f'hsv_match_camera',
-          exposure_time_us,
-      )
-
-      exposure_feedback = self._get_exposure_feedback(hsv_match_info)
-      logging.debug(f'Exposure feedback: {exposure_feedback}')
-      matched_color = self._get_matched_color(hsv_match_info)
-      if matched_color is None:
-        continue
-
-      display_id = self._get_matched_display_id(
+    # return the first matched display, or None if no display is matched.
+    for matched_color in self._get_color_iterator(
+        camera_id, 'match_display_to_camera'
+    ):
+      matched_display_id = self._get_matched_display_id(
           matched_color, display_id_to_color
       )
-      if display_id is None:
-        continue
+      if matched_display_id:
+        return matched_display_id
 
-      # If we get a match, store the exposure time to use for future
-      # verification steps and image captures.
-      self.camera_exposure_time_us[camera_id] = exposure_time_us
-      return display_id
-
-    return None
-
-  def _get_hsv_match_info(
+  def _get_color_iterator(
       self,
       camera_id: str,
-      camera_capture_prefix: str,
-      exposure_time_us: int,
-  ) -> dict[str, float]:
-    logging.debug(f'Camera {camera_id} Exposure time: {exposure_time_us}')
-    hsv_match_info = self.passport.analyze_hsv(
+      camera_capture_prefix: str = '',
+  ) -> color_capturer.MatchedColorIterator:
+    """Returns an iterator for the color captured from the camera."""
+    return color_capturer.MatchedColorIterator(
+        self.passport,
         camera_id,
-        self._HSV_MASKS_PASIT,
         self.log_path,
-        f'{camera_capture_prefix}{camera_id}_{exposure_time_us}',
-        exposure_time_us,
+        min_exposure=0,
+        max_exposure=50000,
+        camera_capture_prefix=camera_capture_prefix,
     )
-    logging.debug('HSV match percentages: %s', hsv_match_info)
-    return hsv_match_info
 
   def _get_matched_display_id(
       self,
-      matched_color: image.NamedColor,
+      matched_color: image.NamedColor | None,
       display_id_to_color: dict[str, image.NamedColor],
   ) -> str | None:
     """Returns the display ID that matches the color captured from the camera.
@@ -426,6 +315,9 @@ class DisplayHelper:
       The display ID that matches the color captured from the camera, or None if
       no display matches the color.
     """
+    if matched_color is None:
+      return None
+
     matched_display_ids = [
         display_id
         for display_id, color in display_id_to_color.items()
