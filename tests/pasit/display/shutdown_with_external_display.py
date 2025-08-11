@@ -39,7 +39,7 @@ class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
       for camera in cameras:
         self._verify_captured_color(
             camera,
-            image.NamedColor.BLACK.value,
+            image.NamedColor.BLACK,
             f'black_after_shutdown_{camera}',
             'Display should be black after shutdown.',
         )

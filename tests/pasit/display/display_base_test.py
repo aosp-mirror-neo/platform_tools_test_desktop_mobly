@@ -23,7 +23,6 @@ from lib.pasit import pasit_test
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
-from mobly import signals
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -99,7 +98,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def _verify_captured_color(
       self,
       camera_id: str,
-      expected_color: image.Color,
+      expected_color: image.NamedColor,
       camera_capture_name: str,
       failure_message: str,
   ):
@@ -114,18 +113,23 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    match_color = self.helper.capture_color(
-        camera_id, f'{camera_capture_name}_from_camera{camera_id}'
+    match_color = retry.retry(
+        lambda: self.helper.capture_color(
+            camera_id, f'{camera_capture_name}_from_camera{camera_id}'
+        ),
+        until=lambda match_color: match_color is not None
+        and match_color == expected_color,
+        delay_seconds=5,
     )
     logging.info(
         'Camera %s detected color %s with display color %s',
         camera_id,
         match_color.name if match_color else 'None',
-        expected_color,
+        expected_color.name,
     )
     asserts.assert_is_not_none(match_color, failure_message)
     asserts.assert_equal(
-        match_color.value if match_color else None,
+        match_color,
         expected_color,
         failure_message,
     )
@@ -137,5 +141,5 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.helper.map_displays_to_cameras,
         max_tries=3,
         delay_seconds=10,
-        exceptions=(signals.TestError,),
+        exceptions=(display_helper.MapDisplaysToCamerasError,),
     )

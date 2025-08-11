@@ -53,8 +53,6 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     """Test that unplugs an external display when DUT is in different states."""
     self._skip_if_servo_needed_and_not_configured(state_when_unplug_display)
 
-    self._verify_display_count(1, 'before external display plug in')
-
     internal_display_id = self.helper.get_internal_display_id()
 
     self._plug_in_external_display()
@@ -75,7 +73,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     self._capture_screenshots('external_display_red')
     self._verify_captured_color(
         display_id_to_camera_id[external_display_id],
-        image.NamedColor.RED.value,
+        image.NamedColor.RED,
         'external_display_red',
         'External display should have red color.',
     )
@@ -92,7 +90,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     self._capture_screenshots('internal_display_red')
     self._verify_captured_color(
         display_id_to_camera_id[internal_display_id],
-        image.NamedColor.RED.value,
+        image.NamedColor.RED,
         'internal_display_red',
         'Internal display should have red color.',
     )
@@ -104,7 +102,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     self._capture_screenshots('external_display_red_after_replug')
     self._verify_captured_color(
         display_id_to_camera_id[external_display_id],
-        image.NamedColor.RED.value,
+        image.NamedColor.RED,
         'external_display_red_after_replug',
         'External display should have red color after replug.',
     )

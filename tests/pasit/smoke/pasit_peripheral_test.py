@@ -182,7 +182,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         helper.map_displays_to_cameras,
         max_tries=3,
         delay_seconds=10,
-        exceptions=(signals.TestError,),
+        exceptions=(display_helper.MapDisplaysToCamerasError,),
     )
     logging.info('Mapped displays to cameras: %s', mapping)
     asserts.assert_equal(
