@@ -71,6 +71,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
     Uninstalls the ColorFillTestApp when the object is garbage collected.
     """
+    self._force_stop_color_fill_test_app()
     apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
 
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
@@ -110,11 +111,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
   def clean_color_on_display(self):
     window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell([
-        'am',
-        'force-stop',
-        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-    ])
+    self._force_stop_color_fill_test_app()
 
     self.controller.ui(
         desc=self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION
@@ -126,6 +123,14 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           f' did not become 0. Before: {window_count_before}, After:'
           f' {window_count_after}'
       )
+
+  def _force_stop_color_fill_test_app(self):
+    """Forces stop the ColorFillTestApp."""
+    self.controller.adb.shell([
+        'am',
+        'force-stop',
+        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
+    ])
 
   def _set_screen_brightness(self, brightness: int):
     """Sets the screen brightness. Max brightness is 255."""
