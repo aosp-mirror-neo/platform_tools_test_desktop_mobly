@@ -43,6 +43,9 @@ class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
             f'black_after_shutdown_{camera}',
             'Display should be black after shutdown.',
         )
+      self._unplug_external_display()
+
+    self._verify_display_count(1, 'after external display unplug')
 
 
 if __name__ == '__main__':
