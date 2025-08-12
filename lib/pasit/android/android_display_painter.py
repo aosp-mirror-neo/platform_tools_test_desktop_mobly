@@ -110,19 +110,46 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     self._maximize_color_fill_test_app_window()
 
   def clean_color_on_display(self):
-    window_count_before = self._get_color_fill_test_app_window_count()
+    if not retry.retry(
+        self.try_clean_color_on_display,
+        until=lambda result: result,
+    ):
+      raise signals.TestError('Failed to clean color on display.')
+
+  def try_clean_color_on_display(self) -> bool:
+    """Attempts to clean the color on the display.
+
+    Stops the ColorFillTestApp and waits for its window to disappear.
+    Returns:
+      True if the color was successfully cleaned, False otherwise.
+    """
     self._force_stop_color_fill_test_app()
 
-    self.controller.ui(
-        desc=self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION
-    ).wait.gone(timeout=datetime.timedelta(seconds=10))
-    window_count_after = self._get_color_fill_test_app_window_count()
-    if window_count_after != 0:
-      raise signals.TestError(
-          'Failed to clean color on display. Color fill test app window count'
-          f' did not become 0. Before: {window_count_before}, After:'
-          f' {window_count_after}'
-      )
+    # wait.gone is used to prevent StaleObjectException
+    # use retry because there may be more than one window
+    # return False if the color fill test app is still present
+    if not retry.retry(
+        lambda: self.controller.ui(
+            pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+        ).wait.gone(timeout=datetime.timedelta(seconds=10)),
+        until=lambda _: not self.controller.ui(
+            pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+        ).exists,
+        max_tries=3,
+    ):
+      return False
+
+    # wait for 0 windows count that show custom background color
+    if (
+        retry.retry(
+            self._get_color_fill_test_app_window_count,
+            until=lambda window_count: window_count == 0,
+        )
+        != 0
+    ):
+      return False
+
+    return True
 
   def _force_stop_color_fill_test_app(self):
     """Forces stop the ColorFillTestApp."""
