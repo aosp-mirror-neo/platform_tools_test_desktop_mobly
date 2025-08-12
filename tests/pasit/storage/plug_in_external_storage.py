@@ -14,12 +14,9 @@
 
 """Test external storage operability after plugging in."""
 
-import logging
-import os
-
 from lib.pasit import dut_state_manager
 from mobly import test_runner
-from pasit.storage import storage_base_test
+from pasit.storage import write_to_storage_base_test
 
 
 # Each tuple is a list of arguments for a test case. The first argument is a
@@ -31,18 +28,10 @@ _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
 )
 
 
-class PlugInExternalStorageTest(storage_base_test.StorageBaseTest):
+class PlugInExternalStorageTest(
+    write_to_storage_base_test.WriteToStorageBaseTest
+):
   """Test external storage operability after plugging in."""
-
-  def setup_test(self):
-    """Handle the setup for the test."""
-    super().setup_test()
-    self.host_file_content, self.host_file_path = self._create_test_file()
-
-  def teardown_test(self):
-    """Handle the teardown for the test."""
-    os.remove(self.host_file_path)
-    super().teardown_test()
 
   def pre_run(self):
     """Generate tests for each test case."""
@@ -75,16 +64,15 @@ class PlugInExternalStorageTest(storage_base_test.StorageBaseTest):
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_storage
     ):
-      self._plug_in_external_storage()
+      self.plug_in_external_storage()
 
-    external_storage_path = self._wait_to_mount_or_reformat_external_storage()
-    logging.info('Using external storage with path: %s', external_storage_path)
-
-    external_storage_file_path = self._copy_file_to_external_storage(
+    external_storage_path = self.verify_external_storage_mounted_or_reformat(
+        'External storage not mounted after plugging in.'
+    )
+    external_storage_file_path = self.copy_file_to_external_storage(
         self.host_file_path, external_storage_path
     )
-
-    self._assert_test_file_content_matches(
+    self.verify_test_file_content_matches(
         external_storage_file_path, self.host_file_content
     )
 
