@@ -236,11 +236,15 @@ class MatchedColorIterator:
       self, hsv_match_info: dict[str, float]
   ) -> ExposureFeedback:
     """Returns the exposure feedback from the HSV match info."""
-    exposure_feedback_info = dict(
-        filter(lambda x: x[0] in ExposureFeedback, hsv_match_info.items())
-    )
+    exposure_feedback_info = {
+        key: value
+        for key, value in hsv_match_info.items()
+        if key in [e.value for e in ExposureFeedback]
+    }
     return (
-        max(exposure_feedback_info.items(), key=lambda x: x[1])[0]
+        ExposureFeedback(
+            max(exposure_feedback_info.items(), key=lambda x: x[1])[0]
+        )
         if exposure_feedback_info
         else ExposureFeedback.BALANCED
     )
