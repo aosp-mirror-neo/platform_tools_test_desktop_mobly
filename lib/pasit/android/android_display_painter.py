@@ -79,24 +79,12 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     self._set_screen_brightness(255)
 
     window_count_before = self._get_color_fill_test_app_window_count()
-    self.controller.adb.shell(
-        [
-            'am',
-            'start',
-            '-n',
-            self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
-            '-a',
-            'android.intent.activity.MAIN',
-            '-e',
-            'color',
-            repr(color),
-        ]
-        + (['--display', display_id] if display_id else [])
-    )
-
+    # starting the app may fail, retry a few times to ensure color is shown
     window_count_after = retry.retry(
-        lambda: self._get_color_fill_test_app_window_count(),
-        until=lambda window_count: window_count == window_count_before + 1,
+        lambda: self._try_show_color_on_display(
+            color, window_count_before + 1, display_id
+        ),
+        until=lambda window_count: window_count > window_count_before,
         max_tries=10,
         delay_seconds=1,
     )
@@ -111,12 +99,28 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
   def clean_color_on_display(self):
     if not retry.retry(
-        self.try_clean_color_on_display,
+        self._try_clean_color_on_display,
         until=lambda result: result,
     ):
       raise signals.TestError('Failed to clean color on display.')
 
-  def try_clean_color_on_display(self) -> bool:
+  def _try_show_color_on_display(
+      self, color: image.Color, expected_window_count: int, display_id: str
+  ) -> int:
+    """Attempts to start the ColorFillTestApp.
+
+    Returns the number of windows that show custom background color.
+    """
+    self._start_color_fill_test_app(color, display_id)
+    # After starting the app the window may not appear immediately. So we need
+    # to retry getting windowcount a few times.
+    return retry.retry(
+        lambda: self._get_color_fill_test_app_window_count(),
+        until=lambda window_count: window_count >= expected_window_count,
+        delay_seconds=5,
+    )
+
+  def _try_clean_color_on_display(self) -> bool:
     """Attempts to clean the color on the display.
 
     Stops the ColorFillTestApp and waits for its window to disappear.
@@ -150,6 +154,25 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       return False
 
     return True
+
+  def _start_color_fill_test_app(
+      self, color: image.Color, display_id: str = ''
+  ):
+    """Starts the ColorFillTestApp with the specified color and display."""
+    self.controller.adb.shell(
+        [
+            'am',
+            'start',
+            '-n',
+            self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
+            '-a',
+            'android.intent.activity.MAIN',
+            '-e',
+            'color',
+            repr(color),
+        ]
+        + (['--display', display_id] if display_id else [])
+    )
 
   def _force_stop_color_fill_test_app(self):
     """Forces stop the ColorFillTestApp."""
