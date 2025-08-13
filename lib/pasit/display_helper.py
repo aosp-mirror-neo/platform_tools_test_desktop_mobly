@@ -22,7 +22,15 @@ from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit.passport import passport_host
 from lib.utils import image
-from mobly import signals
+from lib.utils import retry
+
+
+class UnexpectedDisplayCountError(Exception):
+  """Error when the number of displays detected is unexpected."""
+
+
+class MapDisplaysToCamerasError(Exception):
+  """Error when mapping displays to cameras fails."""
 
 
 class DisplayPaths(enum.Enum):
@@ -85,11 +93,17 @@ class DisplayHelper:
     This function assumes that there is only one display plugged in.
 
     Raises:
-      signals.TestError: If the DUT has more than one display plugged in.
+      UnexpectedDisplayCountError: If the DUT has more than one display plugged
+      in.
     """
-    display_ids = self.display.get_display_ids()
+    display_ids = retry.retry(
+        self.display.get_display_ids,
+        until=lambda display_ids: len(display_ids) == 1,
+        max_tries=10,
+        delay_seconds=2,
+    )
     if len(display_ids) > 1:
-      raise signals.TestError(
+      raise UnexpectedDisplayCountError(
           'This method should be called when there is only one display'
           ' plugged in.'
       )
@@ -102,11 +116,17 @@ class DisplayHelper:
     This function assumes that there is only one external display plugged in.
 
     Raises:
-      signals.TestError: If the DUT does not have exactly one external display.
+      UnexpectedDisplayCountError: If the DUT does not have exactly one external
+      display.
     """
-    display_ids = self.display.get_display_ids()
+    display_ids = retry.retry(
+        self.display.get_display_ids,
+        until=lambda display_ids: len(display_ids) == 2,
+        max_tries=10,
+        delay_seconds=2,
+    )
     if len(display_ids) != 2:
-      raise signals.TestError(
+      raise UnexpectedDisplayCountError(
           'This method should be called when there is exactly one external'
           ' display plugged in.'
       )
@@ -116,7 +136,7 @@ class DisplayHelper:
         if display_id != internal_display_id
     ]
     if len(external_display_ids) != 1:
-      raise signals.TestError(
+      raise UnexpectedDisplayCountError(
           'Unexpected number of external displays found'
           f' {len(external_display_ids)}.'
       )
@@ -134,7 +154,7 @@ class DisplayHelper:
       A dictionary of display ID to camera ID.
 
     Raises:
-      signals.TestError: If mapping fails.
+      MapDisplaysToCamerasError: If mapping fails.
     """
     logging.info('Mapping displays to cameras')
     display_id_to_color = self._open_rgb_images_on_displays()
@@ -179,7 +199,7 @@ class DisplayHelper:
               if display_id not in mapping_result
           ],
       )
-      raise signals.TestError(
+      raise MapDisplaysToCamerasError(
           'Failed to map displays to cameras. Check that cameras are aligned'
           ' and displays are functioning.'
       )
@@ -237,11 +257,11 @@ class DisplayHelper:
       A dictionary of display ID to color.
 
     Raises:
-      signals.TestError: If there are too many displays detected.
+      UnexpectedDisplayCountError: If there are too many displays detected.
     """
     display_ids = self.display.get_display_ids()
     if len(display_ids) > len(self._COLORS):
-      raise signals.TestError(
+      raise UnexpectedDisplayCountError(
           'Too many displays detected. Expected at most'
           f' {len(self._COLORS)} displays, but got {len(display_ids)}.'
       )
