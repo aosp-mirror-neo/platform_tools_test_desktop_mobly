@@ -18,7 +18,6 @@ import logging
 
 from mobly import asserts
 from mobly import test_runner
-
 from pasit.storage import storage_base_test
 
 # Each tuple is a list of arguments for a test case. The first argument is a
@@ -42,11 +41,18 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
     return 'test_eject_after_reboot' if reboot else 'test_mount_and_eject'
 
   def eject_test_logic(self, reboot: bool):
-    """Run the test."""
-    self._plug_in_external_storage()
+    """Test ejecting and re-inserting external storage after a reboot.
 
-    external_storage_path = self._wait_to_mount_or_reformat_external_storage()
-    logging.info('Using external storage with path: %s', external_storage_path)
+    Plug in external storage, reboot the DUT if needed, eject the storage,
+    and re-insert it.
+
+    Args:
+      reboot: Whether to reboot the DUT before ejecting the storage.
+    """
+    self.plug_in_external_storage()
+    self.verify_external_storage_mounted_or_reformat(
+        'External storage not mounted after plugging in.'
+    )
 
     if reboot:
       # Reboot the DUT to simulate inserting external storage while the DUT is
@@ -54,29 +60,20 @@ class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
       logging.info('Rebooting DUT')
       self.dut.reboot()
       logging.info('DUT rebooted')
-      asserts.assert_true(
-          self._is_external_storage_mounted(),
+      self.verify_external_storage_mounted(
           'External storage not mounted after reboot.',
       )
 
-    # Eject the external storage will fail if the storage is not mounted.
-    logging.info('Ejecting external storage')
     asserts.assert_true(
-        self.storage.eject_external_storage(),
+        self.eject_external_storage(),
         'Failed to eject external storage after reboot.',
     )
-
-    asserts.assert_true(
-        self._is_external_storage_unmounted(),
-        'External storage not unmounted after ejecting.',
+    self.verify_external_storage_unmounted(
+        'External storage not unmounted after ejecting.'
     )
-    logging.info('External storage unmounted.')
-
-    self._unplug_external_storage()
-    self._plug_in_external_storage()
-
-    asserts.assert_true(
-        self._is_external_storage_mounted(),
+    self.unplug_external_storage()
+    self.plug_in_external_storage()
+    self.verify_external_storage_mounted(
         'External storage not mounted after re-plugging.',
     )
 
