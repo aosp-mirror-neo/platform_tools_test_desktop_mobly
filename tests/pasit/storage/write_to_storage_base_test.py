@@ -25,8 +25,6 @@ from lib.pasit import pasit_file
 from mobly import asserts
 from pasit.storage import storage_base_test
 
-_DUT_TMP_DIR = '/data/local/tmp/'
-
 
 class WriteToStorageBaseTest(storage_base_test.StorageBaseTest):
   """Base test for tests that write to external storage."""
@@ -121,7 +119,7 @@ class WriteToStorageBaseTest(storage_base_test.StorageBaseTest):
       The path to the file on the external storage.
     """
     file_name = path.basename(host_file_path)
-    dut_file_path = path.join(_DUT_TMP_DIR, file_name)
+    dut_file_path = path.join(self.dut.get_temp_dir(), file_name)
     logging.info(
         'Copying file from host [%s] to DUT [%s]',
         host_file_path,
