@@ -17,23 +17,23 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
 from pasit.storage import eject_external_storage
-from pasit.storage import plug_in_external_storage
-from pasit.storage import unplug_external_storage
+from pasit.storage import plug_unplug_external_storage
 
 
 class PasitStorageSuite(base_suite.BaseSuite):
   """PASIT Storage Suite."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(plug_in_external_storage.PlugInExternalStorageTest)
-    self.add_test_class(unplug_external_storage.UnplugExternalStorageTest)
+    self.add_test_class(
+        plug_unplug_external_storage.PlugUnplugExternalStorageTest
+    )
     self.add_test_class(eject_external_storage.EjectExternalStorageTest)
 
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == '__main__':
   main()
