@@ -51,4 +51,4 @@ def get_crtcs_count(dut: pasit_device.PasitDevice) -> int:
           crtc_count += 1
     return crtc_count
   except Exception:
-    return 0
+    return -1

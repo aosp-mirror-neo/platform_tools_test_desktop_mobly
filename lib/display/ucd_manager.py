@@ -24,12 +24,23 @@ from display.utils import compliance_tests_manager
 from display.utils import edid_datum
 from display.utils import edids_list
 from display.utils import interface_types
+from lib.pasit import pasit_device
 from lib.pasit.passport import errors
 from lib.pasit.passport import passport_video_service_client
-from lib.utils import retry
 
 PassportBaseError = errors.PassportBaseError
 ComplianceTestStatus = video_tester_service_pb2.ComplianceTestStatus
+
+
+# ADB shell commands to get the typec status of the DUT for each physical port.
+# They're nice to print when we fail a plug/unplug operation.
+def print_typec_status(dut: pasit_device.PasitDevice):
+  for i in range(4):
+    cmd = f"ectool typecstatus {i}"
+    try:
+      logging.info(dut.shell(cmd.split()).decode("utf-8", errors="ignore"))
+    except:
+      break
 
 
 class UcdManager(abc.ABC):
@@ -39,10 +50,15 @@ class UcdManager(abc.ABC):
   setting the role of the video tester.
   """
 
+  dut: pasit_device.PasitDevice
+
   def __init__(
-      self, vsc: passport_video_service_client.PassportVideoServiceClient
+      self,
+      vsc: passport_video_service_client.PassportVideoServiceClient,
+      dut: pasit_device.PasitDevice,
   ):
     self._vsc = vsc
+    self._dut = dut
 
   @property
   @abc.abstractmethod
@@ -73,6 +89,7 @@ class UcdManager(abc.ABC):
   @staticmethod
   def connect_to_ucd(
       vsc: passport_video_service_client.PassportVideoServiceClient,
+      dut: pasit_device.PasitDevice,
   ) -> "UcdManager":
     # Open the connected UCD to start issuing commands.
     testers = vsc.get_connected_video_testers()
@@ -85,9 +102,9 @@ class UcdManager(abc.ABC):
 
     manager: "UcdManager"
     if "500" in tester.name:
-      manager = Ucd500Manager(vsc)
+      manager = Ucd500Manager(vsc, dut)
     elif "422" in tester.name:
-      manager = Ucd422Manager(vsc)
+      manager = Ucd422Manager(vsc, dut)
     else:
       raise PassportBaseError(
           f"Unsupported UCD model: {tester.name}. Only UCD500 and UCD422 are"
@@ -227,6 +244,7 @@ class UcdManager(abc.ABC):
     if not self.are_displays_reporting_stream_info(
         total_expected_display_count
     ):
+      print_typec_status(self._dut)
       raise PassportBaseError("External displays are not active.")
 
   def are_displays_reporting_stream_info(
@@ -324,6 +342,7 @@ class UcdManager(abc.ABC):
     logging.debug("Detaching...")
     time.sleep(5)
     if not self.are_displays_reporting_stream_info(0):
+      print_typec_status(self._dut)
       raise PassportBaseError("Monitors are not deactivating.")
 
   def reset_ucd_displays_state_to_default(self):
