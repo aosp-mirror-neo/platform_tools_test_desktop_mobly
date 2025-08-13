@@ -17,8 +17,8 @@ package {
 }
 
 python_test_host {
-    name: "DesktopPASITSmokeTests",
-    main: "pasit_smoke_suite.py",
+    name: "DesktopPASITComponentTests",
+    main: "pasit_component_suite.py",
     srcs: ["*.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
@@ -31,34 +31,5 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
     ],
-    pkg_path: "pasit/smoke",
-}
-
-python_test_host {
-    name: "DesktopPASITTestbedSmokeTests",
-    main: "pasit_testbed_smoke_suite.py",
-    srcs: ["*.py"],
-    defaults: ["PASIT-defaults"],
-    test_options: {
-        unit_test: false,
-        runner: "mobly",
-        tags: ["mobly"],
-    },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-        ":snippet-uiautomator",
-        ":ColorFillTest",
-        ":HidDeviceSnippet",
-    ],
-    libs: [
-        "py-pasit-storage",
-        "py-pasit-camera",
-        "py-pasit-display",
-        "py-pasit-hid",
-        "py-display-painter",
-        "py-display-helper",
-    ],
-    // avoid conflict with pasit/smoke
-    pkg_path: "pasit/testbed_smoke",
+    pkg_path: "pasit/component",
 }
