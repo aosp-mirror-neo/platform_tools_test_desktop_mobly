@@ -50,7 +50,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         "Servo is not configured.")
     # Set the UCD.
     self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
-        self.passport_host.video_tester_client
+        self.passport_host.video_tester_client,
+        self.dut,
     )
     self._ucd_manager.unplug_and_destroy_all_displays()
     # Set the max number of displays that can be tested.
@@ -61,8 +62,11 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     )
     logging.info(f"max_tested_displays: {self.max_tested_displays}")
     asserts.assert_greater(
-        self.max_tested_displays, 0,
-        "No displays are supported by the system.",
+        self.max_tested_displays,
+        0,
+        "No displays are supported by the system: max_crtc_on_dut:"
+        f" {max_crtc_on_dut}, max_supported_displays:"
+        f" {self._ucd_manager.max_supported_displays}",
     )
 
   def teardown_test(self):
