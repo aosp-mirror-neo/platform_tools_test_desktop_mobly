@@ -87,20 +87,18 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
+    # must bypass setup wizard before switch to login screen user
+    self.controller.root_adb()
+    self._skip_oobe()
     # for consistency across all runs
     # and to make sure that mbs is installed under the login screen user
     self._switch_to_login_screen_user()
-
     self._test_settings()
-
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.uninstall_apks()
-
     self._install_mbs()
     self._load_mbs()
     self._register_uiautomator()
-    self.controller.root_adb()
-    self._skip_oobe()
     self._bypass_login_screen()
 
   def cleanup(self):
