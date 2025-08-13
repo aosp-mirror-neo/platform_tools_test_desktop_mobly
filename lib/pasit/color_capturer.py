@@ -126,7 +126,7 @@ class MatchedColorIterator:
       ),
       image.NamedColor.BLACK.name: image.HSVMask(
           image.HSV(h=0, s=0, v=0),
-          image.HSV(h=360, s=0.4, v=0.6),
+          image.HSV(h=360, s=1.0, v=0.6),
       ),
       ExposureFeedback.UNDEREXPOSED: image.HSVMask(
           image.HSV(h=0, s=0, v=0),
