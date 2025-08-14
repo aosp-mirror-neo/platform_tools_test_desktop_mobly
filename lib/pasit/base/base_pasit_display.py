@@ -21,6 +21,19 @@ from typing import Any
 class BasePasitDisplay(metaclass=abc.ABCMeta):
   """Interface for display operations for PASIT testing."""
 
+  class DisplayResolution:
+    """Class for holding the resolution of a display."""
+
+    def __init__(self, width: int, height: int):
+      self.width = width
+      self.height = height
+
+    def __str__(self):
+      return f'{self.width} x {self.height}'
+
+  class InfoNotFoundError(Exception):
+    """Error raised when the display info is not found."""
+
   def __init__(self, controller: Any):
     """Initializes the PasitDisplay."""
     self.controller = controller
@@ -33,4 +46,17 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_display_ids(self) -> list[str]:
     """Returns the display IDs."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_display_resolution(self, display_id: str = '') -> DisplayResolution:
+    """Returns the resolution of the display.
+
+    Args:
+      display_id: The display ID to get the resolution of. If not specified, the
+        resolution of the first display will be returned.
+
+    Returns:
+      The resolution of the display.
+    """
     raise NotImplementedError
