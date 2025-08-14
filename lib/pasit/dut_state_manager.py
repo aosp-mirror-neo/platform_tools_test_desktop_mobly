@@ -72,10 +72,10 @@ class EnterStateAndReturnToPowerOn:
       self._dut.suspend()
 
   def __exit__(self, exc_type, exc_val, exc_tb):
-    if (
-        self._desired_state == PowerState.OFF
-        or self._desired_state == PowerState.SUSPEND
-    ):
+    if self._desired_state == PowerState.OFF:
       logging.info('Powering on DUT')
       self._dut.power_on()
+    elif self._desired_state == PowerState.SUSPEND:
+      logging.info('Waking up DUT from suspend')
+      self._dut.wakeup()
     return False

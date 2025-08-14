@@ -121,6 +121,17 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def wakeup(self):
+    """Wakes up the device from suspend and waits for it to be online.
+
+    Will also ensure that the device is logged in after waking up.
+
+    Raises:
+      Implementation specific exceptions, if the device fails to wake up.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
     """Suspends the device with optional wakup_timeout in seconds.
 

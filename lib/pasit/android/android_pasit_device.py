@@ -167,6 +167,17 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
 
+  def wakeup(self):
+    self._request_power_on()
+    # TODO: b/414995167 - better way to reduce falkiness
+    time.sleep(2)
+    self.controller.wait_for_boot_completion(
+        timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
+    )
+    self._start_services()
+    # if device was previously suspended ensure that the wakelocks are restored
+    self._set_wakup_timeout(0)
+
   def power_off(self):
     self._stop_services()
     self._request_power_off()
