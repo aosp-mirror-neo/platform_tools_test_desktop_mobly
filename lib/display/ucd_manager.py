@@ -232,6 +232,7 @@ class UcdManager(abc.ABC):
       )
       if not self._vsc.send_hpd_pulse():
         raise PassportBaseError("Failed to send HPD pulse.")
+      time.sleep(5)
     else:
       logging.info(
           f"Attaching {total_expected_display_count} displays to the DUT with"
@@ -239,7 +240,6 @@ class UcdManager(abc.ABC):
       )
       if not self._vsc.perform_attach_operation(True):
         raise PassportBaseError("Failed to attach to the DUT.")
-    time.sleep(5)
 
     if not self.are_displays_reporting_stream_info(
         total_expected_display_count
@@ -337,10 +337,9 @@ class UcdManager(abc.ABC):
   def unplug_and_destroy_all_displays(self):
     """Unplug all the displays and destroy them."""
     self._set_display_caps(is_mst=False, displays_to_set=0)
+    logging.debug("Detaching...")
     if not self._vsc.perform_attach_operation(False):
       raise PassportBaseError("Failed to detach from the DUT.")
-    logging.debug("Detaching...")
-    time.sleep(5)
     if not self.are_displays_reporting_stream_info(0):
       print_typec_status(self._dut)
       raise PassportBaseError("Monitors are not deactivating.")
@@ -459,7 +458,6 @@ class Ucd500Manager(UcdManager):
         mst_sink_count=displays_to_set,
     ):
       raise PassportBaseError("Failed to set DP link capabilities.")
-    time.sleep(5)
 
   def _set_edid(self, edid: edid_datum.EdidDatum, stream_id: int) -> None:
     if edid.interface_type != interface_types.InterfaceType.DP:

@@ -15,7 +15,7 @@
 """Passport Video service client."""
 
 import logging
-
+import time
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from chromiumos.test.lab.api.passport import video_tester_service_pb2_grpc
 import grpc
@@ -243,6 +243,7 @@ class PassportVideoServiceClient:
 
     try:
       self._stub.SetLinkVideoTester(request)
+      time.sleep(1)
       return True
     except grpc.RpcError:
       logging.exception("Error setting link parameters")
@@ -280,6 +281,7 @@ class PassportVideoServiceClient:
               id=self._tester_id, attach=attach
           )
       )
+      time.sleep(5)
       return True
     except grpc.RpcError:
       logging.exception("Error attaching/detaching display")
