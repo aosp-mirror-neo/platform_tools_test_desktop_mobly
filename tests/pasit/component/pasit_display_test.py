@@ -71,11 +71,7 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     )
 
   def test_get_external_display_resolution(self):
-    internal_display_id = self.helper.get_internal_display_id()
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    external_display_id = self.helper.get_external_display_id(
-        internal_display_id
-    )
+    external_display_id = self._plug_in_external_display()
     display_resolution = self.display.get_display_resolution(
         external_display_id
     )
@@ -84,6 +80,39 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         external_display_id,
         display_resolution,
     )
+
+  def test_get_supported_display_resolutions(self):
+    supported_resolutions = self.display.get_supported_display_resolutions()
+    logging.info(
+        'Supported resolutions without display id: %s', supported_resolutions
+    )
+
+    display_id = self.helper.get_internal_display_id()
+    supported_resolutions = self.display.get_supported_display_resolutions(
+        display_id
+    )
+    logging.info(
+        'Supported resolutions with display id %s: %s',
+        display_id,
+        supported_resolutions,
+    )
+
+  def test_get_supported_display_resolutions_external_display(self):
+    external_display_id = self._plug_in_external_display()
+    supported_resolutions = self.display.get_supported_display_resolutions(
+        external_display_id
+    )
+    logging.info(
+        'Supported resolutions with display id %s: %s',
+        external_display_id,
+        supported_resolutions,
+    )
+
+  def _plug_in_external_display(self) -> str:
+    """Plug in external display and return the external display ID."""
+    internal_display_id = self.helper.get_internal_display_id()
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    return self.helper.get_external_display_id(internal_display_id)
 
 
 if __name__ == '__main__':
