@@ -108,6 +108,26 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         supported_resolutions,
     )
 
+  def test_get_set_night_light(self):
+    night_light_enabled = self.display.get_night_light_enabled()
+    logging.info('Night light is enabled: %s', night_light_enabled)
+
+    logging.info('Setting night light to %s', not night_light_enabled)
+    self.display.set_night_light_enabled(not night_light_enabled)
+    asserts.assert_equal(
+        self.display.get_night_light_enabled(),
+        not night_light_enabled,
+        'Night light is not set correctly.',
+    )
+
+    logging.info('Setting night light to %s', night_light_enabled)
+    self.display.set_night_light_enabled(night_light_enabled)
+    asserts.assert_equal(
+        self.display.get_night_light_enabled(),
+        night_light_enabled,
+        'Night light is not set correctly.',
+    )
+
   def _plug_in_external_display(self) -> str:
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()

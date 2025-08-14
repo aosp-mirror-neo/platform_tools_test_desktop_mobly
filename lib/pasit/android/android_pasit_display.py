@@ -92,6 +92,30 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
         for match in matches
     }
 
+  def set_night_light_enabled(self, enabled: bool):
+    self.controller.adb.shell([
+        'settings',
+        'put',
+        'secure',
+        'night_display_activated',
+        '1' if enabled else '0',
+    ])
+
+  def get_night_light_enabled(self) -> bool:
+    # night_display_activated is 1 if night light is enabled, 0 otherwise.
+    return (
+        self.controller.adb.shell([
+            'settings',
+            'get',
+            'secure',
+            'night_display_activated',
+        ])
+        .decode('utf-8')
+        .strip()
+        .lower()
+        .startswith('1')
+    )
+
   def _get_display_info_lines(self) -> list[str]:
     dumpsys_display_lines = (
         self.controller.adb.shell(['dumpsys', 'display']).decode().splitlines()
