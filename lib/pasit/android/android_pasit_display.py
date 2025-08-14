@@ -116,6 +116,34 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
         .startswith('1')
     )
 
+  def set_night_light_temperature(self, temperature: int):
+    self.controller.adb.shell([
+        'settings',
+        'put',
+        'secure',
+        'night_display_color_temperature',
+        str(temperature),
+    ])
+
+  def get_night_light_temperature(self) -> int:
+    output = (
+        self.controller.adb.shell([
+            'settings',
+            'get',
+            'secure',
+            'night_display_color_temperature',
+        ])
+        .decode('utf-8')
+        .strip()
+    )
+
+    try:
+      return int(output)
+    except ValueError:
+      raise InfoNotFoundError(
+          f'Failed to parse night_display_color_temperature: {output}'
+      ) from None
+
   def _get_display_info_lines(self) -> list[str]:
     dumpsys_display_lines = (
         self.controller.adb.shell(['dumpsys', 'display']).decode().splitlines()

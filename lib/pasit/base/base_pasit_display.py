@@ -97,3 +97,21 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
       True if the night light is enabled, False otherwise.
     """
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_night_light_temperature(self, temperature: int):
+    """Sets the night light temperature.
+
+    Args:
+      temperature: The night light temperature in Kelvin.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_night_light_temperature(self) -> int:
+    """Returns the night light temperature.
+
+    Returns:
+      The night light temperature in Kelvin.
+    """
+    raise NotImplementedError
