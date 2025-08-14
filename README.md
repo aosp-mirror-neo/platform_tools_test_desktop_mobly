@@ -5,6 +5,12 @@
 Mobly tests go here. The tests are organized by project/team. Further
 organization under project/team is up to the OWNERS of that folder.
 
+### pasit/
+
+Within pasit, the tests are organized by subsystem (camera, display, storage).
+Additionaly, there are tests for pasit library that require a physical DUT
+(under component/), and tests to validate the pasit testbed (under testbed/).
+
 ### Guidelines
 
 -   Use `verify_` prefix for methods that contains asserts.
@@ -13,12 +19,12 @@ organization under project/team is up to the OWNERS of that folder.
 
 ## lib/
 
-Code that is not tests goes here. Organized by the functionality it provides,
-and intended to be used by mobly/tests code.
+Code that is not tests goes here (except unit tests). Organized by the
+functionality it provides, and intended to be used by mobly/tests code.
 
 ### Guidelines
 
--   Do not include asserts or TestErrors in the libraries. Raise an error or
+-   Do not include asserts or TestErrors in the library code. Raise an error or
     return appropriate value instead.
 
 ## tools/

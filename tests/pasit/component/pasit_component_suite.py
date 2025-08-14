@@ -12,37 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A suite of tests that exercise PASIT testbed setup."""
+"""A suite of tests that exercise PASIT component tests."""
 
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-from pasit.testbed_smoke import pasit_peripheral_test
-from pasit.testbed_smoke import pasit_servo_test
-from pasit.testbed_smoke import passport_host_test
+from pasit.component import pasit_device_test
 
 
-class PasitTestbedSmokeSuite(base_suite.BaseSuite):
-  """A suite of tests that exercise PASIT testebed.
-
-  This suite is designed to run a collection of PASIT smoke tests,
-  to identify issues with the testbed setup.
-  """
+class PasitComponentSuite(base_suite.BaseSuite):
+  """A suite of tests that exercise PASIT component tests."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
     self.add_test_class(
-        passport_host_test.PassportHostTest,
-    )
-    self.add_test_class(
-        pasit_servo_test.ServoTest,
-    )
-    self.add_test_class(
-        pasit_peripheral_test.PasitPeripheralTest,
+        pasit_device_test.PasitDeviceTest,
     )
 
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == '__main__':
   main()

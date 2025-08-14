@@ -12,16 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A smoke test that validates PasitDevice functionality.
-
-PasitDevice is a wrapper around Mobly's device controller and servo client that
-allows for easier interaction with tested devices.
-"""
+"""A test that exercises PASIT Device component tests."""
 
 import logging
 
 from lib.pasit import pasit_device
-from lib.pasit.android import android_pasit_device
 from mobly import asserts
 from mobly import base_test
 from mobly import test_runner

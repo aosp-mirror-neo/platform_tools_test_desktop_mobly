@@ -29,20 +29,21 @@ class PASITSuiteImportTest(unittest.TestCase):
   def test_import_pasit_camera_suite(self):
     from pasit.camera import pasit_camera_suite
 
+  def test_import_pasit_component_suite(self):
+    from pasit.component import pasit_component_suite
+
   def test_import_pasit_display_suite(self):
     from pasit.display import pasit_display_suite
 
   def test_import_pasit_hid_suite(self):
     from pasit.hid import pasit_hid_suite
 
-  def test_import_pasit_smoke_suite(self):
-    from pasit.smoke import pasit_smoke_suite
-
   def test_import_pasit_storage_suite(self):
     from pasit.storage import pasit_storage_suite
 
-  def test_import_pasit_testbed_smoke_suite(self):
-    from pasit.testbed_smoke import pasit_testbed_smoke_suite
+  def test_import_pasit_testbed_suite(self):
+    from pasit.testbed import pasit_testbed_suite
+
 
 if __name__ == '__main__':
   unittest.main()

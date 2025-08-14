@@ -48,8 +48,8 @@ python_test_host {
         "DesktopPASITCameraTests",
         "DesktopPASITDisplayTests",
         "DesktopPASITHIDTests",
-        "DesktopPASITSmokeTests",
-        "DesktopPASITTestbedSmokeTests",
+        "DesktopPASITComponentTests",
+        "DesktopPASITTestbedTests",
         "DesktopPASITStorageTests",
     ],
 }
