@@ -82,7 +82,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
       self._ucd_manager.disconnect_ucd()
       self.dut.reboot()
       self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
-          self.passport_host.video_tester_client
+          self.passport_host.video_tester_client,
+          self.dut,
       )
       # After a reboot, unplug everything (unplugging might have failed earlier).
       self._ucd_manager.unplug_and_destroy_all_displays()
@@ -150,12 +151,14 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     screenshot_raw = image.process_bmp_img_to_raw(screenshot_bmp)
 
     timestamp = int(time.time())
+
     if color:
       filename = f"display_{display_index}_{color}_{timestamp}_raw.bmp"
       if not image.check_rgb_image_matches_color(screenshot_raw, color):
         self._save_screenshot(screenshot_bmp, filename)
         raise ValueError(f"Screenshot for display {display_index} does not match the expected color {color}. Saved to {filename}.")
       logging.info(f"Screenshot for display {display_index} matches the expected color {color}.")
+
     else:
       filename = f"display_{display_index}_{timestamp}_raw.bmp"
       if not image.is_rgb_image_not_black(screenshot_raw):

@@ -15,6 +15,7 @@
 """Utility functions for working with images."""
 
 import enum
+import logging
 import math
 
 
@@ -137,44 +138,75 @@ def check_rgb_image_matches_color(
 
 
 def is_rgb_image_not_black(image_raw: bytes) -> bool:
-  """Checks if the RGB image is not black.
+  """Checks if a screen is active by analyzing its raw RGB byte stream.
 
-  An image is considered "not black" if it has a sufficient percentage of
-  non-black pixels and a variety of color values.
+  This function avoids external libraries. It considers a screen "active"
+  if it has a minimum number of pixels that are brighter than a defined
+  blackness threshold.
 
   Args:
-    image_raw: The raw image data as bytes.
+    image_raw: The raw RGB image data as a stream of bytes.
 
   Returns:
-    True if the image is not black, False otherwise.
+    True if the screen is considered active, False otherwise.
   """
-  # Values below this are considered "black"
+
+  pixel_count = 0
+  active_pixel_count = 0
+  active_brightness_sum = 0  # sum of brightness of active pixels to calculate average brightness later.
+  black_brightness_sum = 0
+
+  def _log_pixel():
+    logging.debug(
+        f'active pixels: {active_pixel_count} out of {pixel_count}.'
+        f' Img size: {len(image_raw)}'
+    )
+    if active_pixel_count > 0:
+      logging.debug(
+          f'average brightness: {active_brightness_sum / active_pixel_count}'
+      )
+    black_pixel_count = pixel_count - active_pixel_count
+    if black_pixel_count > 0:
+      logging.debug(
+          f'black brightness: {black_brightness_sum / black_pixel_count}'
+      )
+
+  # Any average brightness value below this is considered "black".
+  # This helps ignore minor backlight bleed or sensor noise.
   black_threshold = 10
-  # Minimum percentage of non-black pixels to consider active
-  minimum_non_black_percent = 5.0
-  # Minimum number of unique color values for real content
-  minimum_unique_values = 3
 
-  total_pixels = len(image_raw)
-  if not image_raw or total_pixels == 0:
-    raise ValueError('Image data is empty or not provided.')
+  # Require at least this many pixels to be "non-black" to confirm a real signal.
+  # This filters out single stray pixels or random noise.
+  min_active_pixels = 50
 
-  # Count non-black pixels (using a threshold)
-  # For most image formats, black is 0 or very close to 0
-  non_black = sum(1 for byte in image_raw if byte > black_threshold)
-  # Calculate percentage of non-black content
-  non_black_percentage = (non_black * 100) / total_pixels
+  # A valid raw RGB stream should have a length divisible by 3.
+  if not image_raw or len(image_raw) % 3 != 0:
+    # This could also indicate that the byte stream is not raw RGB data
+    # but a file format with a header (like BMP or PNG).
+    logging.info(f'Invalid image size: {len(image_raw)}')
+    return False
 
-  # Convert samples to a set to eliminate duplicates, then count unique values
-  unique_color_count = len(set(image_raw))
+  # Iterate over the data in 3-byte chunks (one pixel at a time).
+  for i in range(0, len(image_raw), 3):
+    r, g, b = image_raw[i], image_raw[i + 1], image_raw[i + 2]
+    pixel_count += 1
 
-  # Screen is showing content if:
-  # 1. It has sufficient non-black pixels AND
-  # 2. It has enough variety in color values
-  return (
-      non_black_percentage > minimum_non_black_percent
-      and unique_color_count > minimum_unique_values
-  )
+    # Calculate the average brightness of the pixel.
+    brightness = (r + g + b) // 3
+
+    # Check if the pixel is brighter than our threshold.
+    if brightness > black_threshold:
+      active_brightness_sum += brightness
+      active_pixel_count += 1
+      if active_pixel_count >= min_active_pixels:
+        _log_pixel()
+        return True
+    else:
+      black_brightness_sum += brightness
+
+  # If the loop completes, not enough active pixels were found.
+  _log_pixel()
+  return False
 
 
 def process_bmp_img_to_raw(bmp_data: bytes) -> bytes:

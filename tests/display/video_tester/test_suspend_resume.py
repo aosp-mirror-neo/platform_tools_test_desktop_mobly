@@ -244,12 +244,8 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
             f"{suspend_time} seconds."
         ),
     )
-    for i in range(display_count):
-      screenshot = self._ucd_manager.get_screenshot_display(i)
-      asserts.assert_true(
-          image.is_rgb_image_not_black(screenshot),
-          f"Screenshot for display {i} is black.",
-      )
+
+    self.check_all_screenshots_for_displays(display_count)
 
 
 class SuspendResumeTestSuite(base_suite.BaseSuite):
