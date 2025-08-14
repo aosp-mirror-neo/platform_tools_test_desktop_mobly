@@ -31,5 +31,8 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
     ],
+    libs: [
+        "py-pasit-display",
+    ],
     pkg_path: "pasit/component",
 }

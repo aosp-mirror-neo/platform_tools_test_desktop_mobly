@@ -18,6 +18,7 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 from pasit.component import pasit_device_test
+from pasit.component import pasit_display_test
 
 
 class PasitComponentSuite(base_suite.BaseSuite):
@@ -26,6 +27,9 @@ class PasitComponentSuite(base_suite.BaseSuite):
   def setup_suite(self, config: config_parser.TestRunConfig):
     self.add_test_class(
         pasit_device_test.PasitDeviceTest,
+    )
+    self.add_test_class(
+        pasit_display_test.PasitDisplayTest,
     )
 
 
