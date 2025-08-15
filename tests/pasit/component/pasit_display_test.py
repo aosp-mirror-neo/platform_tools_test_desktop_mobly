@@ -128,6 +128,29 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         'Night light is not set correctly.',
     )
 
+  def test_get_set_night_light_temperature(self):
+    night_light_temperature = 7000
+    logging.info(
+        'Setting night light temperature to %s', night_light_temperature
+    )
+    self.display.set_night_light_temperature(night_light_temperature)
+    asserts.assert_equal(
+        self.display.get_night_light_temperature(),
+        night_light_temperature,
+        'Night light temperature is not set correctly.',
+    )
+
+    new_night_light_temperature = 5000
+    logging.info(
+        'Setting night light temperature to %s', new_night_light_temperature
+    )
+    self.display.set_night_light_temperature(new_night_light_temperature)
+    asserts.assert_equal(
+        self.display.get_night_light_temperature(),
+        new_night_light_temperature,
+        'Night light temperature is not set correctly.',
+    )
+
   def _plug_in_external_display(self) -> str:
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
