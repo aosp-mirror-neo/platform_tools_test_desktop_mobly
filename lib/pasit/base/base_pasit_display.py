@@ -79,3 +79,21 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
       ID for the resolution setting, and the value is the resolution.
     """
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_night_light_enabled(self, enabled: bool):
+    """Enables or disables the night light.
+
+    Args:
+      enabled: True to enable the night light, False to disable it.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_night_light_enabled(self) -> bool:
+    """Returns the night light enabled status.
+
+    Returns:
+      True if the night light is enabled, False otherwise.
+    """
+    raise NotImplementedError
