@@ -113,25 +113,18 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    match_color = retry.retry(
-        lambda: self.helper.capture_color(
-            camera_id, f'{camera_capture_name}_from_camera{camera_id}'
+    asserts.assert_true(
+        self.helper.try_match_color(
+            camera_id,
+            expected_color,
+            f'{camera_capture_name}_from_camera{camera_id}',
         ),
-        until=lambda match_color: match_color is not None
-        and match_color == expected_color,
-        delay_seconds=5,
+        failure_message,
     )
     logging.info(
-        'Camera %s detected color %s with display color %s',
+        'Camera %s detected color %s as expected',
         camera_id,
-        match_color.name if match_color else 'None',
         expected_color.name,
-    )
-    asserts.assert_is_not_none(match_color, failure_message)
-    asserts.assert_equal(
-        match_color,
-        expected_color,
-        failure_message,
     )
 
   def _map_displays_to_cameras_with_retries(self) -> dict[str, str]:

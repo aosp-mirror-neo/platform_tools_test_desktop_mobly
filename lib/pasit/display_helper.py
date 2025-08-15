@@ -227,28 +227,38 @@ class DisplayHelper:
       raise ValueError(f'Display ID {display_id} is not valid.')
     return display_id_to_camera_id[display_id]
 
-  def capture_color(
+  def try_match_color(
       self,
       camera_id: str,
+      color: image.NamedColor,
       camera_capture_prefix: str = '',
-  ) -> image.NamedColor | None:
+  ) -> bool:
     """Returns the color captured from the camera.
 
     Args:
       camera_id: The camera ID to get the color from.
+      color: The color to match.
       camera_capture_prefix: The prefix to use for the camera capture.
 
     Returns:
-      The color from the camera, or None if no color is matched.
+      True if the color is matched, False otherwise.
     """
     # return the first matched color that is not None, or None if no color is
     # matched.
+    last_matched_color = None
     for matched_color in self._get_color_iterator(
         camera_id, camera_capture_prefix
     ):
-      if matched_color:
-        return matched_color
-    return None
+      if matched_color and matched_color == color:
+        return True
+      last_matched_color = matched_color
+    logging.info(
+        'Camera %s did not match color %s. Last matched color: %s',
+        camera_id,
+        color.name,
+        last_matched_color,
+    )
+    return False
 
   def _open_rgb_images_on_displays(self) -> dict[str, image.NamedColor]:
     """Opens RGB images on the displays.
@@ -309,7 +319,12 @@ class DisplayHelper:
       camera_id: str,
       camera_capture_prefix: str = '',
   ) -> color_capturer.MatchedColorIterator:
-    """Returns an iterator for the color captured from the camera."""
+    """Returns an iterator for the color captured from the camera.
+
+    Iterates through the exposure times using binary search, for each exposure
+    time, captures an image from the camera, and uses the data from the passport
+    HSV analysis to find a matched color. Yields image.NamedColor.
+    """
     return color_capturer.MatchedColorIterator(
         self.passport,
         camera_id,
