@@ -15,7 +15,6 @@
 """Test launching the camera app with an external camera plugged in."""
 
 from lib.utils import image
-from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
@@ -57,18 +56,13 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
     self.camera.maximize_camera_app_window()
-    match_color = retry.retry(
-        lambda: self.helper.capture_color(
-            camera_id, 'external_camera_preview_color'
-        ),
-        until=lambda match_color: match_color is not None,
-        max_tries=3,
-        delay_seconds=1,
-    )
-
     self._capture_screenshots('external_camera_preview_color')
-    asserts.assert_is_not_none(match_color, message)
-    asserts.assert_equal(match_color.value, color.value, message)
+    asserts.assert_true(
+        self.helper.try_match_color(
+            camera_id, color, 'external_camera_preview_color'
+        ),
+        message,
+    )
 
 
 if __name__ == '__main__':
