@@ -17,6 +17,7 @@
 import abc
 import enum
 import logging
+import time
 import xmlrpc.client as xmlrpc_client
 from chromiumos.test.api.bols import bols_service_pb2
 from chromiumos.test.api.lsnexus import lsnexus_service_pb2
@@ -39,14 +40,28 @@ class PowerState(str, enum.Enum):
 class ServoBase(abc.ABC):
   """Base class for interacting with Servod"""
 
-  @abc.abstractmethod
   def set_power_state(self, power_state: PowerState):
     """Sets the power state of the DUT via Servod."""
+    self._set_servod_value('power_state', power_state.value)
+
+  def cold_reset(self):
+    """Performs a cold reset of the DUT via Servod."""
+    self._set_servod_value('cold_reset', PowerState.ON.value)
+    time.sleep(1)
+    self._set_servod_value('cold_reset', PowerState.OFF.value)
+
+  @abc.abstractmethod
+  def _set_servod_value(self, name: str, value: str) -> None:
+    """Sets the value of a Servod control."""
     pass
 
   @abc.abstractmethod
-  def verify_connected(self):
-    """Verifies that the client is connected to the Servod."""
+  def verify_connected(self) -> None:
+    """Verifies that the client is connected to the Servod.
+
+    Raises:
+      ServoConnectionError: If the client is not connected to the Servod.
+    """
     pass
 
 
@@ -72,12 +87,12 @@ class LSNexusClient(ServoBase):
           f'Failed to verify connection to LSNexus: {response}'
       )
 
-  def set_power_state(self, power_state: PowerState):
-    """Sets the power state of the DUT via Servod."""
+  def _set_servod_value(self, name: str, value: str):
+    """Sets the value of a Servod control."""
     request = lsnexus_service_pb2.CallServodRequest(
         method=lsnexus_service_pb2.CallServodRequest.Method.SET,
-        control='power_state',
-        args=[bols_service_pb2.ServodValue(string_value=power_state.value)],
+        control=name,
+        args=[bols_service_pb2.ServodValue(string_value=value)],
     )
     self._call_servod(request)
 
@@ -106,9 +121,7 @@ class ServodClient(ServoBase):
           f'Failed to verify connection to Servod: {response}'
       )
 
-  def set_power_state(self, power_state: PowerState):
-    """Sets the power state of the DUT via Servod."""
-
-    value = power_state.value
-    response = self._xmlrpc_client.set('power_state', value)
-    logging.debug('Set power state to "%s" -> %s', value, response)
+  def _set_servod_value(self, name: str, value: str):
+    """Sets the value of a Servod control."""
+    response = self._xmlrpc_client.set(name, value)
+    logging.debug('Set %s to "%s" -> %s', name, value, response)
