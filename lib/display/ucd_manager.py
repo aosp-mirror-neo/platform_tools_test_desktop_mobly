@@ -488,11 +488,7 @@ class Ucd422Manager(UcdManager):
       raise PassportBaseError("Failed to set role for video tester.")
 
   def _get_default_edids(self) -> list[edid_datum.EdidDatum]:
-    return [
-        # TODO: b/418250484 - Add the default EDID for the UCD422 once it's
-        # available.
-        edids_list.HP_Spectre32_4K_HDMI
-    ]
+    return [edids_list.UCD_422_HDMI]
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
     if displays_to_set > self.max_supported_displays:
