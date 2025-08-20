@@ -21,6 +21,8 @@ from typing import Any
 
 from lib.utils import servo_client
 
+DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS = 120
+
 
 class ShellError(Exception):
   """Raised when a shell command fails.
@@ -50,6 +52,10 @@ class ShellError(Exception):
 
 class ServoNotConfiguredError(Exception):
   """Error when Servo is not configured."""
+
+
+class DeviceNotOnlineError(Exception):
+  """Error when device is not online."""
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
@@ -108,6 +114,18 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def wait_for_device_online(self, timeout: int):
+    """Waits for the device to be online with a specific timeout.
+
+    Args:
+      timeout: The timeout in seconds to wait for the device to be online.
+
+    Raises:
+      DeviceNotOnlineError: If the device is not online after the timeout.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def suspend(self):
     """Suspends the device and waits for it to be offline.
 
@@ -154,7 +172,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   def power_on_if_offline(self, timeout: int = 5) -> bool:
-    """Powers on the device if it is offline.
+    """Performs a cold reset on the device to attempt to reconnect it.
 
     Args:
       timeout: The timeout in seconds to wait for the device to be online.
@@ -164,8 +182,14 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """
     if not self.is_device_online(timeout):
       if self._servo:
-        logging.debug('Device is offline, powering on...')
-        self.power_on()
+        logging.debug('Device is offline, performing cold reset...')
+        self._servo.cold_reset()
+        try:
+          self.wait_for_device_online(
+              DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS
+          )
+        except DeviceNotOnlineError:
+          logging.error('Device is still offline after cold reset.')
       return True
     return False
 

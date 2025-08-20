@@ -118,9 +118,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
-    self.controller.wait_for_boot_completion(
-        timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
-    )
+    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     self.user_session.switch_to_login_screen_user()
@@ -137,9 +135,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
-    self.controller.wait_for_boot_completion(
-        timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
-    )
+    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -185,10 +181,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._suspend()
 
     wakeup_timer.join()
-    self.controller.wait_for_boot_completion(
-        timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
-    )
+    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
     self._start_services()
+
+  def wait_for_device_online(self, timeout=BOOT_COMPLETION_TIMEOUT_SECONDS):
+    try:
+      self.controller.wait_for_boot_completion(timeout=timeout)
+    except android_device.DeviceError as e:
+      raise base_pasit_device.DeviceNotOnlineError(
+          f'Device not online after timeout {timeout} seconds.'
+      ) from e
 
   def suspend(self):
     self._stop_services()
