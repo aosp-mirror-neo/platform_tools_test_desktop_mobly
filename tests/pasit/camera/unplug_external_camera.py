@@ -31,24 +31,22 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
     internal camera.
     """
 
-    internal_camera_devices = self.camera.get_connected_cameras()
-    self._launch_camera_app()
+    self.launch_camera_app()
     self._capture_screenshots('after_launch_camera_app')
 
-    self._plug_in_external_camera()
-    external_camera_devices = self._wait_for_external_camera_devices(
-        internal_camera_devices
+    internal_camera_devices, external_camera_devices = (
+        self.connect_external_camera()
     )
     self._capture_screenshots('after_plug_in_external_camera')
 
-    self._switch_camera()
-    self._verify_camera_app_is_using_any_device(
+    self.switch_camera()
+    self.verify_camera_app_is_using_any_device(
         external_camera_devices, 'external camera'
     )
     self._capture_screenshots('after_switch_camera')
 
-    self._unplug_external_camera()
-    self._verify_camera_app_is_using_any_device(
+    self.unplug_external_camera()
+    self.verify_camera_app_is_using_any_device(
         internal_camera_devices, 'internal camera'
     )
     self._capture_screenshots('after_unplug_external_camera')
