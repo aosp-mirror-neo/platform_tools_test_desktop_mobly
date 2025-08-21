@@ -24,6 +24,7 @@ from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_file
 from lib.utils import image
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
@@ -136,8 +137,14 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     self.camera.stop_recording_video()
 
   def _verify_captured_files_exist(self):
+    file_list = retry.retry(
+        lambda: self.file.list_files(self.camera.get_files_path()),
+        until=lambda file_list: file_list,
+        max_tries=10,
+        delay_seconds=1,
+    )
     asserts.assert_greater(
-        len(self.file.list_files(self.camera.get_files_path())),
+        len(file_list),
         0,
         'No photos or videos were captured.',
     )
