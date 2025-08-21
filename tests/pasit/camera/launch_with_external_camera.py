@@ -26,14 +26,11 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   def test_launch_with_external_camera(self):
     """Test launching the camera app with an external camera plugged in."""
 
-    internal_camera_devices = self.camera.get_connected_cameras()
-    self._plug_in_external_camera()
-    self._wait_for_external_camera_devices(internal_camera_devices)
-
-    self._launch_camera_app()
+    self.connect_external_camera()
+    self.launch_camera_app()
     self._capture_screenshots('camera_app_launched')
 
-    self._switch_camera()
+    self.switch_camera()
     self._capture_screenshots('after_switch_to_external_camera')
     self._verify_external_camera_captures_color(
         image.NamedColor.RED,
@@ -51,7 +48,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
       message: The message to use for the assertion if the verification fails.
     """
     # Display-testing camera, pointed at internal display.
-    camera_id = self._show_color_for_external_camera_preview(color)
+    camera_id = self.show_color_for_external_camera_preview(color)
 
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.

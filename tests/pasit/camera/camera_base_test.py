@@ -57,15 +57,17 @@ class CameraBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     """Handle the teardown for the test."""
+    self.painter.clean_color_on_display()
     self.camera.close_camera_app()
     super().teardown_test()
 
   def teardown_class(self):
     """Handle the teardown for the class."""
-    self.painter.cleanup()
+    if hasattr(self, 'painter'):
+      self.painter.cleanup()
     super().teardown_class()
 
-  def _launch_camera_app(self):
+  def launch_camera_app(self):
     """Launches the camera app.
 
     Raises:
@@ -75,23 +77,31 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     if not self.camera.launch_camera_app():
       raise signals.TestError('Failed to launch camera app.')
 
-  def _switch_camera(self):
+  def switch_camera(self):
     """Switches to the front or back camera."""
     logging.info('Switching camera')
     self.camera.switch_camera()
 
-  def _switch_mode(self, mode: pasit_camera.PasitCamera.Mode):
+  def switch_mode(self, mode: pasit_camera.PasitCamera.Mode):
+    """Switches to the photo or video mode.
+
+    Args:
+      mode: The mode to switch to.
+
+    Raises:
+      signals.TestError: If the mode switch fails.
+    """
     logging.info('Switching to %s mode', mode.name)
     if not self.camera.switch_mode(mode):
       raise signals.TestError(f'Failed to switch to {mode.name} mode')
 
-  def _plug_in_external_camera(self):
-    """Emulate external camera plug in using passport."""
+  def plug_in_external_camera(self):
+    """Plugs in external camera."""
     logging.info('Plugging in external camera')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_CAMERA)
 
-  def _unplug_external_camera(self):
-    """Emulate external camera unplug using passport."""
+  def unplug_external_camera(self):
+    """Unplugs external camera."""
     logging.info('Unplugging external camera')
     self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_CAMERA)
 
@@ -120,13 +130,29 @@ class CameraBaseTest(pasit_test.PasitTestClass):
         until=lambda result: result,
     )
 
-  def _verify_camera_app_is_using_any_device(
+  def connect_external_camera(
+      self,
+  ) -> (MutableSequence[str], MutableSequence[str]):
+    """Connects the external camera.
+
+    Returns:
+      A tuple of the internal camera devices and the external camera devices.
+    """
+    internal_camera_devices = self.camera.get_connected_cameras()
+    self.plug_in_external_camera()
+    external_camera_devices = self._wait_for_external_camera_devices(
+        internal_camera_devices
+    )
+    return internal_camera_devices, external_camera_devices
+
+  def verify_camera_app_is_using_any_device(
       self, devices: Iterable[str], device_name: str
   ):
     """Verifies that the camera app is using any of the given devices.
 
     This function will retry until the camera app is using any of the given
     devices, using the default retry interval defined in the retry method.
+    Asserts that the camera app is using any of the given devices.
 
     Args:
       devices: The list of camera devices to check.
@@ -140,7 +166,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
         f'Camera app is not using any of {device_name}.',
     )
 
-  def _show_color_for_external_camera_preview(
+  def show_color_for_external_camera_preview(
       self, color: image.NamedColor
   ) -> str:
     """Show the color on the external display for external camera preview.
@@ -162,6 +188,15 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     # Show color on external display to validate external camera captures it.
     self.painter.show_color_on_display(color.value, external_display_id)
     return camera_id
+
+  def connect_external_display(self) -> str:
+    """Connects the external display.
+
+    Returns:
+      The external display id.
+    """
+    internal_display_id = self.helper.get_internal_display_id()
+    return self._plug_in_external_display(internal_display_id)
 
   def _plug_in_external_display(self, internal_display_id: str) -> str:
     """Plug in external display."""

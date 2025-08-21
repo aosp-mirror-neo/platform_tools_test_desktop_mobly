@@ -18,10 +18,7 @@ import logging
 import os
 import time
 
-from lib.pasit import display_helper
-from lib.pasit import display_painter
 from lib.pasit import pasit_camera
-from lib.pasit import pasit_display
 from lib.pasit import pasit_file
 from lib.utils import image
 from lib.utils import retry
@@ -45,25 +42,12 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.display = self.create(pasit_display)
-    self.painter = self.create(display_painter)
     self.file = self.create(pasit_file)
-
-  def setup_test(self):
-    """Handle the setup for the test."""
-    super().setup_test()
-    self.helper = display_helper.DisplayHelper(
-        self.passport_host,
-        self.display,
-        self.painter,
-        self.current_test_info.output_path,
-    )
     self._cleanup_files()
 
   def teardown_test(self):
     """Handle the teardown for the test."""
     self._cleanup_files()
-    self.painter.clean_color_on_display()
     super().teardown_test()
 
   def pre_run(self):
@@ -80,24 +64,17 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
 
   def camera_test_logic(self, camera_mode: pasit_camera.PasitCamera.Mode):
     """Test recording from an external camera."""
-    internal_camera_devices = self.camera.get_connected_cameras()
-    self._plug_in_external_camera()
-    self._wait_for_external_camera_devices(internal_camera_devices)
+    self.connect_external_camera()
+    self.launch_camera_app()
+    self.switch_camera()
 
-    self._launch_camera_app()
-    self._switch_camera()
-
-    external_display_id = self._connect_external_display()
-    self._switch_mode(camera_mode)
+    external_display_id = self.connect_external_display()
+    self.switch_mode(camera_mode)
     self._capture_screenshots(f'{camera_mode.value}_mode')
 
     self._capture_from_external_camera(camera_mode, external_display_id)
     self._verify_captured_files_exist()
     self._copy_captured_files_to_output_path()
-
-  def _connect_external_display(self) -> str:
-    internal_display_id = self.helper.get_internal_display_id()
-    return self._plug_in_external_display(internal_display_id)
 
   def _capture_from_external_camera(
       self, mode: pasit_camera.PasitCamera.Mode, external_display_id: str
