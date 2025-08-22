@@ -41,6 +41,7 @@ class UTCParams:
     utc.usb_channel = self.params["usb_channel"]
     utc.pd_init_state = self.params["pd_init_state"]
     utc.source_pdo_count = self.params["source_pdo_count"]
+    utc.dpam_enabled = self.params["dpam_enabled"]
 
     # TODO(b/434628173) - Add cable flip once the bug is fixed.
 
@@ -79,6 +80,7 @@ def generate_utc_params(
                   "usb_channel": usb.UsbChannel.USB_3,
                   "pd_init_state": usb.InitPdState.PD_DRP,
                   "source_pdo_count": usb.DEFAULT_SRC_PDO_COUNT,
+                  "dpam_enabled": False,
                   # Override params.
               }
               | overrides

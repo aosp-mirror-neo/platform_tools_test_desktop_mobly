@@ -352,7 +352,7 @@ class PassportUsbServiceClient:
     )
 
   @property
-  def display_port_alternate_mode(self) -> bool:
+  def dpam_enabled(self) -> bool:
     """Gets the Display Port alternate mode on/off state.
 
     Returns:
@@ -361,8 +361,8 @@ class PassportUsbServiceClient:
     ret = self._get_capability(capability=uts_pb.DISPLAY_PORT_AM)
     return ret.display_port_am
 
-  @display_port_alternate_mode.setter
-  def display_port_alternate_mode(self, enabled: bool) -> None:
+  @dpam_enabled.setter
+  def dpam_enabled(self, enabled: bool) -> None:
     """Enable or disable Display Port alternate mode.
 
     Args:
