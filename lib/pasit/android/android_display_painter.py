@@ -60,6 +60,8 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       controller: The Android device controller.
     """
     super().__init__(controller)
+    # uninstall the app to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE error
+    apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
     apk_utils.install(
         self.controller,
         self.COLOR_FILL_TEST_APP_APK_PATH,
