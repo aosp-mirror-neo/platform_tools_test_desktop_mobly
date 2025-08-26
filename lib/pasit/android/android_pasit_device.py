@@ -39,7 +39,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   OFFLINE_TIMEOUT_SECONDS = 5
 
   DEFAULT_RETRY_INTERVAL_SECONDS = 2
-  DEFAULT_MAX_RETRIES_OFFLINE = 10
+  DEFAULT_MAX_RETRIES_OFFLINE = 20
   # add 10 seconds to the total sleep time to account for the time it takes
   # for the device to go to sleep and some overhead
   MIN_SLEEP_TIMER_SECONDS = (
