@@ -65,7 +65,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         self._CAMERA_APP_PACKAGE_NAME,
     ])
     return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
-        timeout=datetime.timedelta(seconds=5)
+        timeout=datetime.timedelta(seconds=20)
     )
 
   def close_camera_app(self):
