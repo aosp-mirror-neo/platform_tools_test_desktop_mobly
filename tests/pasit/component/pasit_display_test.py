@@ -20,6 +20,7 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 
@@ -50,11 +51,24 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     asserts.assert_equal(
         self.display.get_display_count(), 1, 'Display count is not 1.'
     )
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    asserts.assert_equal(
+        self.display.get_display_count(), 2, 'Display count is not 2.'
+    )
 
   def test_get_display_ids(self):
     display_ids = self.display.get_display_ids()
-    logging.info('Display IDs: %s', display_ids)
+    logging.info('Display IDs before external display plug in: %s', display_ids)
     asserts.assert_equal(len(display_ids), 1, 'Display IDs count is not 1.')
+
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    display_ids = retry.retry(
+        self.display.get_display_ids,
+        until=lambda display_ids: len(display_ids) == 2,
+        delay_seconds=5,
+    )
+    logging.info('Display IDs after external display plug in: %s', display_ids)
+    asserts.assert_equal(len(display_ids), 2, 'Display IDs count is not 2.')
 
   def test_get_internal_display_resolution(self):
     display_resolution = self.display.get_display_resolution()
