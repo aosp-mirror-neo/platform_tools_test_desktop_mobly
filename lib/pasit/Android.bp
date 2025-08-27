@@ -190,6 +190,10 @@ python_test_host {
     srcs: [
         "android/dumpsys_display_parser_test.py",
     ],
+    data: [
+        "android/testdata/dumpsys_display_internal.txt",
+        "android/testdata/dumpsys_display_external.txt",
+    ],
     test_options: {
         unit_test: true,
     },
