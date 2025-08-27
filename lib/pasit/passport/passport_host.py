@@ -551,12 +551,12 @@ class PassportHost:
       self,
       camera_id: str,
       log_dir: str,
-      image_name_prefix: str,
+      image_name_suffix: str,
       exposure_time_us: int = 0,
   ) -> None:
     """Captures an image from the specified camera and saves it.
 
-    Image is saved to the logsdirectory with the given prefix and a timestamp.
+    Image is saved to the logsdirectory with the given suffix and a timestamp.
 
     Args:
       camera_id: The unique ID of the camera to capture an image and
@@ -564,31 +564,31 @@ class PassportHost:
         get_cameras.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.
-      image_name_prefix: The prefix of the image name to use for the image.
+      image_name_suffix: The suffix of the created image filename.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
     Returns:
       None
     """
-    # get_average_pixel will save the image if image_name_prefix is specified,
+    # get_average_pixel will save the image if image_name_suffix is specified,
     # so call that but don't use the average pixel result.
     self.get_average_pixel(
-        camera_id, log_dir, image_name_prefix, exposure_time_us
+        camera_id, log_dir, image_name_suffix, exposure_time_us
     )
 
   def capture_images_from_all_cameras(
       self,
       output_path: str,
-      image_prefix: str,
+      image_suffix: str,
       camera_exposure_time_us: int = 0,
   ):
     """Captures an image from each camera connected to the PassportHost.
 
     Args:
       output_path: The directory to save the images to.
-      image_prefix: The prefix for the image file names. The actual image name
-        will be {image_prefix}_camera{camera_id}.
+      image_suffix: The suffix for the image file names. The actual image name
+        will be {timestamp}_{image_suffix}_camera{camera_id}.
       camera_exposure_time_us: The exposure time in microseconds to use for the
         camera. If 0, the auto exposure setting will be used.
     """
@@ -596,7 +596,7 @@ class PassportHost:
       logging.debug(
           'Capturing display image from %s camera %s to directory %s with'
           ' exposure time %d us',
-          image_prefix,
+          image_suffix,
           camera,
           output_path,
           camera_exposure_time_us,
@@ -604,7 +604,7 @@ class PassportHost:
       self.capture_image(
           camera,
           output_path,
-          f'{image_prefix}_camera{camera}',
+          f'{image_suffix}_camera{camera}',
           camera_exposure_time_us,
       )
 
@@ -612,7 +612,7 @@ class PassportHost:
       self,
       camera_id: str,
       log_dir: str = '',
-      image_name_prefix: str = '',
+      image_name_suffix: str = '',
       exposure_time_us: int = 0,
   ) -> image.Color:
     """Gets the average pixel color detected by the specified camera.
@@ -622,10 +622,10 @@ class PassportHost:
         GetAveragePixel.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.  Must be specified if
-        image_name_prefix is specified.
-      image_name_prefix: The prefix of the image name to use for the image. if
-        empty no image file will be saved, if specified, the image will be saved
-        to logs directory with the given prefix and a timestamp.
+        image_name_suffix is specified.
+      image_name_suffix: The suffix of the image name to use for the image. If
+        specified, the image will be saved to logs directory with the timestamp
+        followed by the suffix.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
@@ -634,8 +634,8 @@ class PassportHost:
     """
     self._ensure_passport_connected()
     resp = self._camera_client.get_average_pixel(camera_id, exposure_time_us)
-    if image_name_prefix and log_dir:
-      self._save_image(resp.frame, log_dir, image_name_prefix)
+    if image_name_suffix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_suffix)
     return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
 
   def analyze_hsv(
@@ -643,12 +643,12 @@ class PassportHost:
       camera_id: str,
       masks: dict[str, image.HSVMask],
       log_dir: str = '',
-      image_name_prefix: str = '',
+      image_name_suffix: str = '',
       exposure_time_us: int = 0,
   ) -> dict[str, float]:
     """Captures an image from the specified camera and performs HSV analysis.
 
-    Image is saved to the logsdirectory with the given prefix and a timestamp.
+    Image is saved to the logsdirectory with the given suffix and a timestamp.
     HSV analysis is performed on the image and the percentage of pixels that
     fall within the specified HSV value range is returned for each mask.
 
@@ -658,10 +658,10 @@ class PassportHost:
       masks: A dictionary of mask names to HSVMasks to compare against.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.  Must be specified if
-        image_name_prefix is specified.
-      image_name_prefix: The prefix of the image name to use for the image. if
-        empty no image file will be saved, if specified, the image will be saved
-        to logs directory with the given prefix and a timestamp.
+        image_name_suffix is specified.
+      image_name_suffix: The suffix of the image name to use for the image. If
+        specified, the image will be saved to logs directory with the timestamp
+        followed by the suffix.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
@@ -672,12 +672,12 @@ class PassportHost:
     """
     self._ensure_passport_connected()
     resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
-    if image_name_prefix and log_dir:
-      self._save_image(resp.frame, log_dir, image_name_prefix)
+    if image_name_suffix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_suffix)
     return {key: value for key, value in resp.percentage_matched.items()}
 
   def _save_image(
-      self, image_bytes: bytes, log_dir: str, image_name_prefix: str
+      self, image_bytes: bytes, log_dir: str, image_name_suffix: str
   ) -> None:
     """Saves the image to the logs directory."""
     if not image_bytes:
@@ -689,7 +689,7 @@ class PassportHost:
     time_str = mobly_logger.get_log_file_timestamp()
     image_path = os.path.join(
         log_dir,
-        f'{image_name_prefix.replace("/", "_")}_{time_str}.jpeg',
+        f'{time_str}_{image_name_suffix.replace("/", "_")}.jpeg',
     )
     with open(image_path, 'wb') as f:
       f.write(image_bytes)
