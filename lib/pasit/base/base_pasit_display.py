@@ -21,6 +21,29 @@ from typing import Any
 class BasePasitDisplay(metaclass=abc.ABCMeta):
   """Interface for display operations for PASIT testing."""
 
+  class DisplayId(str):
+    """Class for holding the display ID and additional information."""
+
+    _id: str
+
+    def __new__(cls, display_id: str):
+      obj = str.__new__(cls, display_id)
+      obj._id = display_id
+      return obj
+
+    @property
+    def id(self) -> str:
+      return self._id
+
+    def __str__(self):
+      return f'{self._id}'
+
+    def __repr__(self):
+      return f'{self._id}'
+
+    def __hash__(self):
+      return hash(self._id)
+
   class DisplayResolution:
     """Class for holding the resolution of a display."""
 
@@ -47,12 +70,14 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_display_ids(self) -> list[str]:
+  def get_display_ids(self) -> list[DisplayId]:
     """Returns the display IDs."""
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_display_resolution(self, display_id: str = '') -> DisplayResolution:
+  def get_display_resolution(
+      self, display_id: DisplayId | None = None
+  ) -> DisplayResolution:
     """Returns the resolution of the display.
 
     Args:
@@ -66,8 +91,8 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_supported_display_resolutions(
-      self, display_id: str = ''
-  ) -> dict[str, DisplayResolution]:
+      self, display_id: DisplayId | None = None
+  ) -> dict[DisplayId, DisplayResolution]:
     """Returns the supported resolutions of the display.
 
     Args:

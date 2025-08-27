@@ -165,7 +165,7 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         'Night light temperature is not set correctly.',
     )
 
-  def _plug_in_external_display(self) -> str:
+  def _plug_in_external_display(self) -> pasit_display.PasitDisplay.DisplayId:
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)

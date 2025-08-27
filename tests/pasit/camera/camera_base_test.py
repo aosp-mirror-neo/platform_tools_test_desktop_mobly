@@ -200,7 +200,9 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     internal_display_id = self.helper.get_internal_display_id()
     return self._plug_in_external_display(internal_display_id)
 
-  def _plug_in_external_display(self, internal_display_id: str) -> str:
+  def _plug_in_external_display(
+      self, internal_display_id: pasit_display.PasitDisplay.DisplayId
+  ) -> pasit_display.PasitDisplay.DisplayId:
     """Plug in external display."""
     # External (tested) camera is pointed at external display.
     logging.info('Plugging in external display')
