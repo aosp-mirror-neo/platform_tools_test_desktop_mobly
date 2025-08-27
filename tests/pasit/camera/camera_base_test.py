@@ -31,6 +31,8 @@ from mobly import signals
 class CameraBaseTest(pasit_test.PasitTestClass):
   """Base test for camera tests."""
 
+  _EXTERNAL_DISPLAY_TAG = 'DOCKLESS'
+
   camera: pasit_camera.PasitCamera
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
 
@@ -202,5 +204,22 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     """Plug in external display."""
     # External (tested) camera is pointed at external display.
     logging.info('Plugging in external display')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    # if there is only one external display, it will be activated by default.
+    if (
+        self.passport_host.get_device_count_by_type(self.DEVICE_TYPE_MONITOR)
+        == 1
+    ):
+      self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    else:
+      # skip test if external display path is not tagged in the topology.
+      asserts.skip_if(
+          not self.passport_host.is_device_type_present(
+              self.DEVICE_TYPE_MONITOR, self._EXTERNAL_DISPLAY_TAG
+          ),
+          f'{self._EXTERNAL_DISPLAY_TAG} external display not found in'
+          ' topology.',
+      )
+      self.passport_host.activate_device_by_type(
+          self.DEVICE_TYPE_MONITOR, self._EXTERNAL_DISPLAY_TAG
+      )
     return self.helper.get_external_display_id(internal_display_id)
