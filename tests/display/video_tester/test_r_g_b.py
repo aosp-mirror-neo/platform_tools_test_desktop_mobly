@@ -36,7 +36,7 @@ class RGBTest(ucd_base_test.UcdBaseTest):
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
   internal_display_id: str
-  _DISPLAY_STABILIZATION_TIME_SECONDS = 2
+  _DISPLAY_STABILIZATION_TIME_SECONDS = 4
 
   def pre_run(self):
     for i in range(1, self._UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS + 1):

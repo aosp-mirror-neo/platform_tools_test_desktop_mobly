@@ -118,6 +118,10 @@ def check_rgb_image_matches_color(
   if not (0 <= threshold <= 1):
     raise ValueError('Threshold must be between 0.0 and 1.0')
 
+  if not image_raw or len(image_raw) % 3 != 0:
+    logging.warning('Invalid image data. Length is %d.', len(image_raw))
+    return False
+
   # Max possible distance in RGB space is the cube diagonal
   MAX_DISTANCE = math.sqrt(3) * 255
 
@@ -125,16 +129,39 @@ def check_rgb_image_matches_color(
   pixels = [image_raw[i : i + 3] for i in range(0, len(image_raw), 3)]
   total_img_pixels = len(pixels)
 
+  if total_img_pixels == 0:
+    return False
+
   similar_pixels_count = 0
+  sum_r, sum_g, sum_b = 0, 0, 0
 
   for pixel in pixels:
     r, g, b = pixel
+    sum_r += r
+    sum_g += g
+    sum_b += b
     distance = color_distance(Color(r, g, b), target_color)
     similarity = 1 - (distance / MAX_DISTANCE)
     similar_pixels_count += bool(similarity >= threshold)
 
   match_percentage = similar_pixels_count / total_img_pixels
-  return match_percentage >= threshold
+  result = match_percentage >= threshold
+
+  if not result:
+    avg_r = sum_r // total_img_pixels
+    avg_g = sum_g // total_img_pixels
+    avg_b = sum_b // total_img_pixels
+    avg_color = Color(avg_r, avg_g, avg_b)
+    logging.info(
+        'Color match failed. Match percentage: %.2f, Threshold: %.2f. Target'
+        ' color: %s, Average image color: %s',
+        match_percentage,
+        threshold,
+        target_color,
+        avg_color,
+    )
+
+  return result
 
 
 def is_rgb_image_not_black(image_raw: bytes) -> bool:

@@ -106,27 +106,31 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
     This function iterates through the specified number of displays, takes a
     screenshot of each, and verifies its content. If a `color` is provided,
-    it checks if the screenshot matches that color; otherwise, it checks if it's not black.
+    it checks if the screenshot matches that color; otherwise, it checks if it's
+    not black.
     Retries as the display might not be ready yet when checked.
 
     Args:
         display_count: The number of displays to check.
         color: Optional RGB color to check against the screenshot. If provided,
-               the function will verify that the screenshot matches this color.
-               If None, it will only check that the screenshot is not black.
+          the function will verify that the screenshot matches this color. If
+          None, it will only check that the screenshot is not black.
+
     Raises:
-        ValueError: If any screenshot does not match the expected
-        color or is black.
+        ValueError: If any screenshot does not match the expected color or is
+        black.
+        PassportBaseError: If there is an error getting the screenshot.
 
     Returns:
-        True if all screenshots are valid (not black or match the expected color).
+        True if all screenshots are valid (not black or match the expected
+        color).
     """
     for i in range(display_count):
       retry(
           func=lambda: self._check_single_display_screenshot(i, color),
           max_tries=3,
           delay_seconds=3,
-          exceptions=(ValueError,),
+          exceptions=(ValueError, PassportBaseError),
       )
 
   def _check_single_display_screenshot(
@@ -137,14 +141,16 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     Args:
         display_index: The index of the display to check.
         color: Optional RGB color to check against the screenshot. If provided,
-               the function verifies that the screenshot matches this color.
-               If None, it will only check that the screenshot is not black.
+          the function verifies that the screenshot matches this color. If None,
+          it will only check that the screenshot is not black.
 
     Returns:
         True if the screenshot is valid (not black or matches the expected color).
 
     Raises:
-        ValueError: If the screenshot does not match the expected color or is black.
+        ValueError: If the screenshot does not match the expected color or is
+        black.
+        PassportBaseError: If there is an error getting the screenshot.
     """
     logging.debug(f"Checking screenshot for display {display_index}")
     screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
