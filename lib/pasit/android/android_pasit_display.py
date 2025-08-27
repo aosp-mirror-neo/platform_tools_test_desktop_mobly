@@ -45,14 +45,7 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
     return display_count
 
   def get_display_ids(self) -> list[str]:
-    # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0, ...
-    display_info_lines = self._get_display_info_lines()
-    display_ids = []
-    for line in display_info_lines:
-      match = re.search(r'displayId (\d+)', line)
-      if match:
-        display_ids.append(match.group(1))
-    return display_ids
+    return self._get_display_ids_from_dumpsys_display()
 
   def get_display_resolution(self, display_id: str = '') -> DisplayResolution:
     # ..., real 1920 x 1200, largest app 1920 x 1200, smallest app 1920 x 1200
@@ -85,7 +78,7 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
     supported_modes = supported_modes_match.group(1)
     logging.debug('supportedModes: %s', supported_modes)
     matches = re.findall(
-        r'id=(\d+), width=(\d+), height=(\d+)', supported_modes
+        r'id=(\d+),.*?width=(\d+),.*?height=(\d+)', supported_modes
     )
     return {
         match[0]: DisplayResolution(int(match[1]), int(match[2]))
@@ -144,15 +137,50 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
           f'Failed to parse night_display_color_temperature: {output}'
       ) from None
 
-  def _get_display_info_lines(self) -> list[str]:
-    dumpsys_display_lines = (
+  def _get_dumpsys_display_lines(self) -> list[str]:
+    return (
         self.controller.adb.shell(['dumpsys', 'display']).decode().splitlines()
     )
+
+  def _get_base_display_info_from_dumpsys_display(
+      self, dumpsys_display_lines: list[str]
+  ) -> list[str]:
     # example line:
     # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0...
     return [
         line for line in dumpsys_display_lines if 'mBaseDisplayInfo' in line
     ]
+
+  def _get_display_ids_from_dumpsys_display(self) -> list[str]:
+    """Returns the display IDs from dumpsys display."""
+
+    display_ids = []
+    dumpsys_display_lines = self._get_dumpsys_display_lines()
+
+    # get display ids from base display info
+    for (
+        base_display_info_line
+    ) in self._get_base_display_info_from_dumpsys_display(
+        dumpsys_display_lines
+    ):
+      display_id = self._get_display_id_from_display_info_line(
+          base_display_info_line
+      )
+      display_ids.append(display_id)
+
+    return display_ids
+
+  def _get_display_id_from_display_info_line(
+      self, display_info_line: str
+  ) -> str:
+    match = re.search(r'displayId (\d+)', display_info_line)
+    if match:
+      return match.group(1)
+    else:
+      raise ValueError(
+          'Failed to get display id from display info line:'
+          f' {display_info_line}'
+      )
 
   def _get_display_info_line(self, display_id: str = '') -> str:
     """Returns the display info line for the given display ID.
@@ -165,7 +193,10 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
       The display info line for the given display ID. Example line:
       mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0, ...
     """
-    display_info_lines = self._get_display_info_lines()
+    dumpsys_display_lines = self._get_dumpsys_display_lines()
+    display_info_lines = self._get_base_display_info_from_dumpsys_display(
+        dumpsys_display_lines
+    )
     display_id_match = (
         f'displayId {display_id}' if display_id else 'Built-in Screen'
     )
