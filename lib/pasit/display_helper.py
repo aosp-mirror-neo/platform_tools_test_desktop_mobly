@@ -87,7 +87,7 @@ class DisplayHelper:
     self.painter = painter
     self.log_path = log_path
 
-  def get_internal_display_id(self) -> str:
+  def get_internal_display_id(self) -> pasit_display.PasitDisplay.DisplayId:
     """Returns the internal display ID.
 
     This function assumes that there is only one display plugged in.
@@ -110,7 +110,9 @@ class DisplayHelper:
     logging.debug('Internal display id: %s', display_ids[0])
     return display_ids[0]
 
-  def get_external_display_id(self, internal_display_id: str) -> str:
+  def get_external_display_id(
+      self, internal_display_id: pasit_display.PasitDisplay.DisplayId
+  ) -> pasit_display.PasitDisplay.DisplayId:
     """Returns the external display ID.
 
     This function assumes that there is only one external display plugged in.
@@ -143,7 +145,9 @@ class DisplayHelper:
     logging.debug('External display id: %s', external_display_ids[0])
     return external_display_ids[0]
 
-  def map_displays_to_cameras(self) -> dict[str, str]:
+  def map_displays_to_cameras(
+      self,
+  ) -> dict[pasit_display.PasitDisplay.DisplayId, str]:
     """Maps the displays to cameras.
 
     This sets up the rgb images on the displays and then tries to match the
@@ -207,7 +211,9 @@ class DisplayHelper:
     logging.debug('Mapping result: %s', mapping_result)
     return mapping_result
 
-  def get_display_testing_camera_id(self, display_id: str) -> str:
+  def get_display_testing_camera_id(
+      self, display_id: pasit_display.PasitDisplay.DisplayId
+  ) -> str:
     """Returns an ID for the camera that is pointed at the given display.
 
     Perform the mapping of displays to cameras. Any color displayed before
@@ -260,7 +266,9 @@ class DisplayHelper:
     )
     return False
 
-  def _open_rgb_images_on_displays(self) -> dict[str, image.NamedColor]:
+  def _open_rgb_images_on_displays(
+      self,
+  ) -> dict[pasit_display.PasitDisplay.DisplayId, image.NamedColor]:
     """Opens RGB images on the displays.
 
     Returns:
@@ -284,8 +292,10 @@ class DisplayHelper:
   def _try_match_display_to_camera(
       self,
       camera_id: str,
-      display_id_to_color: dict[str, image.NamedColor],
-  ) -> str | None:
+      display_id_to_color: dict[
+          pasit_display.PasitDisplay.DisplayId, image.NamedColor
+      ],
+  ) -> pasit_display.PasitDisplay.DisplayId | None:
     """Tries to map a display to a camera.
 
     Matches the color displayed on the display to the color captured from the
@@ -337,8 +347,10 @@ class DisplayHelper:
   def _get_matched_display_id(
       self,
       matched_color: image.NamedColor | None,
-      display_id_to_color: dict[str, image.NamedColor],
-  ) -> str | None:
+      display_id_to_color: dict[
+          pasit_display.PasitDisplay.DisplayId, image.NamedColor
+      ],
+  ) -> pasit_display.PasitDisplay.DisplayId | None:
     """Returns the display ID that matches the color captured from the camera.
 
     Args:

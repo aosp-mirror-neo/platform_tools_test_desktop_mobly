@@ -127,7 +127,9 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_color.name,
     )
 
-  def _map_displays_to_cameras_with_retries(self) -> dict[str, str]:
+  def _map_displays_to_cameras_with_retries(
+      self,
+  ) -> dict[pasit_display.PasitDisplay.DisplayId, str]:
     """Maps the displays to cameras with retry every 10 seconds."""
     # TODO: b/431215234 - Remove the retry once the bug is fixed.
     return retry.retry(
