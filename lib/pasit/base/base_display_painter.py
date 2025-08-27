@@ -23,6 +23,9 @@ from lib.utils import image
 class BaseDisplayPainter(metaclass=abc.ABCMeta):
   """Base class for showing colors on device displays for testing."""
 
+  class Error(Exception):
+    """BaseDisplayPainter error."""
+
   def __init__(self, controller: Any):
     """Initializes the BaseDisplayPainter.
 
@@ -41,14 +44,14 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
 
     Usage:
     Example 1: Show red color on default display.
-      colors_tool = self.create(display_colors)
-      colors_tool.show_color_on_display(image.Color(255, 0, 0, 255))
+      painter = self.create(display_painter)
+      painter.show_color_on_display(image.Color(255, 0, 0, 255))
 
     Example 2: Show red color on all displays.
       display = self.create(pasit_display)
       display_ids = display.get_display_ids()
       for display_id in display_ids:
-        colors_tool.show_color_on_display(image.NamedColor.RED.value,
+        painter.show_color_on_display(image.NamedColor.RED.value,
         display_id)
 
     Args:
@@ -56,10 +59,17 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
       display_id: The display ID to show the color on. Display ID can be
         obtained from PasitDisplay via get_display_ids(). If empty, the color
         will be shown on the default display.
+
+    Raises:
+      Error: If the color was not successfully shown on the display.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
   def clean_color_on_display(self):
-    """Cleans the color on the display."""
+    """Cleans the color on the display.
+
+    Raises:
+      Error: If the color was not successfully cleaned on the display.
+    """
     raise NotImplementedError
