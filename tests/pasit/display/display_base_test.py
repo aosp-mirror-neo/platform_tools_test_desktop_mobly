@@ -24,6 +24,9 @@ from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
 
+_VERIFY_CAPTURE_COLOR_MAX_TRIES = 3
+_VERIFY_CAPTURE_COLOR_DELAY_SECONDS = 0
+
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
   """Base test for PASIT display tests."""
@@ -113,12 +116,18 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    asserts.assert_true(
-        self.helper.try_match_color(
+    match_status = retry.retry(
+        lambda: self.helper.try_match_color(
             camera_id,
             expected_color,
             f'{camera_capture_name}_from_camera{camera_id}',
         ),
+        until=lambda status: status,
+        max_tries=_VERIFY_CAPTURE_COLOR_MAX_TRIES,
+        delay_seconds=_VERIFY_CAPTURE_COLOR_DELAY_SECONDS,
+    )
+    asserts.assert_true(
+        match_status,
         failure_message,
     )
     logging.info(
