@@ -114,8 +114,8 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 external display in daisy chain mode.
       expected_display_count = 3
     display_count = retry.retry(
-        self.display.get_display_count,
-        until=lambda count: count == expected_display_count,
+        lambda: len(self.display.get_display_ids()),
+        until=lambda ids_count: ids_count == expected_display_count,
         max_tries=10,
         delay_seconds=2,
     )
