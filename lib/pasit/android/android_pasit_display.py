@@ -141,3 +141,27 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
           self.controller
       ).get_internal_display_id()
     return display_id
+
+  def set_mirror_mode(self, enabled: bool):
+    self.controller.adb.shell([
+        'settings',
+        'put',
+        'secure',
+        'mirror_built_in_display',
+        '1' if enabled else '0',
+    ])
+
+  def get_mirror_mode(self) -> bool:
+    # mirror_built_in_display is 1 if mirror mode is enabled, 0 otherwise.
+    return (
+        self.controller.adb.shell([
+            'settings',
+            'get',
+            'secure',
+            'mirror_built_in_display',
+        ])
+        .decode('utf-8')
+        .strip()
+        .lower()
+        .startswith('1')
+    )

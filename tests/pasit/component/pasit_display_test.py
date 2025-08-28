@@ -180,6 +180,29 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         'Night light temperature is not set correctly.',
     )
 
+  def test_get_set_mirror_mode(self):
+    external_display_id = self._plug_in_external_display()
+    logging.info('External display ID: %s', external_display_id)
+
+    mirror_mode_enabled = self.display.get_mirror_mode()
+    logging.info('Mirror mode is enabled: %s', mirror_mode_enabled)
+
+    logging.info('Setting mirror mode to %s', not mirror_mode_enabled)
+    self.display.set_mirror_mode(not mirror_mode_enabled)
+    asserts.assert_equal(
+        self.display.get_mirror_mode(),
+        not mirror_mode_enabled,
+        'Mirror mode is not set correctly.',
+    )
+
+    logging.info('Setting mirror mode to %s', mirror_mode_enabled)
+    self.display.set_mirror_mode(mirror_mode_enabled)
+    asserts.assert_equal(
+        self.display.get_mirror_mode(),
+        mirror_mode_enabled,
+        'Mirror mode is not set correctly.',
+    )
+
   def _plug_in_external_display(self) -> pasit_display.PasitDisplay.DisplayId:
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()

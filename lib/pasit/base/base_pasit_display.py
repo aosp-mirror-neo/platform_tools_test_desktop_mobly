@@ -160,3 +160,21 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
       The night light temperature in Kelvin.
     """
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_mirror_mode(self, enabled: bool):
+    """Enables or disables the mirror mode.
+
+    Args:
+      enabled: True to enable the mirror mode, False to disable it.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_mirror_mode(self) -> bool:
+    """Returns the mirror mode enabled status.
+
+    Returns:
+      True if the mirror mode is enabled, False otherwise.
+    """
+    raise NotImplementedError
