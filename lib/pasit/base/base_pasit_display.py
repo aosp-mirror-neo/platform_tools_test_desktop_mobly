@@ -57,6 +57,9 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     def __repr__(self):
       return f'{self.width} x {self.height}'
 
+    def __eq__(self, other):
+      return self.width == other.width and self.height == other.height
+
   class InfoNotFoundError(Exception):
     """Error raised when the display info is not found."""
 
@@ -92,7 +95,7 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_supported_display_resolutions(
       self, display_id: DisplayId | None = None
-  ) -> dict[DisplayId, DisplayResolution]:
+  ) -> dict[str, DisplayResolution]:
     """Returns the supported resolutions of the display.
 
     Args:

@@ -79,6 +79,8 @@ python_library_host {
     name: "py-pasit-display",
     srcs: [
         "*/*display.py",
+        "*/*display_id.py",
+        "*/*dumpsys_display_parser.py",
         "*display.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -178,5 +180,20 @@ python_test_host {
         "py-pasit-storage",
         "py-pasit-test",
         "py-passport",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_display_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_display_parser_test.py",
+    srcs: [
+        "android/dumpsys_display_parser_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-display",
     ],
 }
