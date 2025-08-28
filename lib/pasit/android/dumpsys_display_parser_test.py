@@ -130,6 +130,13 @@ class DumpsysDisplayParserTest(unittest.TestCase):
         },
     )
 
+  def test_get_internal_display_id(self):
+    self.parser = self._get_parser(self.internal_display_lines)
+    self.assertEqual(
+        self.parser.get_internal_display_id(),
+        self._INTERNAL_DISPLAY_ID,
+    )
+
   def _get_parser(self, display_lines):
     controller = mock.MagicMock()
     controller.adb.shell.return_value = '\n'.join(display_lines).encode('utf-8')

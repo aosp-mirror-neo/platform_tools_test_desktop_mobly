@@ -80,7 +80,7 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_display_resolution(
       self, display_id: DisplayId | None = None
-  ) -> DisplayResolution:
+  ) -> (str, DisplayResolution):
     """Returns the resolution of the display.
 
     Args:
@@ -88,7 +88,9 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
         resolution of the first display will be returned.
 
     Returns:
-      The resolution of the display.
+      A tuple of (display_mode_id, resolution). The display_mode_id is the ID
+      for the resolution setting, and the resolution is the resolution of the
+      display.
     """
     raise NotImplementedError
 
@@ -105,6 +107,21 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     Returns:
       A dictionary of supported resolutions of the display. The key is the
       ID for the resolution setting, and the value is the resolution.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_display_resolution(
+      self,
+      display_mode_id: str,
+      display_id: DisplayId | None = None,
+  ):
+    """Sets the resolution of the display.
+
+    Args:
+      display_mode_id: The ID for the resolution setting.
+      display_id: The display ID to set the resolution of. If not specified, the
+        resolution of the internal display will be set.
     """
     raise NotImplementedError
 

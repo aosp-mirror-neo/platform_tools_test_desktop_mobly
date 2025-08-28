@@ -14,7 +14,6 @@
 
 """Parser for dumpsys surfaceflinger output."""
 
-import logging
 import re
 from lib.pasit.android import android_display_id
 from lib.pasit.base import base_pasit_display
@@ -41,11 +40,27 @@ class DumpsysSurfaceFlingerParser:
         .splitlines()
     )
 
+  def get_display_resolution(
+      self, display_id: DisplayId
+  ) -> (str, DisplayResolution):
+    display_info_lines = self._get_display_info_lines(display_id.unique_id)
+    for line in display_info_lines:
+      # activeMode={id=0, hwcId=57, resolution=1920x1080, vsyncRate=60.00 Hz,
+      # dpi=101.60x101.60, group=1, vrrConfig=N/A, supportedHdrTypes=SYSTEM}
+      if 'activeMode=' in line:
+        match = re.search(r'id=(\d+).*resolution=(\d+)x(\d+)', line)
+        if match:
+          return match.group(1), DisplayResolution(
+              int(match.group(2)), int(match.group(3))
+          )
+    raise InfoNotFoundError(
+        f'Failed to get display resolution for display id "{display_id}".'
+    )
+
   def get_supported_display_resolutions(
       self, display_id: DisplayId
   ) -> dict[str, DisplayResolution]:
     display_info_lines = self._get_display_info_lines(display_id.unique_id)
-    logging.debug('display_info_lines: %s', display_info_lines)
     result = {}
     display_modes_block_started = False
     for line in display_info_lines:

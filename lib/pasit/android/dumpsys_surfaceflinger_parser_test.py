@@ -49,6 +49,20 @@ class DumpsysSurfaceFlingerParserTest(unittest.TestCase):
         'dumpsys_surfaceflinger_external.txt'
     ).splitlines()
 
+  def test_get_display_resolution_internal_display(self):
+    self.parser = self._get_parser(self.internal_display_lines)
+    self.assertEqual(
+        self.parser.get_display_resolution(self._INTERNAL_DISPLAY_ID),
+        ('0', self._INTERNAL_DISPLAY_RESOLUTION),
+    )
+
+  def test_get_display_resolution_external_display(self):
+    self.parser = self._get_parser(self.external_display_lines)
+    self.assertEqual(
+        self.parser.get_display_resolution(self._EXTERNAL_DISPLAY_ID),
+        ('0', self._EXTERNAL_DISPLAY_RESOLUTION),
+    )
+
   def test_get_supported_display_resolutions_internal_display(self):
     self.parser = self._get_parser(self.internal_display_lines)
     self.assertEqual(

@@ -16,6 +16,7 @@
 
 
 from lib.pasit.android import dumpsys_display_parser
+from lib.pasit.android import dumpsys_surfaceflinger_parser
 from lib.pasit.base import base_pasit_display
 
 DisplayId = base_pasit_display.BasePasitDisplay.DisplayId
@@ -51,17 +52,34 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
 
   def get_display_resolution(
       self, display_id: DisplayId | None = None
-  ) -> DisplayResolution:
-    return dumpsys_display_parser.DumpsysDisplayParser(
+  ) -> (str, DisplayResolution):
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    return dumpsys_surfaceflinger_parser.DumpsysSurfaceFlingerParser(
         self.controller
     ).get_display_resolution(display_id)
 
   def get_supported_display_resolutions(
       self, display_id: DisplayId | None = None
   ) -> dict[str, DisplayResolution]:
-    return dumpsys_display_parser.DumpsysDisplayParser(
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    return dumpsys_surfaceflinger_parser.DumpsysSurfaceFlingerParser(
         self.controller
     ).get_supported_display_resolutions(display_id)
+
+  def set_display_resolution(
+      self,
+      display_mode_id: str,
+      display_id: DisplayId | None = None,
+  ):
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    self.controller.adb.shell([
+        'service',
+        'call',
+        'SurfaceFlinger',
+        '1035',
+        f'i32 {display_mode_id}',
+        f'i64 {display_id.unique_id}',
+    ])
 
   def set_night_light_enabled(self, enabled: bool):
     self.controller.adb.shell([
@@ -114,3 +132,12 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
       raise InfoNotFoundError(
           f'Failed to parse night_display_color_temperature: {output}'
       ) from None
+
+  def _get_internal_display_id_if_empty(
+      self, display_id: DisplayId | None = None
+  ) -> DisplayId:
+    if not display_id:
+      return dumpsys_display_parser.DumpsysDisplayParser(
+          self.controller
+      ).get_internal_display_id()
+    return display_id

@@ -14,7 +14,6 @@
 
 """Parser for dumpsys display output."""
 
-import logging
 import re
 from lib.pasit.android import android_display_id
 from lib.pasit.base import base_pasit_display
@@ -78,7 +77,6 @@ class DumpsysDisplayParser:
           f' "{display_id}".'
       )
     supported_modes = supported_modes_match.group(1)
-    logging.debug('supportedModes: %s', supported_modes)
     matches = re.findall(
         r'id=(\d+),.*?width=(\d+),.*?height=(\d+)', supported_modes
     )
@@ -86,6 +84,11 @@ class DumpsysDisplayParser:
         match[0]: DisplayResolution(int(match[1]), int(match[2]))
         for match in matches
     }
+
+  def get_internal_display_id(self) -> DisplayId:
+    """Returns the internal display ID."""
+    display_info_line = self._get_display_info_line()
+    return self._get_display_id_from_display_info_line(display_info_line)
 
   def _get_base_display_info(self) -> list[str]:
     # example line:
