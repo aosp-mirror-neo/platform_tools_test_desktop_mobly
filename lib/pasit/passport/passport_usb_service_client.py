@@ -90,14 +90,6 @@ class ActiveCC(enum.Enum):
   CC2 = uts_pb.CC2
 
 
-class CableMode(enum.Enum):
-  """Cable mode of the USB tester."""
-
-  CABLE_MODE_NOT_SET = uts_pb.CABLE_MODE_NOT_SET
-  NORMAL = uts_pb.NORMAL
-  ELEC_TEST = uts_pb.ELEC_TEST
-
-
 class PassportUsbServiceClient:
   """Passport USB service client."""
 
@@ -405,19 +397,6 @@ class PassportUsbServiceClient:
         uts_pb.SetUsbTesterCapabilityRequest(
             capability=uts_pb.ACTIVE_CC,
             active_cc=active_cc.value,
-        )
-    )
-
-  @property
-  def cable_mode(self) -> CableMode:
-    ret = self._get_capability(capability=uts_pb.CABLE_MODE)
-    return CableMode(ret.cable_mode)
-
-  @cable_mode.setter
-  def cable_mode(self, cable_mode: CableMode) -> None:
-    self._set_capability(
-        uts_pb.SetUsbTesterCapabilityRequest(
-            capability=uts_pb.CABLE_MODE, cable_mode=cable_mode.value
         )
     )
 
