@@ -81,6 +81,7 @@ python_library_host {
         "*/*display.py",
         "*/*display_id.py",
         "*/*dumpsys_display_parser.py",
+        "*/*dumpsys_surfaceflinger_parser.py",
         "*display.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -193,6 +194,25 @@ python_test_host {
     data: [
         "android/testdata/dumpsys_display_internal.txt",
         "android/testdata/dumpsys_display_external.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-display",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_surfaceflinger_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_surfaceflinger_parser_test.py",
+    srcs: [
+        "android/dumpsys_surfaceflinger_parser_test.py",
+    ],
+    data: [
+        "android/testdata/dumpsys_surfaceflinger_internal.txt",
+        "android/testdata/dumpsys_surfaceflinger_external.txt",
     ],
     test_options: {
         unit_test: true,
