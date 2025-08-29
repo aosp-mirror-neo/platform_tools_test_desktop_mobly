@@ -78,6 +78,21 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
 
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
+    """Shows the specified color on the Android device display.
+
+    This method launches the ColorFillTestApp to display a solid color.
+    It sets the screen brightness to maximum to ensure visibility and
+    retries the app launch multiple times if it fails initially.
+    The app can be launched on a specific display by providing `display_id`.
+    Importantly, this method supports multiple displays; if called for
+    different `display_id`s, each specified display will get the color APK
+    on that display.
+
+    Args:
+      color: The color to display on the screen.
+      display_id: The ID of the display to show the color on. If empty, the
+        color will be shown on the default display.
+    """
     # set screen brightness to max to ensure color is visible
     self._set_screen_brightness(255)
 
@@ -95,6 +110,12 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     self._maximize_color_fill_test_app_window()
 
   def clean_color_on_display(self):
+    """Cleans up the color on the display.
+
+    This function closes all instances of the ColorFillTestApp. If the app was
+    started on multiple displays (by calling `show_color_on_display` with
+    different `display_id`s), all those instances will be stopped.
+    """
     retry.retry(
         self._try_clean_color_on_display,
         exceptions=(DisplayPainterError),
