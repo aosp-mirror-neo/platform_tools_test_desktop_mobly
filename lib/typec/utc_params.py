@@ -14,6 +14,7 @@
 
 """UTC params class and generator for UTC-274 tests."""
 
+import logging
 from typing import Any
 
 from lib.pasit.passport import passport_usb_service_client as usb
@@ -42,8 +43,15 @@ class UTCParams:
     utc.pd_init_state = self.params["pd_init_state"]
     utc.source_pdo_count = self.params["source_pdo_count"]
     utc.dpam_enabled = self.params["dpam_enabled"]
-
-    # TODO(b/434628173) - Add cable flip once the bug is fixed.
+    try:
+      utc.active_cc = self.params["active_cc"]
+    except RuntimeError as e:
+      if self.params["active_cc"] != usb.ActiveCC.CC1:
+        raise RuntimeError(
+            f"set of active_cc failed for {str(self.params['active_cc'])}"
+        ) from e
+      else:
+        logging.warning("failed to set active_cc to CC1, skipping as it's normal orientation")
 
 
 def generate_utc_params(
@@ -64,9 +72,6 @@ def generate_utc_params(
     A list of generated UTCParams objects.
   """
   params = []
-  # TODO(b/434628173) - Add cable flip once the bug is fixed.
-  flipped = False
-
   for port in ports:
     for flip in [True, False] if flipped else [False]:
       params.append(
