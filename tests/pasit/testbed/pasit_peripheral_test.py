@@ -119,6 +119,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         max_tries=10,
         delay_seconds=2,
     )
+    self._capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
         display_count,
         expected_display_count,
