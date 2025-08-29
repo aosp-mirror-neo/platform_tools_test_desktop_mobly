@@ -36,18 +36,20 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   This class sets up and resets the displays state between tests.
   It also provides helper methods for checking the displays state.
   """
+
   _ucd_manager: ucd_manager.UcdManager
   # Maximum number of displays that can be tested with the current DUT.
   max_tested_displays: int
 
-  _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4
+  _CROP_RATIO_FOR_COLOR_CHECK = 0.5
 
   def setup_class(self, require_servo: bool = False):
     super().setup_class()
     # Servo is required for DUT power cycle through servo.
     asserts.skip_if(
         require_servo and not self.dut.is_servo_configured(),
-        "Servo is not configured.")
+        "Servo is not configured.",
+    )
     # Set the UCD.
     self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.passport_host.video_tester_client,
@@ -58,7 +60,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
     theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
     self.max_tested_displays = min(
-        self._ucd_manager.max_supported_displays, theoritical_max_connected_displays
+        self._ucd_manager.max_supported_displays,
+        theoritical_max_connected_displays,
     )
     logging.info(f"max_tested_displays: {self.max_tested_displays}")
     asserts.assert_greater(
@@ -101,7 +104,9 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         f" {self.max_tested_displays}.",
     )
 
-  def check_all_screenshots_for_displays(self, display_count: int, color: image.Color | None = None):
+  def check_all_screenshots_for_displays(
+      self, display_count: int, color: image.Color | None = None
+  ):
     """Checks if the screenshots of the specified displays are valid.
 
     This function iterates through the specified number of displays, takes a
@@ -145,32 +150,50 @@ class UcdBaseTest(pasit_test.PasitTestClass):
           it will only check that the screenshot is not black.
 
     Returns:
-        True if the screenshot is valid (not black or matches the expected color).
+        True if the screenshot is valid (not black or matches the expected
+        color).
 
     Raises:
         ValueError: If the screenshot does not match the expected color or is
         black.
         PassportBaseError: If there is an error getting the screenshot.
     """
-    logging.debug(f"Checking screenshot for display {display_index}")
+    logging.debug("Checking screenshot for display %d", display_index)
     screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
-    screenshot_raw = image.process_bmp_img_to_raw(screenshot_bmp)
+    screenshot_raw, width, height = image.process_bmp_img_to_raw(screenshot_bmp)
 
     timestamp = int(time.time())
 
     if color:
       filename = f"display_{display_index}_{color}_{timestamp}_raw.bmp"
-      if not image.check_rgb_image_matches_color(screenshot_raw, color):
+      if not image.check_rgb_image_matches_color(
+          screenshot_raw,
+          color,
+          width,
+          height,
+          crop_ratio=self._CROP_RATIO_FOR_COLOR_CHECK,
+      ):
         self._save_screenshot(screenshot_bmp, filename)
-        raise ValueError(f"Screenshot for display {display_index} does not match the expected color {color}. Saved to {filename}.")
-      logging.info(f"Screenshot for display {display_index} matches the expected color {color}.")
+        raise ValueError(
+            "Screenshot for display"
+            f" {display_index} does not match the expected color {color}. Saved"
+            f" to {filename}."
+        )
+      logging.info(
+          "Screenshot for display %d matches the expected color %s.",
+          display_index,
+          color,
+      )
 
     else:
       filename = f"display_{display_index}_{timestamp}_raw.bmp"
       if not image.is_rgb_image_not_black(screenshot_raw):
         self._save_screenshot(screenshot_bmp, filename)
-        raise ValueError(f"Screenshot for display {display_index} is black. Saved to {filename}.")
-      logging.info(f"Screenshot for display {display_index} is not black.")
+        raise ValueError(
+            f"Screenshot for display {display_index} is black. Saved to"
+            f" {filename}."
+        )
+      logging.info("Screenshot for display %d is not black.", display_index)
 
   def _save_screenshot(self, data: bytes, filename: str):
     """Saves binary data to a file in the test's log directory.
