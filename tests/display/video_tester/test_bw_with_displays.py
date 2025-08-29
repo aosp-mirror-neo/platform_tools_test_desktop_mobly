@@ -14,12 +14,8 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
-import time
-
-from display.utils import interface_types
 from display.utils import ucd_base_test
 from lib.pasit.passport import errors
-from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -37,8 +33,7 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
 
   def pre_run(self):
     displays_range_arg_sets = [
-        (i,)
-        for i in range(1, self._UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS + 1)
+        (i,) for i in range(1, self._UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS + 1)
     ]
 
     self.generate_tests(
@@ -59,12 +54,6 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         arg_sets=displays_range_arg_sets,
     )
 
-    self.generate_tests(
-        test_logic=self.toggle_mst_and_sbm,
-        name_func=self.generate_test_name_toggle_mst_sbm,
-        arg_sets=[(False, False), (False, True), (True, False), (True, True)],
-    )
-
   def generate_test_name_increment_displays(self, display_count: int) -> str:
     """Generates the test name for incrementing displays to a specific count."""
     return f"test_increment_displays_to_{display_count}_displays"
@@ -76,10 +65,6 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
   def generate_test_name_plug_n_at_once(self, display_count: int) -> str:
     """Generates the test name for plugging in and out displays at once."""
     return f"test_plug_{display_count}_displays_at_once"
-
-  def generate_test_name_toggle_mst_sbm(self, is_mst: bool, is_sbm: bool) -> str:
-    """Generates the test name for toggling MST and SBM."""
-    return f"test_toggle_mst_{is_mst}_sbm_{is_sbm}"
 
   def increment_displays(self, display_count: int):
     """Tests the system's ability to handle an increasing number of displays.
@@ -133,34 +118,9 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
     self.skip_if_display_count_not_supported(display_count)
 
     self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=display_count)
+        additional_display_count=display_count
+    )
     self.check_all_screenshots_for_displays(display_count)
-
-  def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
-    """Tests the system's ability to toggle MST and SBM."""
-    asserts.skip_if(
-        self._ucd_manager.interface_type != interface_types.InterfaceType.DP,
-        "This test is only applicable to DP displays.",
-    )
-
-    self._ucd_manager.unplug_and_destroy_all_displays()
-
-    if not self.passport_host.video_tester_client.set_dp_link_capabilities(
-        mst=is_mst,
-        ss_sbm=is_sbm,
-        mst_sink_count=1,
-    ):
-      raise PassportBaseError("Failed to set DP link capabilities.")
-    time.sleep(5)
-    if not self.passport_host.video_tester_client.perform_attach_operation(True):
-      raise PassportBaseError("Failed to attach to the DUT.")
-    time.sleep(5)
-
-    asserts.assert_true(
-        self._ucd_manager.are_displays_reporting_stream_info(1),
-        f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
-    )
-    self.check_all_screenshots_for_displays(1)
 
 
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):
@@ -172,6 +132,7 @@ class BwWithDisplaysTestSuite(base_suite.BaseSuite):
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == "__main__":
   main()

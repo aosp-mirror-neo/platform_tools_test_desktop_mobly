@@ -17,16 +17,9 @@ package {
     default_team: "trendy_team_desktop_peripherals",
 }
 
-python_test_host {
-    name: "TestBasicUcd",
-    main: "test_basic.py",
-    srcs: ["test_basic.py"],
+python_defaults {
+    name: "video_tester_defaults",
     defaults: ["PASIT-defaults"],
-    test_options: {
-        unit_test: false,
-        runner: "mobly",
-        tags: ["mobly"],
-    },
     device_common_data: [
         // test APK module
         ":mobly-bundled-snippets",
@@ -35,87 +28,77 @@ python_test_host {
     libs: [
         "py-display-utils",
     ],
+}
+
+python_test_host {
+    name: "TestBasicUcd",
+    main: "test_basic.py",
+    srcs: ["test_basic.py"],
+    defaults: ["video_tester_defaults"],
+    test_options: {
+        runner: "mobly",
+        tags: ["mobly"],
+    },
 }
 
 python_test_host {
     name: "TestBwWithDisplaysUcd",
     main: "test_bw_with_displays.py",
     srcs: ["test_bw_with_displays.py"],
-    defaults: ["PASIT-defaults"],
+    defaults: ["video_tester_defaults"],
     test_options: {
-        unit_test: false,
         runner: "mobly",
         tags: ["mobly"],
     },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-        ":snippet-uiautomator",
-    ],
-    libs: [
-        "py-display-utils",
-    ],
 }
 
 python_test_host {
     name: "TestComplianceUcd",
     main: "test_compliance.py",
     srcs: ["test_compliance.py"],
-    defaults: ["PASIT-defaults"],
+    defaults: ["video_tester_defaults"],
     test_options: {
-        unit_test: false,
         runner: "mobly",
         tags: ["mobly"],
     },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-        ":snippet-uiautomator",
-    ],
-    libs: [
-        "py-display-utils",
-    ],
+}
+
+python_test_host {
+    name: "TestMstUcd",
+    main: "test_mst.py",
+    srcs: ["test_mst.py"],
+    defaults: ["video_tester_defaults"],
+    test_options: {
+        runner: "mobly",
+        tags: ["mobly"],
+    },
 }
 
 python_test_host {
     name: "TestRGBUcd",
     main: "test_r_g_b.py",
     srcs: ["test_r_g_b.py"],
-    defaults: ["PASIT-defaults"],
-    test_options: {
-        unit_test: false,
-        runner: "mobly",
-        tags: ["mobly"],
-    },
+    defaults: ["video_tester_defaults"],
     device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-        ":snippet-uiautomator",
         ":ColorFillTest",
     ],
     libs: [
-        "py-display-utils",
         "py-pasit-display",
         "py-display-painter",
     ],
+    test_options: {
+        runner: "mobly",
+        tags: ["mobly"],
+    },
 }
 
 python_test_host {
     name: "TestSuspendResumeUcd",
     main: "test_suspend_resume.py",
     srcs: ["test_suspend_resume.py"],
-    defaults: ["PASIT-defaults"],
+    defaults: ["video_tester_defaults"],
     test_options: {
-        unit_test: false,
         runner: "mobly",
         tags: ["mobly"],
     },
-    device_common_data: [
-        // test APK module
-        ":mobly-bundled-snippets",
-        ":snippet-uiautomator",
-    ],
-    libs: [
-        "py-display-utils",
-    ],
 }
