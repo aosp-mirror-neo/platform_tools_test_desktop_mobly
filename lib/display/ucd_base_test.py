@@ -20,8 +20,8 @@ import time
 
 from display.utils import modetest_helper
 from display.utils import ucd_manager
-from lib.pasit import pasit_test
 from lib.pasit import pasit_display
+from lib.pasit import pasit_test
 from lib.pasit.passport import errors
 from lib.utils import image
 from lib.utils.retry import retry
@@ -42,6 +42,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   # Maximum number of displays that can be tested with the current DUT.
   max_tested_displays: int
 
+  _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
 
   def setup_class(self, require_servo: bool = False):
@@ -83,7 +84,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     try:
-      # When we finish the test, ;et's check that the most basic functionalities are working.
+      # When we finish the test, Let's check that the most basic functionalities are working.
       # If they're not, let's reset our system so we can start fresh after.
       self._perform_sanity_check()
       logging.debug("Sanity check passed.")
