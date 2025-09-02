@@ -33,6 +33,9 @@ class DisplayIdType(enum.StrEnum):
 
 class PasitDisplayTest(pasit_test.PasitTestClass):
 
+  DISPLAY_CONNECT_TRIES = 5
+  DISPLAY_CONNECT_DELAY_SECONDS = 5
+
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
   helper: display_helper.DisplayHelper
@@ -58,8 +61,17 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         self.display.get_display_count(), 1, 'Display count is not 1.'
     )
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    EXPECTED_DISPLAY_COUNT = 2
+    display_count = retry.retry(
+        self.display.get_display_count,
+        until=lambda display_count: display_count == EXPECTED_DISPLAY_COUNT,
+        max_tries=self.DISPLAY_CONNECT_TRIES,
+        delay_seconds=self.DISPLAY_CONNECT_DELAY_SECONDS,
+    )
     asserts.assert_equal(
-        self.display.get_display_count(), 2, 'Display count is not 2.'
+        display_count,
+        EXPECTED_DISPLAY_COUNT,
+        f'Display count is not {EXPECTED_DISPLAY_COUNT}.',
     )
 
   def test_get_display_ids(self):
@@ -67,13 +79,19 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     logging.info('Display IDs before external display plug in: %s', display_ids)
     asserts.assert_equal(len(display_ids), 1, 'Display IDs count is not 1.')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    EXPECTED_DISPLAY_COUNT = 2
     display_ids = retry.retry(
         self.display.get_display_ids,
-        until=lambda display_ids: len(display_ids) == 2,
-        delay_seconds=5,
+        until=lambda display_ids: len(display_ids) == EXPECTED_DISPLAY_COUNT,
+        max_tries=self.DISPLAY_CONNECT_TRIES,
+        delay_seconds=self.DISPLAY_CONNECT_DELAY_SECONDS,
     )
     logging.info('Display IDs after external display plug in: %s', display_ids)
-    asserts.assert_equal(len(display_ids), 2, 'Display IDs count is not 2.')
+    asserts.assert_equal(
+        len(display_ids),
+        EXPECTED_DISPLAY_COUNT,
+        f'Display IDs count is not {EXPECTED_DISPLAY_COUNT}.',
+    )
 
   def pre_run(self):
     """Generate tests for get_set_supported_display_resolutions."""
