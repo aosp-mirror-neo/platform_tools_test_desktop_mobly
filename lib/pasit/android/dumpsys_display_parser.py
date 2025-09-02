@@ -103,7 +103,8 @@ class DumpsysDisplayParser:
       self, display_info_line: str
   ) -> DisplayId:
     matchId = re.search(r'displayId (\d+)', display_info_line)
-    matchUniqueId = re.search(r'uniqueId \"local:(\d+)\"', display_info_line)
+    # TODO: b/442566979 - Remove the `-*` in the regex once the bug is fixed.
+    matchUniqueId = re.search(r'uniqueId \"local:(-*\d+)\"', display_info_line)
     if matchId and matchUniqueId:
       return DisplayId(
           display_id=matchId.group(1), unique_id=matchUniqueId.group(1)

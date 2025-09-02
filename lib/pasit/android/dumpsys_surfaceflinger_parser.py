@@ -43,7 +43,9 @@ class DumpsysSurfaceFlingerParser:
   def get_display_resolution(
       self, display_id: DisplayId
   ) -> (str, DisplayResolution):
-    display_info_lines = self._get_display_info_lines(display_id.unique_id)
+    display_info_lines = self._get_display_info_lines(
+        display_id.unique_id_unsigned()
+    )
     for line in display_info_lines:
       # activeMode={id=0, hwcId=57, resolution=1920x1080, vsyncRate=60.00 Hz,
       # dpi=101.60x101.60, group=1, vrrConfig=N/A, supportedHdrTypes=SYSTEM}
@@ -60,7 +62,9 @@ class DumpsysSurfaceFlingerParser:
   def get_supported_display_resolutions(
       self, display_id: DisplayId
   ) -> dict[str, DisplayResolution]:
-    display_info_lines = self._get_display_info_lines(display_id.unique_id)
+    display_info_lines = self._get_display_info_lines(
+        display_id.unique_id_unsigned()
+    )
     result = {}
     display_modes_block_started = False
     for line in display_info_lines:

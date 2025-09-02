@@ -36,7 +36,7 @@ class DumpsysDisplayParserTest(unittest.TestCase):
       display_id='0', unique_id='4613568013223667456'
   )
   _EXTERNAL_DISPLAY_ID = DisplayId(
-      display_id='6', unique_id='4616379764323906308'
+      display_id='6', unique_id='-3244557860248354816'
   )
   _INTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1200)
   _EXTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1080)
