@@ -17,6 +17,7 @@
 from collections.abc import Callable, MutableSequence, Sequence
 import logging
 import os
+import time
 from typing import Any
 
 from chromiumos.test.lab.api import pasit_host_pb2
@@ -416,6 +417,16 @@ class PassportHost:
     )
     for connection in connections:
       device_id = connection.parent_id
+      # TODO: b/442614713 - decide if this change should be permanent or if we
+      # may eventually want to support variants with different order of
+      # operations, to catch bugs related to that.
+      if self._ip_power_clients.get(device_id):
+        self._ip_power_clients[device_id].set_ip_power_state(
+            ip_power.PowerState.from_bool(enable)
+        )
+        time.sleep(1)
+    for connection in connections:
+      device_id = connection.parent_id
       port_id = connection.parent_port
       if (
           self._devices[device_id].type
@@ -431,10 +442,6 @@ class PassportHost:
           self._switch_client.enable_switch(device_id, port_id)
         else:
           self._switch_client.disable_switch(device_id, port_id)
-      if self._ip_power_clients.get(device_id):
-        self._ip_power_clients[device_id].set_ip_power_state(
-            ip_power.PowerState.from_bool(enable)
-        )
 
   @property
   def address(self) -> str:
