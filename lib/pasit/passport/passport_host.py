@@ -167,6 +167,8 @@ class PassportHost:
 
   def _parse_topology(self):
     """Parses the topology and stores the devices and connections."""
+    self._devices = {}
+    self._connections = {}
     for device in self.topology.devices:
       self._devices[device.id] = device
       if device.type == pasit_host_pb2.PasitHost.Device.Type.DUT:
@@ -314,36 +316,45 @@ class PassportHost:
       tag: str | None,
       error_message: str,
   ) -> MutableSequence[str]:
-    """Returns the path to the device that matches the given function."""
-    current_path = []
-    stack = [self._dut_id]
-    visited: dict[str, bool] = {self._dut_id: True}
-    children: dict[str, int] = {}
+    """Returns the first found path to the device that matches the given function."""
+    paths = self._paths_to_device(target_device_fn, tag)
+    if not paths:
+      raise errors.DevicePathNotFoundError(error_message)
+    return paths[0]
 
-    while stack:
-      current = stack.pop()
-      current_path.append(current)
+  def _paths_to_device(
+      self,
+      target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
+      tag: str | None,
+  ) -> Sequence[MutableSequence[str]]:
+    """Returns all paths to the device(s) that match the given function/tag."""
+    paths: list[list[str]] = []
 
-      if target_device_fn(self._devices[current]):
-        return current_path
+    # Helper function to perform the recursive search
+    def find_paths_recursive(current_node_id: str, current_path: list[str]):
+      # Check if the current node is a target
+      if target_device_fn(self._devices[current_node_id]):
+        # Add a copy of the found path to our results
+        paths.append(list(current_path))
 
-      for node in self._connections[current]:
-        if visited.get(node.child_id, False):
+      # Explore neighbors sorting by child ids to ensure deterministic results
+      for connection in sorted(
+          self._connections.get(current_node_id, []),
+          key=lambda connection: connection.child_id,
+      ):
+        child_id = connection.child_id
+        # 1. Check for tag match
+        if tag and tag not in connection.tags:
           continue
-        if tag and tag not in node.tags:
+        # 2. Prevent cycles by ensuring we don't revisit a node in the current path
+        if child_id in current_path:
           continue
-        stack.append(node.child_id)
-        visited[node.child_id] = True
-        children.setdefault(current, 0)
-        children[current] += 1
+        # 3. Recurse with the updated path
+        find_paths_recursive(child_id, current_path + [child_id])
 
-      while len(current_path) > 1 and children.get(current, 0) == 0:
-        current_path.pop()
-        current = current_path[-1]
-        children.setdefault(current, 0)
-        children[current] -= 1
-
-    raise errors.DevicePathNotFoundError(error_message)
+    # Start the search from the root DUT
+    find_paths_recursive(self._dut_id, [self._dut_id])
+    return paths
 
   def _connections_in_path(
       self, path: Sequence[str]
@@ -385,6 +396,26 @@ class PassportHost:
     return len([
         device for device in self.topology.devices if device.type == device_type
     ])
+
+  def get_paths_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None,
+  ) -> Sequence[Sequence[pasit_host_pb2.PasitHost.Connection]]:
+    """Returns all paths of devices of the given type in the topology.
+
+    Args:
+      device_type: The device type to check.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
+
+    Returns:
+      A list of paths of devices of the given type in the topology.
+    """
+    return self._paths_to_device(
+        lambda device: device.type == device_type,
+        tag,
+    )
 
   def _set_device_enabled_state_by_id(
       self,
