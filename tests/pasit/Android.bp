@@ -29,6 +29,7 @@ python_defaults {
     libs: [
         "mobly",
         "py-pasit-test",
+        "platform-test-py-annotations",
     ],
     test_suites: [
         "general-tests",

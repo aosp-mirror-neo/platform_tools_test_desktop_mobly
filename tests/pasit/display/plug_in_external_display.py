@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import image
 from mobly import test_runner
@@ -30,6 +31,8 @@ _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
 )
 
 
+# CUJs this test covers (full or partial) go/al-traceability
+@DesktopTest(cujs=['b/379291743', 'b/379290750'])
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
