@@ -199,9 +199,10 @@ class DisplayHelper:
         continue
 
       logging.info(
-          'Camera %s matched display id %s',
+          'Camera %s matched display id %s with color %s',
           camera_id,
           display_id,
+          display_id_to_color[display_id].name,
       )
       mapping_result[display_id] = camera_id
 
