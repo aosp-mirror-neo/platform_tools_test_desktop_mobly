@@ -208,7 +208,6 @@ class PassportHost:
 
   def _setup_ip_power_clients(self):
     """Sets up the IP power clients."""
-    dock_device_id = ''
     for device in self.topology.devices:
       if device.rpm.present:
         if not device.rpm.type == rpm_pb2.RPMType.RPM_TYPE_IP9850:
@@ -225,31 +224,6 @@ class PassportHost:
               f'IP power client for device {device.id}  at {endpoint} is not'
               ' online',
           )
-      if device.type == pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION:
-        dock_device_id = device.id
-
-    if not self._ip_power_clients and dock_device_id:
-      # If no IP power clients are used in the topology, try to use known
-      # defaults.
-      # TODO: b/401048925 - remove this once the proto changes are complete
-      # and the IP power switch is set in the topology. For now,
-      # try the default IP and localhost:8080 for port forward dev testing
-      # ignoring the error if both fail.
-      logging.debug(
-          'No IP power clients are used in the topology falling back to try'
-          ' known defaults.'
-      )
-      dock_power = _get_dock_power('192.168.231.110', '1')
-      if dock_power is None:
-        dock_power = _get_dock_power('localhost:8080', '1')
-      if dock_power is not None:
-        logging.debug(
-            'Using IP power switch %s:%s for %s.',
-            dock_power.power_unit_endpoint,
-            dock_power.power_unit_outlet,
-            dock_device_id,
-        )
-        self._ip_power_clients[dock_device_id] = dock_power
 
   def _activate_usb_testers(self):
     """Acivate the topology usb tester.
