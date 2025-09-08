@@ -17,10 +17,9 @@ and run a Mobly test suite you would do the following.
 2. Find the IP address of the Satlab from the DUT name
 3. Lease, the DUT start the services and tunnels using `pasit_setup_satlab.sh`.
    If this step has been done and lease has not expired you don't need to re-run
-   for every time you try to re-run tests.
-4. Get the PASIT topology as .json file from shivas
-5. Convert the JSON topology to a `.yaml` file using topology_converter. This
-   YAML file will be used by a later step refer to it as `<config_file_ymal>`.
+   for every time you try to re-run tests. Be sure to use the -c flag to
+   generate a YAML config for the mobly test for that specific DUT. The
+   YAML file will be used by a later step refer to it as `<config_file_yaml>`.
 6. Build the test `m <test_suite_name>`
 7. Run the test with `atest`
 
@@ -36,7 +35,7 @@ tunnels for a DUT with `pasit_setup_satlab.sh` before you are ready to run.
 Generally a simple run with `atest` would look like:
 
 ```
-atest -vt <test_suite_name> -- --testbed pasit-android-testbed --config <config_file_ymal>
+atest -vt <test_suite_name> -- --testbed pasit-android-testbed --config <config_file_yaml>
 ```
 
 When running Mobly tests, you may need to specify the serial number of the DUT. The `pasit_setup_satlab.sh` script will output the adb serial, which is usually `localhost:5555`.
@@ -52,18 +51,6 @@ about different options and uses such as multiple iterations, etc.
 You can use `--request-upload-result` flag with atest as well to upload results
 to AnTS, ask the user before using this flag.  If you use this flag be sure
 to summarize at the end with the links to results provided from atest output.
-
-# topology_converter
-
-This will convert the json PASIT topology to a usable Mobly Config yaml file.
-
-It has -h option but you can usually use it like this:
-
-```
-topology_converter convert -i <dut_name>.json -o <dut_name>.yaml
-```
-
-If you don't find the command then you can build it with `m topology_converter`.
 
 # shivas
 
@@ -86,18 +73,18 @@ DUT and access the services.
 It has a -h and you can also read it but general it can run like:
 
 ```
-pasit_setup_satlab.sh -d <dut_name> -s <satlab_ip>
+pasit_setup_satlab.sh -d <dut_name> -s <satlab_ip> -c <config_file_yaml>
 ```
 
 The optional `-p` flag is used to ensure the DUT is provisioned with AL and
 not CrOS classic. Your prcp call should have the info if you need the -p flag,
-if `label-os_type` is `OS_TYPE_CROS` then you need the `-p` flag.  The -p flag
-adds 20 minutes or more to setup so only use it when necessary being sure to
-check the output of prpc for ALL DUTs.  If possible you can hack together
-a run of just the provisioning step for ALL DUTs that need provisioning at the
-start, the crosfleet command to provision can be kicked off in parallel on all
-DUTs then the script would run without the -p flag if that step was done
-separately.
+if `label-os_type` or `version_info_os_type` is not `ANDROID` then you need the
+`-p` flag.  The -p flag adds 20 minutes or more to setup so only use it when
+necessary being sure to check the output of prpc for ALL DUTs.  If possible you
+can hack together a run of just the provisioning step for ALL DUTs that need
+provisioning at the start, the crosfleet command to provision can be kicked off
+in parallel on all DUTs then the script would run without the -p flag if that
+step was done separately.
 
 This script reuses the same ports so you can't run tests in parallel on
 multiple DUTs since the yaml files and this script all rely on the same ports.
@@ -128,7 +115,7 @@ This tool can be used to fetch DUT info that isn't available with `shivas` and
 Example:
 
 ```
-echo "{ \"bot_id\": \"crossk-${dut_name}\" }" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot
+echo "{ \"bot_id\": \"crossk-${dut_name}\" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot
 ```
 
 You would need to parse the `drone_server` field from the JSON output to get
