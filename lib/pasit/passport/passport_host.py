@@ -594,6 +594,10 @@ class PassportHost:
     resp = self._camera_client.get_cameras()
     return [camera.id for camera in resp.cameras]
 
+  def get_device_by_id(self, device_id: str) -> pasit_host_pb2.PasitHost.Device:
+    """Returns the device with the given device ID."""
+    return self._devices[device_id]
+
   def capture_image(
       self,
       camera_id: str,

@@ -14,6 +14,7 @@
 
 """Base test for PASIT display tests."""
 
+import enum
 import logging
 
 from lib.pasit import display_helper
@@ -26,6 +27,12 @@ from mobly import asserts
 
 _VERIFY_CAPTURE_COLOR_MAX_TRIES = 3
 _VERIFY_CAPTURE_COLOR_DELAY_SECONDS = 0
+
+
+class DisplayPaths(enum.StrEnum):
+  DOCK = 'DOCK'
+  DOCKLESS = 'DOCKLESS'
+  DAISY_CHAIN = 'DAISY_CHAIN'
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -54,6 +61,60 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.painter,
         self.current_test_info.output_path,
     )
+    self.display_path_tag = None
+
+  def _determine_display_path(
+      self, display_path: DisplayPaths
+  ) -> DisplayPaths | None:
+    """Determine the display path to use for the test.
+
+    This will account for both tagged and untagged displays.  It defaults by
+    searching for a display with a tag, and if none are found, it will attempt
+    infer the path type of an untagged display.
+
+    Returns:
+      The display path to use for the test.
+    Raises:
+      ValueError: If the display path cannot be determined.
+    """
+    if not self.passport_host.is_device_type_present(
+        self.DEVICE_TYPE_MONITOR, None
+    ):
+      raise ValueError('No displays found in topology.')
+    if self.passport_host.is_device_type_present(
+        self.DEVICE_TYPE_MONITOR, display_path
+    ):
+      return display_path
+    paths = self.passport_host.get_paths_by_type(self.DEVICE_TYPE_MONITOR, None)
+    # if there are no tagged paths attempt to infer the path type, by checking
+    # whether or not a display is connected via a dock.  We only attempt to
+    # infer if all the display paths are the same (dock or dockless).
+    dock_path_count = 0
+    for path in paths:
+      for node in path:
+        if (
+            self.passport_host.get_device_by_id(node).type
+            == self.DEVICE_TYPE_DOCK
+        ):
+          dock_path_count += 1
+
+    if display_path == DisplayPaths.DOCK and dock_path_count == len(paths):
+      return None
+    if display_path == DisplayPaths.DOCKLESS and dock_path_count == 0:
+      return None
+
+    raise ValueError(f'Display path {display_path} not found in topology.')
+
+  def setup_display_path(self, display_path: DisplayPaths):
+    """Setup the display path for the test.
+
+    This will determine the tag to use when enabling/disabling the display. And
+    will skip the test if the display path cannot be determined.
+    """
+    try:
+      self.display_path_tag = self._determine_display_path(display_path)
+    except ValueError as e:
+      asserts.skip(f'No display path found: {e}')
 
   def teardown_test(self):
     self.painter.clean_color_on_display()
@@ -68,12 +129,16 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def _plug_in_external_display(self):
     """Emulate external display plug in using passport."""
     logging.info('Plugging in external display')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    self.passport_host.activate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    )
 
   def _unplug_external_display(self):
     """Emulate external display unplug using passport."""
     logging.info('Unplugging external display')
-    self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    self.passport_host.deactivate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    )
 
   def _verify_display_count(self, expected_count: int, event_to_log: str):
     """Verifies that the display count is equal to the expected count."""
