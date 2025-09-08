@@ -225,7 +225,10 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    return self.helper.get_external_display_id(internal_display_id)
+    external_display_ids = self.helper.get_external_display_ids(
+        internal_display_id, 1
+    )
+    return external_display_ids[0]
 
 
 if __name__ == '__main__':

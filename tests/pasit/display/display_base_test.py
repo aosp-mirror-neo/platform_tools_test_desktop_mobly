@@ -126,18 +126,29 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.painter.cleanup()
     super().teardown_class()
 
-  def _plug_in_external_display(self):
-    """Emulate external display plug in using passport."""
-    logging.info('Plugging in external display')
-    self.passport_host.activate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
-    )
+  def _get_monitor_device_ids(self) -> list[str]:
+    """Returns the device IDs of the monitors in the topology."""
+    return self.passport_host.get_device_ids_by_type(self.DEVICE_TYPE_MONITOR)
 
-  def _unplug_external_display(self):
+  def _plug_in_external_display(self, device_id: str | None = None):
+    """Emulate external display plug in using passport."""
+    if device_id:
+      logging.info('Plugging in external display %s', device_id)
+      self.passport_host.activate_device_by_id(device_id)
+    else:
+      logging.info('Plugging in external display')
+      self.passport_host.activate_device_by_type(
+          self.DEVICE_TYPE_MONITOR, self.display_path_tag)
+
+  def _unplug_external_display(self, device_id: str | None = None):
     """Emulate external display unplug using passport."""
-    logging.info('Unplugging external display')
-    self.passport_host.deactivate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    if device_id:
+      logging.info('Unplugging external display %s', device_id)
+      self.passport_host.deactivate_device_by_id(device_id)
+    else:
+      logging.info('Unplugging external display')
+      self.passport_host.deactivate_device_by_type(
+          self.DEVICE_TYPE_MONITOR, self.display_path_tag
     )
 
   def _verify_display_count(self, expected_count: int, event_to_log: str):

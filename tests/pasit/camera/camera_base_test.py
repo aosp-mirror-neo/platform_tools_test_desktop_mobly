@@ -224,4 +224,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
       self.passport_host.activate_device_by_type(
           self.DEVICE_TYPE_MONITOR, self._EXTERNAL_DISPLAY_TAG
       )
-    return self.helper.get_external_display_id(internal_display_id)
+    external_display_ids = self.helper.get_external_display_ids(
+        internal_display_id, 1
+    )
+    return external_display_ids[0]

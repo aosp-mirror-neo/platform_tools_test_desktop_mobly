@@ -397,6 +397,17 @@ class PassportHost:
         device for device in self.topology.devices if device.type == device_type
     ])
 
+  def get_device_ids_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+  ) -> list[str]:
+    """Returns the device IDs of the given type in the topology."""
+    return [
+        device.id
+        for device in self.topology.devices
+        if device.type == device_type
+    ]
+
   def get_paths_by_type(
       self,
       device_type: pasit_host_pb2.PasitHost.Device.Type,
