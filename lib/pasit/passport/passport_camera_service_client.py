@@ -126,8 +126,11 @@ class PassportCameraServiceClient:
     request = camera_service_pb2.AnalyzeHSVRequest(
         device_id=camera_id,
         exposure_microseconds=exposure_time_us,
-        masks={name: _mask_to_proto(mask) for name, mask in masks.items()},
     )
+    for name, mask in masks.items():
+      entry = request.masks.add()
+      entry.key = name
+      entry.value.CopyFrom(_mask_to_proto(mask))
     try:
       return self.stub.AnalyzeImageHSV(request)
     except grpc.RpcError as e:
