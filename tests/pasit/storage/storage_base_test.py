@@ -121,7 +121,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     )
     logging.info('External storage unmounted.')
 
-  def eject_external_storage(self) -> None:
+  def eject_external_storage(self) -> bool:
     """Eject external storage."""
     logging.info('Ejecting external storage...')
     if not self.storage.eject_external_storage():

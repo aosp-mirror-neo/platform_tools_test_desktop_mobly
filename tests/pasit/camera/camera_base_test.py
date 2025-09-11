@@ -134,7 +134,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
 
   def connect_external_camera(
       self,
-  ) -> (MutableSequence[str], MutableSequence[str]):
+  ) -> tuple[MutableSequence[str], MutableSequence[str]]:
     """Connects the external camera.
 
     Returns:

@@ -43,6 +43,10 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   helper: display_helper.DisplayHelper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
 
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.display_path_tag = None
+
   def setup_class(self):
     """Handle the setup for the test.
 

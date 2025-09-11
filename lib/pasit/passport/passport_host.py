@@ -14,7 +14,7 @@
 
 """Controller for interacting with PASIT testbed via a Passport API Host."""
 
-from collections.abc import Callable, MutableSequence, Sequence
+from collections.abc import Callable, MutableSequence
 import logging
 import os
 import time
@@ -84,7 +84,7 @@ class PassportHost:
       passport_video_service_client.PassportVideoServiceClient | None
   ) = None
   _switch_client: passport_switch_service_client.PassportSwitchServiceClient
-  hid_client: hid_service_client.PassportHIDServiceClient | None = None
+  hid_client: hid_service_client.PassportHIDServiceClient
   _dut_id = None
   _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
   _connections: dict[
@@ -300,7 +300,7 @@ class PassportHost:
       self,
       target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
       tag: str | None,
-  ) -> Sequence[MutableSequence[str]]:
+  ) -> MutableSequence[MutableSequence[str]]:
     """Returns all paths to the device(s) that match the given function/tag."""
     paths: list[list[str]] = []
 
@@ -331,7 +331,7 @@ class PassportHost:
     return paths
 
   def _connections_in_path(
-      self, path: Sequence[str]
+      self, path: MutableSequence[str]
   ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
     """Returns the connections in the given path."""
     connections = []
@@ -386,7 +386,7 @@ class PassportHost:
       self,
       device_type: pasit_host_pb2.PasitHost.Device.Type,
       tag: str | None,
-  ) -> Sequence[Sequence[pasit_host_pb2.PasitHost.Connection]]:
+  ) -> MutableSequence[MutableSequence[str]]:
     """Returns all paths of devices of the given type in the topology.
 
     Args:

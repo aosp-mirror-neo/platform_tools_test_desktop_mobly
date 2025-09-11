@@ -102,7 +102,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         lambda: self._try_show_color_on_display(
             color, window_count_before + 1, display_id
         ),
-        exceptions=(DisplayPainterError),
+        exceptions=(DisplayPainterError,),
         max_tries=10,
         delay_seconds=1,
     )
@@ -118,7 +118,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     """
     retry.retry(
         self._try_clean_color_on_display,
-        exceptions=(DisplayPainterError),
+        exceptions=(DisplayPainterError,),
     )
 
   def _try_show_color_on_display(

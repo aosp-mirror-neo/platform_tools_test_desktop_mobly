@@ -41,9 +41,14 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   _ucd_manager: ucd_manager.UcdManager
   # Maximum number of displays that can be tested with the current DUT.
   max_tested_displays: int
+  display: pasit_display.PasitDisplay
 
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.internal_display_id: str | None = None
 
   def setup_class(self, require_servo: bool = False):
     super().setup_class()

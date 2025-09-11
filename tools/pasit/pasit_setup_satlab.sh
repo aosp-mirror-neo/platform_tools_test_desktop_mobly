@@ -450,9 +450,6 @@ if [[ "${PORT_OFFSET}" -ne 0 ]]; then
   SERVOD_TUNNEL_PORT=$((SERVOD_TUNNEL_PORT + PORT_OFFSET))
 fi
 
-generate_config
-exit 0
-
 check_dependencies
 # Check SSH access early
 check_ssh_access

@@ -80,7 +80,7 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_display_resolution(
       self, display_id: DisplayId | None = None
-  ) -> (str, DisplayResolution):
+  ) -> tuple[str, DisplayResolution]:
     """Returns the resolution of the display.
 
     Args:

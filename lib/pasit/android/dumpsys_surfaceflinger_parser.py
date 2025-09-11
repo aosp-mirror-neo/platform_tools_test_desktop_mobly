@@ -42,7 +42,7 @@ class DumpsysSurfaceFlingerParser:
 
   def get_display_resolution(
       self, display_id: DisplayId
-  ) -> (str, DisplayResolution):
+  ) -> tuple[str, DisplayResolution]:
     display_info_lines = self._get_display_info_lines(
         display_id.unique_id_unsigned()
     )

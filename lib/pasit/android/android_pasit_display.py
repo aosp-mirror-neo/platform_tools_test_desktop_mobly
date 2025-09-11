@@ -52,7 +52,7 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
 
   def get_display_resolution(
       self, display_id: DisplayId | None = None
-  ) -> (str, DisplayResolution):
+  ) -> tuple[str, DisplayResolution]:
     display_id = self._get_internal_display_id_if_empty(display_id)
     return dumpsys_surfaceflinger_parser.DumpsysSurfaceFlingerParser(
         self.controller

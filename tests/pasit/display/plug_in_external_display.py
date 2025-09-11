@@ -28,16 +28,18 @@ from pasit.display import display_base_test
 # the second argument is the display path to use.
 _TEST_ARGUMENTS: tuple[
     tuple[dut_state_manager.PowerState, display_base_test.DisplayPaths], ...
-] = itertools.product(
-    [
-        dut_state_manager.PowerState.ON,
-        dut_state_manager.PowerState.OFF,
-        dut_state_manager.PowerState.SUSPEND,
-    ],
-    [
-        display_base_test.DisplayPaths.DOCK,
-        display_base_test.DisplayPaths.DOCKLESS,
-    ],
+] = tuple(
+    itertools.product(
+        [
+            dut_state_manager.PowerState.ON,
+            dut_state_manager.PowerState.OFF,
+            dut_state_manager.PowerState.SUSPEND,
+        ],
+        [
+            display_base_test.DisplayPaths.DOCK,
+            display_base_test.DisplayPaths.DOCKLESS,
+        ],
+    )
 )
 
 
