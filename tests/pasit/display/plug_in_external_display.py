@@ -19,52 +19,45 @@ import logging
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# PowerState indicating the DUT state when external display is plugged in and
-# the second argument is the display path to use.
-_TEST_ARGUMENTS: tuple[
-    tuple[dut_state_manager.PowerState, display_base_test.DisplayPaths], ...
-] = tuple(
-    itertools.product(
-        [
-            dut_state_manager.PowerState.ON,
-            dut_state_manager.PowerState.OFF,
-            dut_state_manager.PowerState.SUSPEND,
-        ],
-        [
-            display_base_test.DisplayPaths.DOCK,
-            display_base_test.DisplayPaths.DOCKLESS,
-        ],
-    )
-)
-
 
 # CUJs this test covers (full or partial) go/al-traceability
 @DesktopTest(cujs=['b/379291743', 'b/379290750'])
+@functools.generate_tests
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.display_test_logic,
-        name_func=self.display_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def display_test_name(
-      self,
-      state_when_plug_display: dut_state_manager.PowerState,
-      display_path: display_base_test.DisplayPaths,
-  ) -> str:
-    """Get the test name for the given test args."""
-    return f'test_plug_in_display_when_dut_{state_when_plug_display.value}_{display_path.value.lower()}'
-
-  def display_test_logic(
+  @functools.with_variants(
+      on_dock=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      on_dockless=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+      off_dock=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+      off_dockless=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+      suspend_dock=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      suspend_dockless=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+  )
+  def test_plug_in_display_when_dut(
       self,
       state_when_plug_display: dut_state_manager.PowerState,
       display_path: display_base_test.DisplayPaths,
