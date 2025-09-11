@@ -22,6 +22,7 @@ from lib.pasit.base import base_display_painter
 from lib.utils import image
 from lib.utils import retry
 from mobly.controllers import android_device
+from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
 
 DisplayPainterError = base_display_painter.BaseDisplayPainter.Error
@@ -193,20 +194,25 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
     Opens a new window filled with the specified color on the specified display.
     """
-    self.controller.adb.shell(
-        [
-            'am',
-            'start',
-            '-n',
-            self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
-            '-a',
-            'android.intent.activity.MAIN',
-            '-e',
-            'color',
-            repr(color),
-        ]
-        + (['--display', display_id] if display_id else [])
-    )
+    try:
+      self.controller.adb.shell(
+          [
+              'am',
+              'start',
+              '-n',
+              self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
+              '-a',
+              'android.intent.activity.MAIN',
+              '-e',
+              'color',
+              repr(color),
+          ]
+          + (['--display', display_id] if display_id else [])
+      )
+    except adb.AdbError as e:
+      raise DisplayPainterError(
+          'Failed to start color fill test app'
+      ) from e
 
   def _force_stop_color_fill_test_app(self):
     """Forces stop the ColorFillTestApp."""
