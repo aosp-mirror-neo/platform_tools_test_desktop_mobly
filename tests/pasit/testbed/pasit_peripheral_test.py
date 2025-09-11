@@ -272,14 +272,13 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           # for daisy chain, we only test the full chain, so skip all the
           # intermediate displays and only test the leaf node.
           continue
-        # generate display count tests
-        display_count_test_devices.append((device.id, tag))
         if (
             not utils.is_edid(topology, device.id)
             and tag != display_helper.DisplayPaths.DAISY_CHAIN.value
         ):
-          # generate display mapping tests for dock and dockless only, ignoring
+          # generate display tests for dock and dockless only, ignoring
           # EDID devices and daisy chain
+          display_count_test_devices.append((device.id, tag))
           display_mapping_devices.append((device.id, tag))
 
     if display_count_test_devices:
