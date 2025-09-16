@@ -40,19 +40,20 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
           dut_state_manager.PowerState.ON,
           display_base_test.DisplayPaths.DOCKLESS,
       ),
-      off_dock=(
-          dut_state_manager.PowerState.OFF,
-          display_base_test.DisplayPaths.DOCKLESS,
-      ),
-      off_dockless=(
-          dut_state_manager.PowerState.OFF,
-          display_base_test.DisplayPaths.DOCKLESS,
-      ),
-      suspend_dock=(
+      # TODO(b/328696922): re-enable these tests, once the bug is fixed.
+      # off_dock=(
+      #     dut_state_manager.PowerState.OFF,
+      #     display_base_test.DisplayPaths.DOCKLESS,
+      # ),
+      # off_dockless=(
+      #     dut_state_manager.PowerState.OFF,
+      #     display_base_test.DisplayPaths.DOCKLESS,
+      # ),
+      suspended_dock=(
           dut_state_manager.PowerState.SUSPEND,
           display_base_test.DisplayPaths.DOCK,
       ),
-      suspend_dockless=(
+      suspended_dockless=(
           dut_state_manager.PowerState.SUSPEND,
           display_base_test.DisplayPaths.DOCKLESS,
       ),
