@@ -64,11 +64,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     super().__init__(controller)
     # uninstall the app to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE error
     apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
-    apk_utils.install(
-        self.controller,
-        self.COLOR_FILL_TEST_APP_APK_PATH,
-        params=['-t'],  # to allow installing test packages
-    )
+    self._app_installed = False
 
   def cleanup(self):
     """Cleans up after testing.
@@ -76,7 +72,10 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     Uninstalls the ColorFillTestApp when the object is garbage collected.
     """
     self._force_stop_color_fill_test_app()
-    apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
+    if self._app_installed:
+      apk_utils.uninstall(
+          self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+      )
 
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
     """Shows the specified color on the Android device display.
@@ -95,6 +94,13 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         color will be shown on the default display.
     """
     # set screen brightness to max to ensure color is visible
+    if not self._app_installed:
+      apk_utils.install(
+          self.controller,
+          self.COLOR_FILL_TEST_APP_APK_PATH,
+          params=['-t'],  # to allow installing test packages
+      )
+      self._app_installed = True
     self._set_screen_brightness(255)
 
     window_count_before = self._get_color_fill_test_app_window_count()
@@ -210,9 +216,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           + (['--display', display_id] if display_id else [])
       )
     except adb.AdbError as e:
-      raise DisplayPainterError(
-          'Failed to start color fill test app'
-      ) from e
+      raise DisplayPainterError('Failed to start color fill test app') from e
 
   def _force_stop_color_fill_test_app(self):
     """Forces stop the ColorFillTestApp."""
