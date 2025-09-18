@@ -102,12 +102,25 @@ class DumpsysDisplayParser:
   def _get_display_id_from_display_info_line(
       self, display_info_line: str
   ) -> DisplayId:
-    matchId = re.search(r'displayId (\d+)', display_info_line)
+    match_id = re.search(r'displayId (\d+)', display_info_line)
     # TODO: b/442566979 - Remove the `-*` in the regex once the bug is fixed.
-    matchUniqueId = re.search(r'uniqueId \"local:(-*\d+)\"', display_info_line)
-    if matchId and matchUniqueId:
+    match_unique_id = re.search(
+        r'uniqueId \"local:(-*\d+)\"', display_info_line
+    )
+    match_human_readable_id = re.search(
+        r'DisplayInfo\{"([^"]+)"', display_info_line
+    )
+    if match_id and match_unique_id:
       return DisplayId(
-          display_id=matchId.group(1), unique_id=matchUniqueId.group(1)
+          display_id=match_id.group(1),
+          unique_id=match_unique_id.group(1),
+          # Not critical to any functionality, but nice to have so ignore if
+          # not present.
+          human_readable_id=(
+              match_human_readable_id.group(1)
+              if match_human_readable_id
+              else ''
+          ),
       )
     else:
       raise ValueError(

@@ -25,21 +25,34 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     """Class for holding the display ID and additional information."""
 
     _id: str
+    _human_readable_id: str
 
-    def __new__(cls, display_id: str):
+    def __new__(
+        cls, display_id: str, human_readable_id: str = ''
+    ) -> 'DisplayId':
       obj = str.__new__(cls, display_id)
       obj._id = display_id
+      obj._human_readable_id = human_readable_id
       return obj
 
     @property
     def id(self) -> str:
       return self._id
 
+    @property
+    def human_readable_id(self) -> str:
+      return self._human_readable_id
+
     def __str__(self):
+      # __str__ may be used by legacy code which expected display_id to be a
+      # string so do not modify this without considering the impact on legacy
+      # code.
       return f'{self._id}'
 
     def __repr__(self):
-      return f'{self._id}'
+      if self._human_readable_id:
+        return f'{self._human_readable_id} [ID={self._id}]'
+      return f'[ID={self._id}]'
 
     def __hash__(self):
       return hash(self._id)

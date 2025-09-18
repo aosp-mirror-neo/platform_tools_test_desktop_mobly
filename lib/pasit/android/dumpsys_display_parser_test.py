@@ -33,10 +33,14 @@ TESTDATA_PATH = os.path.join(
 
 class DumpsysDisplayParserTest(unittest.TestCase):
   _INTERNAL_DISPLAY_ID = DisplayId(
-      display_id='0', unique_id='4613568013223667456'
+      display_id='0',
+      unique_id='4613568013223667456',
+      human_readable_id='Built-in Screen',
   )
   _EXTERNAL_DISPLAY_ID = DisplayId(
-      display_id='6', unique_id='-3244557860248354816'
+      display_id='6',
+      unique_id='-3244557860248354816',
+      human_readable_id='HDMI Screen',
   )
   _INTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1200)
   _EXTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1080)

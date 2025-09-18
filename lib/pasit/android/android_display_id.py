@@ -25,8 +25,10 @@ class AndroidDisplayId(DisplayId):
 
   _unique_id: str
 
-  def __new__(cls, display_id: str, unique_id: str):
-    obj = DisplayId.__new__(cls, display_id)
+  def __new__(
+      cls, display_id: str, unique_id: str, human_readable_id: str = ''
+  ):
+    obj = DisplayId.__new__(cls, display_id, human_readable_id)
     obj._unique_id = unique_id
     return obj
 
@@ -35,13 +37,23 @@ class AndroidDisplayId(DisplayId):
     return self._unique_id
 
   def __eq__(self, other):
-    return self.id == other.id and self._unique_id == other._unique_id
+    return (
+        self.id == other.id
+        and self.unique_id == other.unique_id
+        and self.human_readable_id == other.human_readable_id
+    )
 
   def __ne__(self, other):
-    return self.id != other.id or self._unique_id != other._unique_id
+    return (
+        self.id != other.id
+        or self.unique_id != other.unique_id
+        or self.human_readable_id != other.human_readable_id
+    )
 
   def __repr__(self):
-    return f'{self.id}({self._unique_id})'
+    if self.human_readable_id:
+      return f'{self.human_readable_id} [ID={self.id}, UID={self.unique_id}]'
+    return f'[ID={self.id}, UID={self.unique_id}]'
 
   def __hash__(self):
     return hash((self.id, self._unique_id))
@@ -54,4 +66,3 @@ class AndroidDisplayId(DisplayId):
     id_int = int(self._unique_id)
     unsigned_id_int = ctypes.c_uint64(id_int).value
     return str(unsigned_id_int)
-
