@@ -413,6 +413,16 @@ class PassportUsbServiceClient:
         )
     )
 
+  @property
+  def vbus_voltage(self) -> int:
+    ret = self._get_capability(capability=uts_pb.VBUS_VOLTAGE)
+    return ret.non_descrete
+
+  @property
+  def vbus_current(self) -> int:
+    ret = self._get_capability(capability=uts_pb.VBUS_CURRENT)
+    return ret.non_descrete
+
   def get_dut_pdos(self) -> list[int]:
     """Gets the PD source power data objects (PDOs) of the USB tester.
 
