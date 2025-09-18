@@ -176,9 +176,10 @@ class DisplayHelper:
     logging.info('Mapping displays to cameras')
     display_id_to_color = self._open_rgb_images_on_displays()
     mapping_result = {}
+    unmapped_cameras_to_color = {}
 
     for camera_id in self.passport.get_cameras():
-      display_id = self._try_match_display_to_camera(
+      display_id, last_color = self._try_match_display_to_camera(
           camera_id, display_id_to_color
       )
 
@@ -186,11 +187,12 @@ class DisplayHelper:
         logging.warning(
             'Camera %s did not match any display. Skipping.', camera_id
         )
+        unmapped_cameras_to_color[camera_id] = last_color
         continue
 
       if display_id in mapping_result:
         logging.warning(
-            'Camera %s matched display id %s, but it is already mapped to'
+            'Camera %s matched display %r, but it is already mapped to'
             ' camera id %s',
             camera_id,
             display_id,
@@ -199,7 +201,7 @@ class DisplayHelper:
         continue
 
       logging.info(
-          'Camera %s matched display id %s with color %s',
+          'Camera %s matched display %r with color %s',
           camera_id,
           display_id,
           display_id_to_color[display_id].name,
@@ -209,21 +211,46 @@ class DisplayHelper:
     self.painter.clean_color_on_display()
 
     if len(mapping_result) != len(display_id_to_color):
-      logging.warning(
-          'Displays %s did not match any camera.',
-          [
-              display_id
-              for display_id in display_id_to_color
-              if display_id not in mapping_result
-          ],
+      error_message = self._create_map_displays_error_message(
+          display_id_to_color, mapping_result, unmapped_cameras_to_color
       )
-      raise MapDisplaysToCamerasError(
-          'Failed to map displays to cameras. Check that cameras are aligned'
-          ' and displays are functioning.'
-      )
+      raise MapDisplaysToCamerasError(error_message)
 
     logging.debug('Mapping result: %s', mapping_result)
     return mapping_result
+
+  def _create_map_displays_error_message(
+      self,
+      display_id_to_color: dict[
+          pasit_display.PasitDisplay.DisplayId, image.NamedColor
+      ],
+      mapping_result: dict[pasit_display.PasitDisplay.DisplayId, str],
+      unmapped_cameras_to_color: dict[str, image.NamedColor | None],
+  ) -> str:
+    """Creates an error message for when mapping displays to cameras fails."""
+    unmapped_displays = [
+        display
+        for display in display_id_to_color
+        if display not in mapping_result
+    ]
+    logging.warning('Displays %r did not match any camera.', unmapped_displays)
+
+    unmapped_displays_str = ', '.join(
+        [f'"{display!r}"' for display in unmapped_displays]
+    )
+
+    unmapped_cameras_str_parts = []
+    for camera, color in unmapped_cameras_to_color.items():
+      color_name = color.name.title() if color else 'no color'
+      unmapped_cameras_str_parts.append(f'{camera} matched {color_name}')
+    unmapped_cameras_str = ', '.join(unmapped_cameras_str_parts)
+
+    error_message = f'No camera mapped to display {unmapped_displays_str}'
+    if unmapped_cameras_str:
+      error_message += (
+          ', camera(s) matched no display: ' f'{unmapped_cameras_str}'
+      )
+    return error_message
 
   def get_display_testing_camera_id(
       self, display_id: pasit_display.PasitDisplay.DisplayId
@@ -309,7 +336,7 @@ class DisplayHelper:
       display_id_to_color: dict[
           pasit_display.PasitDisplay.DisplayId, image.NamedColor
       ],
-  ) -> pasit_display.PasitDisplay.DisplayId | None:
+  ) -> tuple[pasit_display.PasitDisplay.DisplayId | None, image.NamedColor | None]:
     """Tries to map a display to a camera.
 
     Matches the color displayed on the display to the color captured from the
@@ -325,18 +352,22 @@ class DisplayHelper:
         display.
 
     Returns:
-      A display ID that matched the camera. If mapping fails returns None.
+      A tuple of the display ID that matched the camera and the matched color.
+      If mapping fails returns (None, last_matched_color).
     """
 
     # return the first matched display, or None if no display is matched.
+    last_matched_color = None
     for matched_color in self._get_color_iterator(
         camera_id, 'match_display_to_camera'
     ):
+      last_matched_color = matched_color
       matched_display_id = self._get_matched_display_id(
           matched_color, display_id_to_color
       )
       if matched_display_id:
-        return matched_display_id
+        return matched_display_id, matched_color
+    return None, last_matched_color
 
   def _get_color_iterator(
       self,
