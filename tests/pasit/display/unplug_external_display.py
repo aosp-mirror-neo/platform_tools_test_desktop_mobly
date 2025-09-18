@@ -76,7 +76,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED,
         'external_display_red',
-        'External display should have red color.',
+        'Red background was not detected on the external display.',
     )
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
@@ -93,7 +93,8 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
         display_id_to_camera_id[internal_display_id],
         image.NamedColor.RED,
         'internal_display_red',
-        'Internal display should have red color.',
+        'Red background did not move to the internal display after the'
+        ' external display was unplugged.',
     )
     # Replug the external display and verify the color moves back.
     logging.info('Replugging external display.')
@@ -105,7 +106,8 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED,
         'external_display_red_after_replug',
-        'External display should have red color after replug.',
+        'Red background did not move back to the external display after it was'
+        ' plugged back in.',
     )
 
 
