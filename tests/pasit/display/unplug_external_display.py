@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import image
 from mobly import test_runner
@@ -29,7 +30,7 @@ _TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
     (dut_state_manager.PowerState.SUSPEND,),
 )
 
-
+@DesktopTest(cujs=['b/379291743', 'b/379290750'])
 class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that unplugs an external display when DUT is in different states."""
 
