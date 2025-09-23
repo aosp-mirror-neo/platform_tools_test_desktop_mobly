@@ -27,7 +27,7 @@ class PassportHIDServiceClient:
     # bind the client and the server
     self.stub = hid_service_pb2_grpc.HIDServiceStub(self.channel)
 
-  def close(self):
+  def close_channel(self):
     """Closes the PassportHIDServiceClient."""
     self.channel.close()
 

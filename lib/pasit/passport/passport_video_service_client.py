@@ -27,14 +27,15 @@ class PassportVideoServiceClient:
 
   def __init__(self, server_address: str):
     self._channel = grpc.insecure_channel(
-      server_address,
-      options=[
-        ('grpc.max_send_message_length', 64*1024*1024), # 64MB
-        ('grpc.max_receive_message_length', 64*1024*1024), # 64MB
-      ],
+        server_address,
+        options=[
+            ("grpc.max_send_message_length", 64 * 1024 * 1024),  # 64MB
+            ("grpc.max_receive_message_length", 64 * 1024 * 1024),  # 64MB
+        ],
     )
     self._stub = video_tester_service_pb2_grpc.VideoTesterServiceStub(
-        self._channel)
+        self._channel
+    )
     self._tester_id = None
 
   def _ensure_tester_open(self):
@@ -334,6 +335,10 @@ class PassportVideoServiceClient:
     )
     response = self._stub.RunComplianceTest(request)
     return response.results, response.results_html
+
+  def is_open(self) -> bool:
+    """Returns True if the video tester is open, False otherwise."""
+    return self._tester_id is not None
 
   def __del__(self):
     """Closes the tester (if open) and the gRPC channel."""

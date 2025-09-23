@@ -70,29 +70,51 @@ class PassportHost:
   Attributes:
     topology: The topology of the Pasit Testbed.
     address: The address of the PassportHost (in the form of hostname:port).
-    hid_client: The client for the HID service.
     log: The logger for the PassportHost.
+    camera_client: The client for the camera service.
+    hid_client: The client for the HID service.
+    switch_client: The client for the switch service.
     usb_tester_client: The client for the USB tester service.
     video_tester_client: The client for the video tester service.
   """
 
-  _camera_client: passport_camera_service_client.PassportCameraServiceClient = (
-      None
-  )
-  usb_tester_client: passport_usb_service_client.PassportUsbServiceClient = None
-  video_tester_client: (
-      passport_video_service_client.PassportVideoServiceClient | None
-  ) = None
-  _switch_client: passport_switch_service_client.PassportSwitchServiceClient
+  _dut_id: str
+  _devices: dict[str, pasit_host_pb2.PasitHost.Device]
+  _connections: dict[str, MutableSequence[pasit_host_pb2.PasitHost.Connection]]
+  _ip_power_clients: dict[str, ip_power.PassportRPM]
+
+  topology: pasit_host_pb2.PasitHost
+  log: logging.Logger
+
+  camera_client: passport_camera_service_client.PassportCameraServiceClient
   hid_client: hid_service_client.PassportHIDServiceClient
-  _dut_id = None
-  _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
-  _connections: dict[
-      str, MutableSequence[pasit_host_pb2.PasitHost.Connection]
-  ] = {}
-  _ip_power_clients: dict[str, ip_power.PassportRPM] = {}
+  switch_client: passport_switch_service_client.PassportSwitchServiceClient
+  usb_tester_client: passport_usb_service_client.PassportUsbServiceClient
+  video_tester_client: passport_video_service_client.PassportVideoServiceClient
+
+  def _initialize_clients(self, address: str):
+    """Creates a client for the given service."""
+    self.camera_client = (
+        passport_camera_service_client.PassportCameraServiceClient(address)
+    )
+    self.hid_client = hid_service_client.PassportHIDServiceClient(address)
+    self.switch_client = (
+        passport_switch_service_client.PassportSwitchServiceClient(address)
+    )
+    self.usb_tester_client = (
+        passport_usb_service_client.PassportUsbServiceClient(address)
+    )
+    self.video_tester_client = (
+        passport_video_service_client.PassportVideoServiceClient(address)
+    )
 
   def __init__(self, config):
+
+    self._dut_id = ''
+    self._devices = {}
+    self._connections = {}
+    self._ip_power_clients = {}
+
     self._config = config
     self.log = mobly_logger.PrefixLoggerAdapter(
         logging.getLogger(),
@@ -103,6 +125,15 @@ class PassportHost:
         },
     )
 
+    self._initialize_topology()
+    self._connect_to_service()
+    self._parse_topology()
+    self._validate_topology_switches()
+    self._activate_usb_testers()
+    self._setup_ip_power_clients()
+
+  def _initialize_topology(self):
+    """Initializes the topology from the config."""
     topology = self._config.get('host_topology', None)
     if topology is None:
       # If no topology is found, that's fine. The test will need to manage the
@@ -129,18 +160,6 @@ class PassportHost:
       self.topology.hostname = f'{service_host}:{service_port}'  # pylint: disable=bad-whitespace
 
     self.log.debug('PassportHost topology: %s' % self.topology)
-    self._connect_to_service()
-    self._parse_topology()
-    self._validate_topology_switches()
-    self._activate_usb_testers()
-    self._setup_ip_power_clients()
-
-  def _ensure_passport_connected(self):
-    """Ensures the Passport API Service is connected."""
-    if not self._switch_client:
-      raise errors.PassportServiceConnectionError(
-          'Cannot perform operation, Pasport client is not connected.'
-      )
 
   def _connect_to_service(self):
     """Connects to the Passport API Service."""
@@ -151,24 +170,10 @@ class PassportHost:
       )
 
     self.log.info('Connecting to Passport API at address: %s' % self.address)
-    self._camera_client = (
-        passport_camera_service_client.PassportCameraServiceClient(self.address)
-    )
-    self.hid_client = hid_service_client.PassportHIDServiceClient(self.address)
-    self._switch_client = (
-        passport_switch_service_client.PassportSwitchServiceClient(self.address)
-    )
-    self.usb_tester_client = (
-        passport_usb_service_client.PassportUsbServiceClient(self.address)
-    )
-    self.video_tester_client = (
-        passport_video_service_client.PassportVideoServiceClient(self.address)
-    )
+    self._initialize_clients(self.address)
 
   def _parse_topology(self):
     """Parses the topology and stores the devices and connections."""
-    self._devices = {}
-    self._connections = {}
     for device in self.topology.devices:
       self._devices[device.id] = device
       if device.type == pasit_host_pb2.PasitHost.Device.Type.DUT:
@@ -243,7 +248,7 @@ class PassportHost:
       raise errors.PassportConfigError(
           f'More than 1 usb tester found, found {len(topology_ids)} testers.'
       )
-    if len(topology_ids) == 0:
+    if not topology_ids:
       logging.info('No USB testers are used in the topology.')
       return
     topology_id = topology_ids[0]
@@ -426,7 +431,6 @@ class PassportHost:
       self, connections: MutableSequence[Any], enable: bool
   ) -> None:
     """Activates or deactivates the device with the given connection path."""
-    self._ensure_passport_connected()
     device_path = [connection.parent_id for connection in connections]
     self.log.info(
         f'{"Activating" if enable else "Deactivating"}:  path: {device_path}',
@@ -455,9 +459,9 @@ class PassportHost:
             'enabled' if enable else 'disabled',
         )
         if enable:
-          self._switch_client.enable_switch(device_id, port_id)
+          self.switch_client.enable_switch(device_id, port_id)
         else:
-          self._switch_client.disable_switch(device_id, port_id)
+          self.switch_client.disable_switch(device_id, port_id)
 
   @property
   def address(self) -> str:
@@ -473,22 +477,24 @@ class PassportHost:
       PassportIPPowerError: If the Passport was unable to reset the IP power
         switches.
     """
-    if self._switch_client:
-      self._switch_client.reset_all_switches()
-    if self.usb_tester_client and self.usb_tester_client.is_open():
+    self.switch_client.reset_all_switches()
+    if self.usb_tester_client.is_open():
       self.usb_tester_client.replug()
     for ip_power_client in self._ip_power_clients.values():
       ip_power_client.set_ip_power_state(ip_power.PowerState.OFF)
 
   def teardown(self):
     """Tears down the PassportHost."""
-    if self._switch_client:
-      self._switch_client.close()
-      self._switch_client = None
+    self.camera_client.close()
+    self.hid_client.close_channel()
 
-    if self.usb_tester_client and self.usb_tester_client.is_open():
+    self.switch_client.close()
+
+    if self.usb_tester_client.is_open():
       self.usb_tester_client.close_usb_tester()
-      self.usb_tester_client = None
+
+    if self.video_tester_client.is_open():
+      self.video_tester_client.close_video_tester()
 
   def activate_device_by_type(
       self,
@@ -568,15 +574,13 @@ class PassportHost:
     Raises:
       PassportSwitchClientError: If the Passport was unable to get the switches.
     """
-    self._ensure_passport_connected()
 
-    resp = self._switch_client.get_switches()
+    resp = self.switch_client.get_switches()
     return [switch.id for switch in resp.switches]
 
   def get_cameras(self) -> list[str]:
     """Returns the camera IDs connected to the PassportHost."""
-    self._ensure_passport_connected()
-    resp = self._camera_client.get_cameras()
+    resp = self.camera_client.get_cameras()
     return [camera.id for camera in resp.cameras]
 
   def get_device_by_id(self, device_id: str) -> pasit_host_pb2.PasitHost.Device:
@@ -668,8 +672,7 @@ class PassportHost:
     Returns:
       The average pixel Color.
     """
-    self._ensure_passport_connected()
-    resp = self._camera_client.get_average_pixel(camera_id, exposure_time_us)
+    resp = self.camera_client.get_average_pixel(camera_id, exposure_time_us)
     if image_name_suffix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_suffix)
     return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
@@ -706,8 +709,7 @@ class PassportHost:
       between 0 and 100 for the percentage of pixels that fall within the
       specified HSV value range.
     """
-    self._ensure_passport_connected()
-    resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
+    resp = self.camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
     if image_name_suffix and log_dir:
       self._save_image(resp.frame, log_dir, image_name_suffix)
     return {entry.key: entry.value for entry in resp.percentage_matched}
