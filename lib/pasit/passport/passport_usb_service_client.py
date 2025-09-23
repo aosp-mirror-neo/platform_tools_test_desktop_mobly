@@ -448,6 +448,13 @@ class PassportUsbServiceClient:
     )
     self._validate_reply(ret)
 
+  def simulate_key_press(self):
+    """Simulates a key press on the USB tester."""
+    ret = self._stub.SimulateKeyPress(
+        uts_pb.SimulateKeyPressRequest(id=self._tester_serial)
+    )
+    self._validate_reply(ret)
+
   def _validate_reply(
       self,
       reply: (
@@ -462,6 +469,7 @@ class PassportUsbServiceClient:
           | uts_pb.DoCableReplugReply
           | uts_pb.LoadEdidReply
           | uts_pb.GetPdosReply
+          | uts_pb.SimulateKeyPressReply
       ),
   ) -> None:
     """Validates the reply from a gRPC call.
