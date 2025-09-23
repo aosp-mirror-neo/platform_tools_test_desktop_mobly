@@ -15,7 +15,9 @@
 """Test that plugs in two external displays when DUT is in different states."""
 
 import logging
+import itertools
 
+from lib.utils import functools
 from lib.pasit import dut_state_manager
 from lib.utils import image
 from mobly import asserts
@@ -25,39 +27,47 @@ from pasit.display import display_base_test
 _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# PowerState indicating the DUT state when external display is plugged in.
-_TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
-    (dut_state_manager.PowerState.ON,),
-    (dut_state_manager.PowerState.OFF,),
-    (dut_state_manager.PowerState.SUSPEND,),
-)
 
 # TODO: b/443128286 - Review if we need to merge this test class with
 #plug_in_external_display.py.
-
+@functools.generate_tests
 class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   """Test that plugs in two external displays when DUT is in different states."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.display_test_logic,
-        name_func=self.display_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def display_test_name(
-      self, state_when_plug_display: dut_state_manager.PowerState
-  ) -> str:
-    """Get the test name for the given test args."""
-    return f'test_plug_in_two_displays_when_dut_{state_when_plug_display.value}'
-
-  def display_test_logic(
-      self, state_when_plug_display: dut_state_manager.PowerState
+  @functools.with_variants(
+      on_dock=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      on_daisychain=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DAISY_CHAIN,
+      ),
+      off_dock=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      off_daisychain=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DAISY_CHAIN,
+      ),
+      suspended_dock=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      suspended_daisychain=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DAISY_CHAIN,
+      ),
+  )
+  def test_plug_in_two_displays_when_dut(
+      self,
+      state_when_plug_display: dut_state_manager.PowerState,
+      display_path: display_base_test.DisplayPaths,
   ):
     """Test that plugs in two external displays when DUT is in different states."""
     self._skip_if_servo_needed_and_not_configured(state_when_plug_display)
+    self.setup_display_path(display_path)
 
     internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
