@@ -26,7 +26,10 @@ from pasit.display import display_base_test
 
 
 # CUJs this test covers (full or partial) go/al-traceability
-@DesktopTest(cujs=['b/379291743', 'b/379290750'])
+@DesktopTest(
+    cujs=['b/379291743', 'b/379290750'],
+    manual=['al_dock_and_display.usb_typec_docking_station_testing'],
+)
 @functools.generate_tests
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
