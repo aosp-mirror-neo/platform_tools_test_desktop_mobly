@@ -22,12 +22,9 @@ class DevicePathNotFoundError(PassportBaseError):
   """Error when trying to look up the path to a device."""
 
 
-class PassportServiceConnectionError(PassportBaseError):
-  """Error when trying to connect to the Passport API Service."""
-
-
 class PassportConfigError(PassportBaseError):
   """Error class for the PassportHost controller configuration."""
+
 
 class PassportRPMError(PassportBaseError):
   """Error class for connecting to an RPM for a device via passport."""

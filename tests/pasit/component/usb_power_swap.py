@@ -18,9 +18,7 @@ import logging
 import time
 
 from lib.pasit import pasit_test
-from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
-
 from mobly import asserts
 from mobly import test_runner
 
@@ -30,10 +28,6 @@ class UsbTesterHello(pasit_test.PasitTestClass):
 
   def setup_class(self):
     super().setup_class()
-    if self.passport_host.usb_tester_client is None:
-      raise passport_host.PassportServiceConnectionError(
-          "USB tester client is not initialized."
-      )
     self.utc = self.passport_host.usb_tester_client
 
     # Open the USB tester with serial. TODO(danielgeorgem): move the serial to
@@ -53,11 +47,6 @@ class UsbTesterHello(pasit_test.PasitTestClass):
     self.passport_host.reset()
 
   def test_power_swap(self):
-    if self.utc is None:
-      raise passport_host.PassportServiceConnectionError(
-          "USB tester client is not initialized."
-      )
-
     roles_utc = [usb.PowerRole.SRC, usb.PowerRole.SNK] * 5
     roles_dut = ["SNK", "SRC"] * 5
 
