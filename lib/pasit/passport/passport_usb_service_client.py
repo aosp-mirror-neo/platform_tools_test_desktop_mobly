@@ -149,24 +149,19 @@ class PassportUsbServiceClient:
   def active_port(self, port_id: typing.Literal[0, 1] | None) -> None:
     """Sets the active port."""
     if port_id is None:
-      for port_id_deactivate in range(2):
-        req = uts_pb.SetActivePortRequest(
-            id=self._tester_serial,
-            port_id=port_id_deactivate,
-            state=uts_pb.PortState.PORT_STATE_OFF,
-        )
-        self._validate_reply(self._stub.SetActivePort(req))
+      req = uts_pb.SetActivePortRequest(
+          id=self._tester_serial,
+          port_id=0,
+          state=uts_pb.PortState.PORT_STATE_OFF,
+      )
+      self._validate_reply(self._stub.SetActivePort(req))
     else:
-      for port_id_action, action in zip(
-          [1 ^ port_id, port_id],
-          [uts_pb.PortState.PORT_STATE_OFF, uts_pb.PortState.PORT_STATE_ON],
-      ):
-        req = uts_pb.SetActivePortRequest(
-            id=self._tester_serial,
-            port_id=port_id_action,
-            state=action,
-        )
-        self._validate_reply(self._stub.SetActivePort(req))
+      req = uts_pb.SetActivePortRequest(
+          id=self._tester_serial,
+          port_id=port_id,
+          state=uts_pb.PortState.PORT_STATE_ON,
+      )
+      self._validate_reply(self._stub.SetActivePort(req))
 
   def hard_reset(self) -> None:
     """Hard resets the USB tester."""
