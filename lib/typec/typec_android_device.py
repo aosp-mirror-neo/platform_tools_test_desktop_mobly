@@ -68,11 +68,31 @@ class TypecAndroidDevice:
     self.controller.reboot()
 
   def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
-    """Suspends the device with a wakeup timer.
+    """Suspends the device with a wakeup timer. This is a blocking call.
 
     Args:
       wakeup_timeout_seconds: The wakeup timeout in seconds. Must be greater
         than the minimum sleep timer of MIN_SLEEP_TIMER_SECONDS.
+    """
+    wakeup_timer = self.begin_suspend_with_wakeup_timer(wakeup_timeout_seconds)
+    wakeup_timer.join()
+    self.end_suspend()
+
+  def begin_suspend_with_wakeup_timer(
+      self, wakeup_timeout_seconds: int
+  ) -> threading.Timer:
+    """Begins suspending the device with a wakeup timer. Non-blocking.
+
+    This function initiates the suspend process and returns immediately
+    after the device is offline. The caller is responsible for waiting for
+    the device to resume and calling end_suspend after wakeup.
+
+    Args:
+      wakeup_timeout_seconds: The wakeup timeout in seconds. Must be greater
+        than the minimum sleep timer of MIN_SLEEP_TIMER_SECONDS.
+
+    Returns:
+        A threading.Timer object that will fire when the wakeup timeout expires.
     """
     if wakeup_timeout_seconds < self.MIN_SLEEP_TIMER_SECONDS:
       raise ValueError(
@@ -84,8 +104,10 @@ class TypecAndroidDevice:
     wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
     wakeup_timer.start()
     self._suspend()
+    return wakeup_timer
 
-    wakeup_timer.join()
+  def end_suspend(self):
+    """Waits for the device to complete boot and restarts services."""
     self.controller.wait_for_boot_completion(
         timeout=self.BOOT_COMPLETION_TIMEOUT_SECONDS
     )
