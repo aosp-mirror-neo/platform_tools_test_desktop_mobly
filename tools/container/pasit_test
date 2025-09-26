@@ -96,17 +96,14 @@ check_satlab_drone_running_tests() {
 
 get_dut_info() {
   local dns_info="$(satlab get dns)"
-  local dut_line="$(echo "$dns_info" | grep "satlab-" | grep -v "ip_power")"
-  local ip_power_line="$(echo "$dns_info" | grep "satlab-" | grep "ip_power")"
+  local dut_line="$(echo "$dns_info" | grep "satlab-" | grep -v -i -E "ip.*power|192.168.231.110")"
   DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
   DUT_ID="$(echo "$dut_line" | awk '{print $2}')"
-  IP_POWER_IP="$(echo "$ip_power_line" | awk '{print $1}')"
 
   if ! satlab get dut "${DUT_ID}" > "${DUT_INFO_FILE}"; then
     log_color ERROR"Failed to get DUT info from satlab for ${DUT_ID}"
     exit 1
   fi
-
 
   jq '.. | .pasit? | select(. != null)' "${DUT_INFO_FILE}" > "${PASIT_JSON_FILE}"
 }
@@ -287,11 +284,6 @@ generate_pasit_config() {
   # passport service_host -> IP address of passport container
   sed -i "s/service_host: .*/service_host: ${PASSPORT_IP}/g" \
     ${TEMP_DIR}/pasit_config.yaml
-  if [[ -n "${IP_POWER_IP}" ]]; then
-    # rpm -> IP address of IP Power
-    sed -i "s/address: .*/address: ${IP_POWER_IP}/g" \
-      ${TEMP_DIR}/pasit_config.yaml
-  fi
   docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
   set +e
   log_color GOOD "PASIT config YAML file generated: ${TEMP_DIR}/pasit_config.yaml"
