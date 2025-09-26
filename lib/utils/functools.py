@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Decorators for creating variants of a test case
+"""Decorator for creating variants of a test case
 
-This module provides a decorators that minimize boilerplate code when creating
+This module provides a decorator that minimize boilerplate code when creating
 parameterized test cases for.
 """
 
 import functools
-import itertools
 
 
 def with_variants(**kwargs):
@@ -80,4 +79,3 @@ def generate_tests(cls):
         # Add the new test method to the class.
         setattr(cls, new_test_name, new_test_func)
   return cls
-
