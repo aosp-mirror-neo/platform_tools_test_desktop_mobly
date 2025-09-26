@@ -14,7 +14,6 @@
 
 """Test that plugs in an external display when DUT is in different states."""
 
-import itertools
 import logging
 
 from android.platform.test.annotations import DesktopTest

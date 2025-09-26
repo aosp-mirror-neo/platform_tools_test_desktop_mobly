@@ -15,41 +15,23 @@
 """Test external storage operability after plugging in and unplugging."""
 
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from mobly import test_runner
 from pasit.storage import write_to_storage_base_test
 
 
+@functools.generate_tests
 class PlugUnplugExternalStorageTest(
     write_to_storage_base_test.WriteToStorageBaseTest
 ):
   """Test external storage operability after plugging in and unplugging."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.plug_in_storage_test_logic,
-        name_func=lambda power_state: (
-            f'test_plug_in_storage_when_dut_{power_state.value}'
-        ),
-        arg_sets=(
-            (dut_state_manager.PowerState.ON,),
-            (dut_state_manager.PowerState.OFF,),
-            (dut_state_manager.PowerState.SUSPEND,),
-        ),
-    )
-
-    self.generate_tests(
-        test_logic=self.unplug_storage_test_logic,
-        name_func=lambda power_state: (
-            f'test_unplug_storage_when_dut_{power_state.value}'
-        ),
-        arg_sets=(
-            (dut_state_manager.PowerState.ON,),
-            (dut_state_manager.PowerState.SUSPEND,),
-        ),
-    )
-
-  def plug_in_storage_test_logic(
+  @functools.with_variants(
+      on=(dut_state_manager.PowerState.ON,),
+      off=(dut_state_manager.PowerState.OFF,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  def test_plug_in_storage_when_dut(
       self, state_when_plug_storage: dut_state_manager.PowerState
   ):
     """Generate test logic for a specific dut state.
@@ -78,7 +60,11 @@ class PlugUnplugExternalStorageTest(
         external_storage_file_path, self.host_file_content
     )
 
-  def unplug_storage_test_logic(
+  @functools.with_variants(
+      on=(dut_state_manager.PowerState.ON,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  def test_unplug_storage_when_dut(
       self, state_when_unplug_storage: dut_state_manager.PowerState
   ):
     """Generate test logic for a specific dut state.

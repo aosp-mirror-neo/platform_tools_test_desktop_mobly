@@ -20,20 +20,15 @@ import time
 
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_file
+from lib.utils import functools
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# camera mode.
-_TEST_ARGUMENTS: tuple[tuple[pasit_camera.PasitCamera.Mode, ...], ...] = (
-    (pasit_camera.PasitCamera.Mode.PHOTO,),
-    (pasit_camera.PasitCamera.Mode.VIDEO,),
-)
 
-
+@functools.generate_tests
 class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test recording from an external camera."""
 
@@ -50,19 +45,13 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     self._cleanup_files()
     super().teardown_test()
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.camera_test_logic,
-        name_func=self.camera_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def camera_test_name(self, camera_mode: pasit_camera.PasitCamera.Mode) -> str:
-    """Get the test name for the given test args."""
-    return f'test_capture_from_external_camera_{camera_mode.value}'
-
-  def camera_test_logic(self, camera_mode: pasit_camera.PasitCamera.Mode):
+  @functools.with_variants(
+      photo=(pasit_camera.PasitCamera.Mode.PHOTO,),
+      video=(pasit_camera.PasitCamera.Mode.VIDEO,),
+  )
+  def test_capture_from_external_camera(
+      self, camera_mode: pasit_camera.PasitCamera.Mode
+  ):
     """Test recording from an external camera."""
     self.connect_external_camera()
     self.launch_camera_app()

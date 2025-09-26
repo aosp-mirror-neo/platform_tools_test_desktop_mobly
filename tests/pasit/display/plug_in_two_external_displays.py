@@ -15,10 +15,9 @@
 """Test that plugs in two external displays when DUT is in different states."""
 
 import logging
-import itertools
 
-from lib.utils import functools
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from lib.utils import image
 from mobly import asserts
 from mobly import test_runner
@@ -27,9 +26,8 @@ from pasit.display import display_base_test
 _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 
 
-
 # TODO: b/443128286 - Review if we need to merge this test class with
-#plug_in_external_display.py.
+# plug_in_external_display.py.
 @functools.generate_tests
 class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   """Test that plugs in two external displays when DUT is in different states."""

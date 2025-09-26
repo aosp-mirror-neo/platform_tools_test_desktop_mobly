@@ -20,6 +20,7 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.utils import functools
 from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
@@ -31,6 +32,7 @@ class DisplayIdType(enum.StrEnum):
   EXTERNAL = 'external_display'
 
 
+@functools.generate_tests
 class PasitDisplayTest(pasit_test.PasitTestClass):
 
   DISPLAY_CONNECT_TRIES = 5
@@ -93,19 +95,12 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         f'Display IDs count is not {EXPECTED_DISPLAY_COUNT}.',
     )
 
-  def pre_run(self):
-    """Generate tests for get_set_supported_display_resolutions."""
-    self.generate_tests(
-        test_logic=self.get_set_supported_display_resolutions,
-        name_func=lambda display_id_type: f'test_get_set_supported_display_resolutions_{display_id_type.value}',
-        arg_sets=(
-            (DisplayIdType.INTERNAL,),
-            (DisplayIdType.EXTERNAL,),
-            (DisplayIdType.NONE,),
-        ),
-    )
-
-  def get_set_supported_display_resolutions(
+  @functools.with_variants(
+      internal=(DisplayIdType.INTERNAL,),
+      external=(DisplayIdType.EXTERNAL,),
+      none=(DisplayIdType.NONE,),
+  )
+  def test_get_set_supported_display_resolutions(
       self, display_id_type: DisplayIdType
   ):
     match display_id_type:

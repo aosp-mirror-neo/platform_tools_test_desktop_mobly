@@ -18,37 +18,22 @@ import logging
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
 
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# PowerState indicating the DUT state when external display is unplugged.
-_TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
-    (dut_state_manager.PowerState.ON,),
-    (dut_state_manager.PowerState.SUSPEND,),
-)
-
 @DesktopTest(cujs=['b/379291743', 'b/379290750'])
+@functools.generate_tests
 class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that unplugs an external display when DUT is in different states."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.display_test_logic,
-        name_func=self.display_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def display_test_name(
-      self, state_when_unplug_display: dut_state_manager.PowerState
-  ) -> str:
-    """Get the test name for the given test args."""
-    return f'test_unplug_display_when_dut_{state_when_unplug_display.value}'
-
-  def display_test_logic(
+  @functools.with_variants(
+      on=(dut_state_manager.PowerState.ON,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  def test_unplug_display_when_dut(
       self, state_when_unplug_display: dut_state_manager.PowerState
   ):
     """Test that unplugs an external display when DUT is in different states."""
