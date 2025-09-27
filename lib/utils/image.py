@@ -362,3 +362,24 @@ def color_distance(color1: Color, color2: Color) -> float:
       + (color1.b - color2.b) ** 2
   )
   return result
+
+
+def get_color_brightness(color: Color) -> int:
+  """Returns the average brightness of a color."""
+  return (color.r + color.g + color.b) // 3
+
+
+def get_color_hot_cold(color: Color) -> int:
+  """Returns the hotness of a color.
+
+  This is calculated as the difference between the red and blue components.
+  A positive value indicates a "hotter" color (more red), while a negative
+  value indicates a "colder" color (more blue).
+
+  Args:
+    color: The Color object to evaluate.
+
+  Returns:
+    An integer representing the red-blue difference.
+  """
+  return color.r - color.b
