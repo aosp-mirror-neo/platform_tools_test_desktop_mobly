@@ -19,6 +19,7 @@ import logging
 import threading
 import time
 
+from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
@@ -236,6 +237,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def get_temp_dir(self) -> str:
     return self.TMP_DIR
+
+  def is_powered(self) -> bool:
+    return dumpsys_battery_parser.DumpsysBatteryParser(
+        self.controller
+    ).is_powered()
 
   def _wait_for_device_offline(
       self,
