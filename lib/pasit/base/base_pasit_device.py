@@ -218,6 +218,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Returns the temporary directory on the device."""
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def is_powered(self) -> bool:
+    """Returns True if the device is receiving power.
+
+    Returns:
+      True if the device is receiving power from an external power source or
+      power adapter.
+    """
+    raise NotImplementedError
+
   def _request_power_on(self):
     """Requests the device to power on via Servo.
 

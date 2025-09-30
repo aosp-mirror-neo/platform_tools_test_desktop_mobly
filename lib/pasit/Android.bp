@@ -63,8 +63,9 @@ python_library_host {
         "*/*device.py",
         "*device.py",
         "dut_state_manager.py",
-        "android/snippet_tools.py",
-        "android/user_session_tools.py",
+        "*/snippet_tools.py",
+        "*/user_session_tools.py",
+        "*/dumpsys_battery_parser.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [
@@ -80,8 +81,8 @@ python_library_host {
     srcs: [
         "*/*display.py",
         "*/*display_id.py",
-        "*/*dumpsys_display_parser.py",
-        "*/*dumpsys_surfaceflinger_parser.py",
+        "*/dumpsys_display_parser.py",
+        "*/dumpsys_surfaceflinger_parser.py",
         "*display.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -219,5 +220,24 @@ python_test_host {
     },
     libs: [
         "py-pasit-display",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_battery_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_battery_parser_test.py",
+    srcs: [
+        "android/dumpsys_battery_parser_test.py",
+    ],
+    data: [
+        "android/testdata/dumpsys_battery_not_charging.txt",
+        "android/testdata/dumpsys_battery_usb_charging.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-device",
     ],
 }
