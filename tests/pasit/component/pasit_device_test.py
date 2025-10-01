@@ -58,6 +58,23 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Resuming device...')
     self.dut.power_on()
 
+  def test_disable_enable_servo_power(self):
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
+
+    asserts.assert_true(self.dut.is_powered(), 'Device is not powered.')
+    logging.info('Disabling Servo power...')
+    self.dut.disable_servo_power()
+
+    logging.info('Checking if device is powered...')
+    asserts.assert_false(self.dut.is_powered(), 'Device is still powered.')
+    logging.info('Enabling Servo power...')
+    self.dut.enable_servo_power()
+
+    logging.info('Checking if device is powered...')
+    asserts.assert_true(self.dut.is_powered(), 'Device is not powered.')
+
 
 if __name__ == '__main__':
   test_runner.main()

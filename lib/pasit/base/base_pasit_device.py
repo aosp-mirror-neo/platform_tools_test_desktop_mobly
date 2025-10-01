@@ -247,3 +247,27 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     if not self._servo:
       raise ServoNotConfiguredError('Failed to request power off device.')
     self._servo.set_power_state(servo_client.PowerState.OFF)
+
+  def disable_servo_power(self):
+    """Requests the device to disable Servo power.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to disable Servo power.')
+    self._servo.disable_servo_power()
+    # make sure device is online after disabling servo power
+    self.wait_for_device_online(DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS)
+
+  def enable_servo_power(self):
+    """Requests the device to enable Servo power.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to enable Servo power.')
+    self._servo.enable_servo_power()
+    # make sure device is online after enabling servo power
+    self.wait_for_device_online(DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS)

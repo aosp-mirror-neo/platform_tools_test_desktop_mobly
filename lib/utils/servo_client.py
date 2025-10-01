@@ -29,12 +29,25 @@ class ServoConnectionError(Exception):
   """Error when trying to connect to Servo."""
 
 
+ON_STATE = 'on'
+OFF_STATE = 'off'
+
+POWER_STATE = 'power_state'
+COLD_RESET = 'cold_reset'
+BOTTOM_USBKEY_PWR = 'bottom_usbkey_pwr'
+TOP_USBKEY_PWR = 'top_usbkey_pwr'
+SERVO_PD_ROLE = 'servo_pd_role'
+
+PD_ROLE_SINK = 'snk'
+PD_ROLE_SOURCE = 'src'
+
+
 @enum.unique
 class PowerState(str, enum.Enum):
   """Power states for the DUT."""
 
-  ON = 'on'
-  OFF = 'off'
+  ON = ON_STATE
+  OFF = OFF_STATE
 
 
 class ServoBase(abc.ABC):
@@ -42,18 +55,38 @@ class ServoBase(abc.ABC):
 
   def set_power_state(self, power_state: PowerState):
     """Sets the power state of the DUT via Servod."""
-    self._set_servod_value('power_state', power_state.value)
+    self._set_servod_value(POWER_STATE, power_state.value)
 
   def cold_reset(self):
     """Performs a cold reset of the DUT via Servod."""
-    self._set_servod_value('cold_reset', PowerState.ON.value)
+    self._set_servod_value(COLD_RESET, ON_STATE)
     time.sleep(1)
-    self._set_servod_value('cold_reset', PowerState.OFF.value)
+    self._set_servod_value(COLD_RESET, OFF_STATE)
+
+  def disable_servo_power(self):
+    """Disables the Servo power to the DUT."""
+    self._set_servod_value(BOTTOM_USBKEY_PWR, OFF_STATE)
+    self._set_servod_value(TOP_USBKEY_PWR, OFF_STATE)
+    # allow USB-A devices to disconnect
+    time.sleep(2)
+    self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SINK)
+    # wait for the servo to disable power
+    time.sleep(2)
+    self._set_servod_value(BOTTOM_USBKEY_PWR, ON_STATE)
+    self._set_servod_value(TOP_USBKEY_PWR, ON_STATE)
+
+  def enable_servo_power(self):
+    """Enables the Servo power to the DUT."""
+    self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SOURCE)
+    # allow servo power role to settle
+    time.sleep(2)
+    self._set_servod_value(BOTTOM_USBKEY_PWR, ON_STATE)
+    self._set_servod_value(TOP_USBKEY_PWR, ON_STATE)
 
   @abc.abstractmethod
   def _set_servod_value(self, name: str, value: str) -> None:
     """Sets the value of a Servod control."""
-    pass
+    raise NotImplementedError
 
   @abc.abstractmethod
   def verify_connected(self) -> None:
@@ -62,7 +95,7 @@ class ServoBase(abc.ABC):
     Raises:
       ServoConnectionError: If the client is not connected to the Servod.
     """
-    pass
+    raise NotImplementedError
 
 
 class LSNexusClient(ServoBase):
