@@ -28,7 +28,30 @@
 # ./pasit_test -p -- <command> <subcommand> <subcommand args>...
 
 usage() {
-  echo "Usage: $0 --board <board>"
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [--] [args...]"
+  echo
+  echo "Run PASIT testbed suite on a Satlab host."
+  echo
+  echo "This script can be used to run the suite on a ChromeOS or Android device."
+  echo
+  echo "Options:"
+  echo "  -h, --help          Show this help message and exit."
+  echo "  -q, --quick         Quick mode. Bypasses re-running of the setup."
+  echo "  -p, --passport      Run passport client commands."
+  echo "  -- [args...]        All arguments after '--' are passed to the test suite or passport client."
+  echo
+  echo "Examples:"
+  echo "  # Run the full test suite setup and execution"
+  echo "  $0"
+  echo
+  echo "  # Run in quick mode (bypasses setup)"
+  echo "  $0 -q"
+  echo
+  echo "  # Pass additional arguments to the test suite"
+  echo "  $0 -q -- --tests=<Class Name>[.<Test Name>]"
+  echo
+  echo "  # Run a passport client command"
+  echo "  $0 -p -- -h"
   exit 1
 }
 
