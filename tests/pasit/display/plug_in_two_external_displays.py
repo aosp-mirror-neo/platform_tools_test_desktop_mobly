@@ -64,43 +64,42 @@ class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
       display_path: display_base_test.DisplayPaths,
   ):
     """Test that plugs in two external displays when DUT is in different states."""
-    self._skip_if_servo_needed_and_not_configured(state_when_plug_display)
+    self.skip_if_servo_needed_and_not_configured(state_when_plug_display)
     self.setup_display_path(display_path)
 
     internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
-      monitor_ids = self._get_monitor_device_ids()
+      monitor_ids = self.get_monitor_device_ids()
       asserts.skip_if(
           len(monitor_ids) != _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN,
           f'Expected {_EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN} monitors, but'
           f' found {len(monitor_ids)}.',
       )
       for monitor_id in monitor_ids:
-        self._plug_in_external_display(monitor_id)
+        self.plug_in_external_display(monitor_id)
 
-    self._verify_display_count(
+    self.verify_display_count(
         _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN + 1,
-        'after two external displays plug in')
+        'after two external displays plug in',
+    )
 
-    display_id_to_camera_id = self._map_displays_to_cameras_with_retries()
+    display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
 
     external_display_ids = self.helper.get_external_display_ids(
         internal_display_id, _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN
     )
 
     for i, external_display_id in enumerate(external_display_ids):
-      logging.info(
-          'Open red background on external display %d', i
-      )
+      logging.info('Open red background on external display %d', i)
       self.painter.show_color_on_display(
           image.NamedColor.RED.value, external_display_id
       )
 
       logging.info('Verify background color on external display %d', i)
-      self._capture_screenshots(f'external_display_{i}_red')
-      self._verify_captured_color(
+      self.capture_screenshots(f'external_display_{i}_red')
+      self.verify_captured_color(
           display_id_to_camera_id[external_display_id],
           image.NamedColor.RED,
           f'external_display_{i}_red',

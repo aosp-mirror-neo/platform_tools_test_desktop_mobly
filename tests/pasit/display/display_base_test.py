@@ -67,6 +67,16 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     )
     self.display_path_tag = None
 
+  def teardown_test(self):
+    self.painter.clean_color_on_display()
+    super().teardown_test()
+
+  def teardown_class(self):
+    """Handle the teardown for the class."""
+    if hasattr(self, 'painter'):
+      self.painter.cleanup()
+    super().teardown_class()
+
   def _determine_display_path(
       self, display_path: DisplayPaths
   ) -> DisplayPaths | None:
@@ -120,21 +130,11 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     except ValueError as e:
       asserts.skip(f'No display path found: {e}')
 
-  def teardown_test(self):
-    self.painter.clean_color_on_display()
-    super().teardown_test()
-
-  def teardown_class(self):
-    """Handle the teardown for the class."""
-    if hasattr(self, 'painter'):
-      self.painter.cleanup()
-    super().teardown_class()
-
-  def _get_monitor_device_ids(self) -> list[str]:
+  def get_monitor_device_ids(self) -> list[str]:
     """Returns the device IDs of the monitors in the topology."""
     return self.passport_host.get_device_ids_by_type(self.DEVICE_TYPE_MONITOR)
 
-  def _plug_in_external_display(self, device_id: str | None = None):
+  def plug_in_external_display(self, device_id: str | None = None):
     """Emulate external display plug in using passport."""
     if device_id:
       logging.info('Plugging in external display %s', device_id)
@@ -144,7 +144,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.passport_host.activate_device_by_type(
           self.DEVICE_TYPE_MONITOR, self.display_path_tag)
 
-  def _unplug_external_display(self, device_id: str | None = None):
+  def unplug_external_display(self, device_id: str | None = None):
     """Emulate external display unplug using passport."""
     if device_id:
       logging.info('Unplugging external display %s', device_id)
@@ -155,7 +155,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
           self.DEVICE_TYPE_MONITOR, self.display_path_tag
     )
 
-  def _verify_display_count(self, expected_count: int, event_to_log: str):
+  def verify_display_count(self, expected_count: int, event_to_log: str):
     """Verifies that the display count is equal to the expected count."""
     asserts.assert_equal(
         retry.retry(
@@ -178,7 +178,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         f'Display IDs count is not {expected_count} {event_to_log}.',
     )
 
-  def _verify_captured_color(
+  def verify_captured_color(
       self,
       camera_id: str,
       expected_color: image.NamedColor,
@@ -216,7 +216,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_color.name,
     )
 
-  def _map_displays_to_cameras_with_retries(
+  def map_displays_to_cameras_with_retries(
       self,
   ) -> dict[pasit_display.PasitDisplay.DisplayId, str]:
     """Maps the displays to cameras with retry every 10 seconds."""

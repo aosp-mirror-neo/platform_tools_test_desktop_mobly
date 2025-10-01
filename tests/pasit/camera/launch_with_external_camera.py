@@ -28,10 +28,10 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
 
     self.connect_external_camera()
     self.launch_camera_app()
-    self._capture_screenshots('camera_app_launched')
+    self.capture_screenshots('camera_app_launched')
 
     self.switch_camera()
-    self._capture_screenshots('after_switch_to_external_camera')
+    self.capture_screenshots('after_switch_to_external_camera')
     self._verify_external_camera_captures_color(
         image.NamedColor.RED,
         'External camera preview (on the internal display) should be showing'
@@ -53,7 +53,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
     self.camera.maximize_camera_app_window()
-    self._capture_screenshots('external_camera_preview_color')
+    self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
         self.helper.try_match_color(
             camera_id, color, 'external_camera_preview_color'

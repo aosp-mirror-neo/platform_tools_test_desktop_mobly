@@ -59,7 +59,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
 
     external_display_id = self.connect_external_display()
     self.switch_mode(camera_mode)
-    self._capture_screenshots(f'{camera_mode.value}_mode')
+    self.capture_screenshots(f'{camera_mode.value}_mode')
 
     self._capture_from_external_camera(camera_mode, external_display_id)
     self._verify_captured_files_exist()
@@ -82,7 +82,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     )
     logging.info('Take photo')
     self.camera.take_photo()
-    self._capture_screenshots('photo_taken')
+    self.capture_screenshots('photo_taken')
 
   def _capture_video(
       self, external_display_id: str, per_color_duration_seconds: int = 5
@@ -97,7 +97,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     for color in colors:
       self.painter.show_color_on_display(color.value, external_display_id)
       time.sleep(per_color_duration_seconds)  # for video content to be recorded
-      self._capture_screenshots(f'{color.name}_color_recorded')
+      self.capture_screenshots(f'{color.name}_color_recorded')
       self.painter.clean_color_on_display()
     logging.info('Stop recording video')
     self.camera.stop_recording_video()
