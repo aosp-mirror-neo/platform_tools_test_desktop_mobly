@@ -482,6 +482,11 @@ class PassportHost:
       self.usb_tester_client.replug()
     for ip_power_client in self._ip_power_clients.values():
       ip_power_client.set_ip_power_state(ip_power.PowerState.OFF)
+    if self._ip_power_clients:
+      # delay to allow time for the IP power switches to turn off and any
+      # capacitors in chargers to discharge, without this flaky behavior may
+      # occur with docks
+      time.sleep(2)
 
   def teardown(self):
     """Tears down the PassportHost."""
