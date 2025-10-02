@@ -28,7 +28,7 @@
 # ./pasit_test -p -- <command> <subcommand> <subcommand args>...
 
 usage() {
-  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [--] [args...]"
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--] [args...]"
   echo
   echo "Run PASIT testbed suite on a Satlab host."
   echo
@@ -52,6 +52,9 @@ usage() {
   echo
   echo "  # Run a passport client command"
   echo "  $0 -p -- -h"
+  echo
+  echo "  # Upload all logs to the gcs bucket"
+  echo "  $0 -u"
   exit 1
 }
 
@@ -61,6 +64,7 @@ PASIT_ANDROID_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/android:latest"
 PASIT_CROS_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/cros:latest"
 PASIT_VOLUME_NAME="pasit_volume"
 PASIT_PERSISTENT_CONTAINER_NAME="pasit_persistent_container"
+PASIT_PERSISTENT_LOG_CONTAINER_NAME="pasit_persistent_log_upload_container"
 
 # Define ANSI color codes
 # Note: \e or \x1B both represent the ESC character
@@ -343,6 +347,47 @@ run_pasit_testbed_suite() {
   log_color INFO "logs can be found in ${TEMP_DIR}/$(basename ${log_dir}) directory"
 }
 
+upload_logs() {
+  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json)"
+  local temp_dir="$(cat /tmp/pasit_temp_dir.txt)"
+  if [[ -z "${temp_dir}" ]]; then
+    log_color ERROR "No temp directory found, run tests before uploading logs."
+    exit 1
+  fi
+  echo "Uploading logs to: gs://${gcs_bucket}..."
+  # stop the persistent container
+  docker stop ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} > /dev/null 2>&1
+  # start background container to upload the logs
+  if ! docker run \
+    -d \
+    --rm \
+    --name ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} \
+    --volume ${PASIT_VOLUME_NAME}:/workdir \
+    --volume satlab_keys:/home/satlab/keys \
+    --network host \
+    google/cloud-sdk:396.0.0-slim sleep 1h; then
+    log_color ERROR "Failed to start PASIT persistent container."
+    exit 1
+  fi
+  if ! docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} \
+    gcloud auth login \
+    --cred-file /home/satlab/keys/pubsub-key-do-not-delete.json; then
+    log_color ERROR "Failed to login to gcloud for uploading logs to GCS."
+    exit 1
+  fi
+  # copy the entire temp directory to the shared volume and upload it to GCS
+  local upload_dir="pasit_test_$(date +%Y%m%d_%H%M%S)"
+  local gcs_logs_dir="gs://${gcs_bucket}/pasit_logs/${upload_dir}"
+  docker cp ${temp_dir} ${PASIT_PERSISTENT_LOG_CONTAINER_NAME}:/workdir/${upload_dir}
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} gsutil cp -r /workdir/${upload_dir} ${gcs_logs_dir}
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} rm -rf /workdir/${upload_dir}
+
+  echo
+  echo
+  echo "Logs uploaded successfully to ${gcs_logs_dir}."
+  echo "File a bug at go/file-pasit-bug and include: the gcs link, dut_id, and "
+  echo "satlab IP address in the bug description."
+}
 
 # parse the arguments
 while [[ $# -gt 0 ]]; do
@@ -362,6 +407,10 @@ while [[ $# -gt 0 ]]; do
       PASSPORT_CLIENT=1
       shift;
       ;;
+    --upload-logs|-u)
+      UPLOAD_LOGS=1
+      shift;
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -377,7 +426,10 @@ fi
 
 check_satlab_drone_running_tests
 
-if [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
+if [[ "${UPLOAD_LOGS}" -eq 1 ]]; then
+  upload_logs
+  exit 0
+elif [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
   if ! docker ps | grep "passport-dev"; then
     start_passport
   fi
