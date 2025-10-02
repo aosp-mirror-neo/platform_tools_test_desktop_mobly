@@ -28,9 +28,11 @@ _TEST_TOPOLOGY = {
         {'id': 'switch2', 'type': 'SWITCH_FIXTURE'},
         {'id': 'switch3', 'type': 'SWITCH_FIXTURE'},
         {'id': 'switch4', 'type': 'SWITCH_FIXTURE'},
+        {'id': 'switch5', 'type': 'SWITCH_FIXTURE'},
         {'id': 'camera1', 'type': 'CAMERA'},
         {'id': 'dock', 'type': 'DOCKING_STATION'},
         {'id': 'monitor1', 'type': 'MONITOR'},
+        {'id': 'monitor2', 'type': 'MONITOR'},
     ],
     'connections': [
         {
@@ -58,6 +60,8 @@ _TEST_TOPOLOGY = {
         {'parent_id': 'switch3', 'child_id': 'camera1'},
         {'parent_id': 'dut', 'child_id': 'switch4', 'tags': ['tag3']},
         {'parent_id': 'switch4', 'child_id': 'monitor1', 'tags': ['tag3']},
+        {'parent_id': 'dut', 'child_id': 'switch5'},
+        {'parent_id': 'switch5', 'child_id': 'monitor2', 'parent_port': 'B'},
     ],
 }
 
@@ -75,6 +79,7 @@ class PassportHostSwitchesTest(unittest.TestCase):
             switch_service_pb2.SwitchFixture(id='switch2'),
             switch_service_pb2.SwitchFixture(id='switch3'),
             switch_service_pb2.SwitchFixture(id='switch4'),
+            switch_service_pb2.SwitchFixture(id='switch5'),
         ]
     )
     self.mock_switch_client.get_switches.return_value = get_switches_response
@@ -149,6 +154,18 @@ class PassportHostSwitchesTest(unittest.TestCase):
         [mock.call('switch1', 'A'), mock.call('switch2', '')], any_order=True
     )
     self.assertEqual(self.mock_switch_client.disable_switch.call_count, 2)
+
+  def test_activate_device_by_id_port_b(self):
+    self.host.activate_device_by_id('monitor2')
+    self.mock_switch_client.enable_switch.assert_called_once_with(
+        'switch5', 'B'
+    )
+
+  def test_deactivate_device_by_id_port_b(self):
+    self.host.deactivate_device_by_id('monitor2')
+    self.mock_switch_client.disable_switch.assert_called_once_with(
+        'switch5', 'B'
+    )
 
 
 if __name__ == '__main__':
