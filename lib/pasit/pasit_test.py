@@ -85,7 +85,7 @@ class PasitTestClass(base_test.BaseTestClass):
       self.passport_host.capture_images_from_all_cameras(
           self.current_test_info.output_path, 'on_fail'
       )
-    self._capture_screenshots('on_fail_screenshot')
+    self.capture_screenshots('on_fail_screenshot')
     super().on_fail(record)
 
   def create(self, module: types.ModuleType) -> Any:
@@ -117,7 +117,7 @@ class PasitTestClass(base_test.BaseTestClass):
           f' {self.controller_configs}'
       )
 
-  def _skip_if_servo_needed_and_not_configured(
+  def skip_if_servo_needed_and_not_configured(
       self, desired_state: dut_state_manager.PowerState
   ):
     """Skip the test if servo is required and not configured."""
@@ -127,7 +127,7 @@ class PasitTestClass(base_test.BaseTestClass):
         'Test requires servo and servo is not configured.',
     )
 
-  def _capture_screenshots(self, name_prefix: str):
+  def capture_screenshots(self, name_prefix: str):
     """Capture screenshots and save them to the test output directory."""
     if hasattr(self, 'dut'):
       self.dut.capture_screenshots(

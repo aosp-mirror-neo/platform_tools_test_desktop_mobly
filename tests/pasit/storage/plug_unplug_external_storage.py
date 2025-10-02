@@ -34,7 +34,7 @@ class PlugUnplugExternalStorageTest(
   def test_plug_in_storage_when_dut(
       self, state_when_plug_storage: dut_state_manager.PowerState
   ):
-    """Generate test logic for a specific dut state.
+    """Test external storage operability after plugging in.
 
     Args:
       state_when_plug_storage: The power state of the DUT when external storage
@@ -43,7 +43,7 @@ class PlugUnplugExternalStorageTest(
     Write to external storage after plugging it in when DUT is in a specific
     state.
     """
-    self._skip_if_servo_needed_and_not_configured(state_when_plug_storage)
+    self.skip_if_servo_needed_and_not_configured(state_when_plug_storage)
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_storage
@@ -76,7 +76,7 @@ class PlugUnplugExternalStorageTest(
     Write to external storage after unplugging it when DUT is in a specific
     state and then replugging it.
     """
-    self._skip_if_servo_needed_and_not_configured(state_when_unplug_storage)
+    self.skip_if_servo_needed_and_not_configured(state_when_unplug_storage)
 
     self.plug_in_external_storage()
     self.verify_external_storage_mounted_or_reformat(

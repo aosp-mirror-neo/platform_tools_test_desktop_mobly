@@ -65,18 +65,18 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
       display_path: display_base_test.DisplayPaths,
   ):
     """Test that plugs in an external display when DUT is in different states."""
-    self._skip_if_servo_needed_and_not_configured(state_when_plug_display)
+    self.skip_if_servo_needed_and_not_configured(state_when_plug_display)
     self.setup_display_path(display_path)
 
     internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
-      self._plug_in_external_display()
+      self.plug_in_external_display()
 
-    self._verify_display_count(2, 'after external display plug in')
+    self.verify_display_count(2, 'after external display plug in')
 
-    display_id_to_camera_id = self._map_displays_to_cameras_with_retries()
+    display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
 
     logging.info('Open red background on external display')
     external_display_ids = self.helper.get_external_display_ids(
@@ -88,8 +88,8 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
     )
 
     logging.info('Verify background color on external display')
-    self._capture_screenshots('external_display_red')
-    self._verify_captured_color(
+    self.capture_screenshots('external_display_red')
+    self.verify_captured_color(
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED,
         'external_display_red',
