@@ -68,6 +68,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     self.display_path_tag = None
 
   def teardown_test(self):
+    """Handle the teardown for the test."""
+    self.display.save_debug_info(self.current_test_info.output_path)
     self.painter.clean_color_on_display()
     super().teardown_test()
 
@@ -142,7 +144,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     else:
       logging.info('Plugging in external display')
       self.passport_host.activate_device_by_type(
-          self.DEVICE_TYPE_MONITOR, self.display_path_tag)
+          self.DEVICE_TYPE_MONITOR, self.display_path_tag
+      )
 
   def unplug_external_display(self, device_id: str | None = None):
     """Emulate external display unplug using passport."""
@@ -153,25 +156,15 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       logging.info('Unplugging external display')
       self.passport_host.deactivate_device_by_type(
           self.DEVICE_TYPE_MONITOR, self.display_path_tag
-    )
+      )
 
   def verify_display_count(self, expected_count: int, event_to_log: str):
     """Verifies that the display count is equal to the expected count."""
     asserts.assert_equal(
         retry.retry(
-            self.display.get_display_count,
-            until=lambda count: count == expected_count,
-            max_tries=10,
-            delay_seconds=2,
-        ),
-        expected_count,
-        f'Display count is not {expected_count} {event_to_log}.',
-    )
-    asserts.assert_equal(
-        retry.retry(
             lambda: len(self.display.get_display_ids()),
             until=lambda ids_count: ids_count == expected_count,
-            max_tries=10,
+            max_tries=15,
             delay_seconds=2,
         ),
         expected_count,

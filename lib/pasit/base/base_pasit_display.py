@@ -81,8 +81,8 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     self.controller = controller
 
   @abc.abstractmethod
-  def get_display_count(self) -> int:
-    """Returns the number of connected displays."""
+  def save_debug_info(self, output_path: str):
+    """Saves the debug info of the display."""
     raise NotImplementedError
 
   @abc.abstractmethod

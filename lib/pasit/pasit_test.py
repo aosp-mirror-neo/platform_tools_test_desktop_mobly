@@ -23,7 +23,6 @@ from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
-from mobly import records
 from mobly import signals
 
 
@@ -67,6 +66,12 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""
+
+    self.passport_host.capture_images_from_all_cameras(
+        self.current_test_info.output_path, 'on_teardown_test'
+    )
+    self.capture_screenshots('on_teardown_test')
+
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
     if self.dut.power_on_if_offline():
@@ -78,15 +83,6 @@ class PasitTestClass(base_test.BaseTestClass):
     if hasattr(self, 'dut'):
       self.dut.cleanup()
     super().teardown_class()
-
-  def on_fail(self, record: records.TestResultRecord):
-    """Called on test failure."""
-    if hasattr(self, 'pasport_host'):
-      self.passport_host.capture_images_from_all_cameras(
-          self.current_test_info.output_path, 'on_fail'
-      )
-    self.capture_screenshots('on_fail_screenshot')
-    super().on_fail(record)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.

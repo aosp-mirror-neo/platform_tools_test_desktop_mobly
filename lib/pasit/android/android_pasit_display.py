@@ -15,9 +15,13 @@
 """AndroidPasitDisplay handles display operations for PASIT testing on Android devices."""
 
 
+import os
+import typing
+
 from lib.pasit.android import dumpsys_display_parser
 from lib.pasit.android import dumpsys_surfaceflinger_parser
 from lib.pasit.base import base_pasit_display
+from mobly.controllers.android_device_lib import adb
 
 DisplayId = base_pasit_display.BasePasitDisplay.DisplayId
 DisplayResolution = base_pasit_display.BasePasitDisplay.DisplayResolution
@@ -27,23 +31,46 @@ InfoNotFoundError = base_pasit_display.BasePasitDisplay.InfoNotFoundError
 class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
   """PasitDisplay for Android devices."""
 
-  def get_display_count(self) -> int:
-    dut_displays = (
-        self.controller.adb.shell('ls -1d /sys/class/drm/card?-*')
-        .decode('utf-8')
-        .splitlines()
-    )
-    display_count = 0
-    for display in dut_displays:
-      display = display.strip()
-      status = (
-          self.controller.adb.shell(['cat', f'{display}/status'])
-          .decode('utf-8')
-          .strip()
+  def save_debug_info(self, output_path: str) -> None:
+    with open(os.path.join(output_path, 'sys_class_drm_card.txt'), 'w') as f:
+      dut_displays = self._write_command_with_output(
+          f, 'ls -1d /sys/class/drm/card?-*'
       )
-      if status == 'connected':
-        display_count += 1
-    return display_count
+      for display in dut_displays.splitlines():
+        drm_card_path = os.path.join(display.strip(), 'status')
+        self._write_command_with_output(f, f'cat {drm_card_path}')
+
+    self._save_command_output(output_path, 'modetest_output.txt', 'modetest')
+    self._save_command_output(
+        output_path, 'dumpsys_display.txt', 'dumpsys display'
+    )
+    self._save_command_output(
+        output_path, 'dumpsys_surfaceflinger.txt', 'dumpsys SurfaceFlinger'
+    )
+
+  def _write_command_with_output(self, f: typing.TextIO, command: str) -> str:
+    f.write(command)
+    f.write('\n')
+    output = self._safe_adb_shell(command)
+    f.write(output)
+    f.write('\n\n')
+    return output
+
+  def _save_command_output(
+      self, output_path: str, file_name: str, command: str
+  ) -> None:
+    with open(os.path.join(output_path, file_name), 'w') as f:
+      output = self._safe_adb_shell(command)
+      f.write(output)
+
+  def _safe_adb_shell(self, command: str) -> str:
+    try:
+      return self.controller.adb.shell(command).decode('utf-8')
+    except adb.AdbError as e:
+      return (
+          f'command: {command} ret: {e.ret_code}\nstdout:'
+          f' {e.stdout.decode("utf-8")}\nstderr: {e.stderr.decode("utf-8")}'
+      )
 
   def get_display_ids(self) -> list[DisplayId]:
     return dumpsys_display_parser.DumpsysDisplayParser(
