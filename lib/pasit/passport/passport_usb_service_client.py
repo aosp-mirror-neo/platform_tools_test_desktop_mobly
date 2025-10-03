@@ -363,6 +363,29 @@ class PassportUsbServiceClient:
     )
 
   @property
+  def pd_enabled(self) -> bool:
+    """Gets the PD state.
+
+    Returns:
+      True if PD is enabled, False otherwise"""
+    ret = self._get_capability(capability=uts_pb.POWER_DELIVERY)
+    return ret.power_delivery
+
+  @pd_enabled.setter
+  def pd_enabled(self, enabled: bool) -> None:
+    """Enables or disables the PD capability.
+
+    Args:
+      enabled: True to enable PD, False to disable.
+    """
+    self._set_capability(
+        uts_pb.SetUsbTesterCapabilityRequest(
+            capability=uts_pb.POWER_DELIVERY,
+            power_delivery=enabled,
+        )
+    )
+
+  @property
   def usb_path(self) -> UsbPath:
     """Gets the USB path that the tester is connected to.
 
