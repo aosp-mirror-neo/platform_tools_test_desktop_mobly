@@ -24,7 +24,15 @@ from mobly import test_runner
 from pasit.display import display_base_test
 
 
-@DesktopTest(cujs=['b/379291743', 'b/379290750'])
+@DesktopTest(
+    cujs=['b/379291743', 'b/379290750'],
+    manual=[
+        'al_connect_disconnect_scenarios.disconnect_display_while_al_device_suspended',
+        'al_connect_disconnect_scenarios.external_display_browser_window_bounce_back_to_al_device',
+        'al_persistence_of_settings.reconnect_a_previously_used_display',
+        'al_persistence_of_settings.resume_suspended_al_device_with_display_connected',
+    ],
+)
 @functools.generate_tests
 class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that unplugs an external display when DUT is in different states."""

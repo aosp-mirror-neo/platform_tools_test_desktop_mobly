@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import functools
 from lib.utils import image
@@ -28,6 +29,13 @@ _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 
 # TODO: b/443128286 - Review if we need to merge this test class with
 # plug_in_external_display.py.
+@DesktopTest(
+    manual=[
+        'al_connect_disconnect_scenarios.boot_al_device_with_new_display_connected',
+        'al_dock_and_display.connect_dp_display_with_usb_c_adapter',
+        'al_dock_and_display.usb_typec_docking_station_testing',
+    ]
+)
 @functools.generate_tests
 class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   """Test that plugs in two external displays when DUT is in different states."""

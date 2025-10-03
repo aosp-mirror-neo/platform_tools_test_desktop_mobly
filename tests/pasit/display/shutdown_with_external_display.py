@@ -14,12 +14,19 @@
 
 """Test that shuts down DUT with external display plugged in."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_connect_disconnect_scenarios.disconnect_display_while_al_device_shutting_down',
+        'al_persistence_of_settings.shutdown_al_device_while_display_connected',
+    ]
+)
 class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that shuts down DUT with external display plugged in."""
 

@@ -15,10 +15,17 @@
 """Test unplugging an external camera."""
 
 
+from android.platform.test.annotations import DesktopTest
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_webcam.connect_disconnect_external_webcam',
+    ]
+)
 class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test unplugging an external camera."""
 

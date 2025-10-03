@@ -14,12 +14,22 @@
 
 """Test external storage operability after plugging in and unplugging."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import functools
 from mobly import test_runner
 from pasit.storage import write_to_storage_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_storage.boot_reboot_with_media_connected',
+        'al_external_storage.plug_external_media_while_suspend',
+        'al_external_storage.suspend_resume_with_media_connected',
+        'al_external_storage.transfer_and_delete_files',
+    ]
+)
 @functools.generate_tests
 class PlugUnplugExternalStorageTest(
     write_to_storage_base_test.WriteToStorageBaseTest

@@ -18,6 +18,7 @@ from collections.abc import Iterable
 import datetime
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_file
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
@@ -30,6 +31,13 @@ class HIDSetupError(Exception):
   """Error raised when a HID test fails."""
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.external_keyboard_p1_keys',
+        'al_external_input.external_keyboard_shortcuts',
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+    ]
+)
 class HIDComboKeysTests(pasit_test.PasitTestClass):
   """Test for HID functionality."""
 
