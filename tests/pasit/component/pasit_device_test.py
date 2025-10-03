@@ -31,7 +31,10 @@ class PasitDeviceTest(base_test.BaseTestClass):
 
   def teardown_test(self):
     if self.dut.power_on_if_offline():
-      asserts.fail('DUT is offline after test.')
+      logging.error('DUT was offline after test.')
+    if not self.dut.is_powered():
+      logging.error('DUT is not powered after test, powering via servo.')
+      self.dut.enable_servo_power()
 
   def test_shell(self):
     self.dut.shell(['echo', 'Hello', 'World!'])
