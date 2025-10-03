@@ -77,25 +77,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.snippets.uninstall_all()
 
-  def _test_settings(self):
-    # settings are same settings set by tradefed for GoogleDeviceSetup
-    settings = [
-        (
-            'verifier_verify_adb_installs',
-            '0',
-        ),  # disable app verification
-        ('verifier_engprod', '1'),  # disable play protect prompts
-        (
-            'google_play_store_system_component_update',
-            '0',
-        ),  # disable automatic installation of system component updates
-        ('google_play_store_system_component_update_last_user_id', '-1'),
-        ('google_ota_automatic_download', '0'),
-        ('hide_error_dialogs', '1'),
-    ]
-    for setting, value in settings:
-      self.controller.adb.shell(['settings', 'put', 'global', setting, value])
-
   def shell(self, params: Iterable[str]) -> bytes:
     try:
       return self.controller.adb.shell(params)
@@ -111,9 +92,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def reboot(self):
     self.controller.reboot()
     self._bypass_login_screen()
-
-  def _bypass_login_screen(self):
-    self.user_session.switch_to_logged_in_user()
 
   def power_on(self):
     self.request_power_on()
@@ -132,6 +110,25 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
 
+  def power_off(self):
+    self._stop_services()
+    self.request_power_off()
+    logging.debug('Waiting for device to power off...')
+    if not self._wait_for_device_offline():
+      raise AndroidDeviceError('DUT failed to power off.')
+
+  def wait_for_device_online(self, timeout=BOOT_COMPLETION_TIMEOUT_SECONDS):
+    try:
+      self.controller.wait_for_boot_completion(timeout=timeout)
+    except android_device.DeviceError as e:
+      raise base_pasit_device.DeviceNotOnlineError(
+          f'Device not online after timeout {timeout} seconds.'
+      ) from e
+
+  def suspend(self):
+    self._stop_services()
+    self._suspend()
+
   def wakeup(self):
     self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
@@ -140,28 +137,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
-
-  def power_off(self):
-    self._stop_services()
-    self.request_power_off()
-    logging.debug('Waiting for device to power off...')
-    if not self._wait_for_device_offline():
-      raise AndroidDeviceError('DUT failed to power off.')
-
-  def _set_wakup_timeout(self, wakeup_timeout_seconds: int):
-    self._adb_shell_as_user(
-        # this command must be run as non-root user or it will fail so run
-        # as user "shell", shell is the default user when running adb commands
-        # when not using adb root
-        'shell',
-        [
-            'cmd',
-            'power',
-            'wakeup',
-            str(wakeup_timeout_seconds * 1000),  # wakeup expects milliseconds
-            '--restore-wakelocks',
-        ],
-    )
 
   def suspend_with_wakeup_timer(self, wakeup_timeout_seconds: int):
     """Suspends the device with a wakeup timer.
@@ -184,33 +159,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     wakeup_timer.join()
     self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
     self._start_services()
-
-  def wait_for_device_online(self, timeout=BOOT_COMPLETION_TIMEOUT_SECONDS):
-    try:
-      self.controller.wait_for_boot_completion(timeout=timeout)
-    except android_device.DeviceError as e:
-      raise base_pasit_device.DeviceNotOnlineError(
-          f'Device not online after timeout {timeout} seconds.'
-      ) from e
-
-  def suspend(self):
-    self._stop_services()
-    self._suspend()
-
-  def _start_services(self):
-    logging.debug('Current user: %s', self.controller.adb.current_user_id)
-    logging.debug('Starting services...')
-    self.controller.services.start_all()
-
-  def _stop_services(self):
-    logging.debug('Stopping services...')
-    self.controller.services.stop_all()
-
-  def _suspend(self):
-    self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
-    logging.debug('Waiting for device to suspend...')
-    if not self._wait_for_device_offline():
-      raise AndroidDeviceError('DUT failed to suspend.')
 
   def is_device_online(self, timeout: int) -> bool:
     try:
@@ -243,6 +191,21 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         self.controller
     ).is_powered()
 
+  def _start_services(self):
+    logging.debug('Current user: %s', self.controller.adb.current_user_id)
+    logging.debug('Starting services...')
+    self.controller.services.start_all()
+
+  def _stop_services(self):
+    logging.debug('Stopping services...')
+    self.controller.services.stop_all()
+
+  def _suspend(self):
+    self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
+    logging.debug('Waiting for device to suspend...')
+    if not self._wait_for_device_offline():
+      raise AndroidDeviceError('DUT failed to suspend.')
+
   def _wait_for_device_offline(
       self,
       interval: int = DEFAULT_RETRY_INTERVAL_SECONDS,
@@ -263,6 +226,43 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         max_tries=max_retries,
         delay_seconds=interval,
     )
+
+  def _bypass_login_screen(self):
+    self.user_session.switch_to_logged_in_user()
+
+  def _set_wakup_timeout(self, wakeup_timeout_seconds: int):
+    self._adb_shell_as_user(
+        # this command must be run as non-root user or it will fail so run
+        # as user "shell", shell is the default user when running adb commands
+        # when not using adb root
+        'shell',
+        [
+            'cmd',
+            'power',
+            'wakeup',
+            str(wakeup_timeout_seconds * 1000),  # wakeup expects milliseconds
+            '--restore-wakelocks',
+        ],
+    )
+
+  def _test_settings(self):
+    # settings are same settings set by tradefed for GoogleDeviceSetup
+    settings = [
+        (
+            'verifier_verify_adb_installs',
+            '0',
+        ),  # disable app verification
+        ('verifier_engprod', '1'),  # disable play protect prompts
+        (
+            'google_play_store_system_component_update',
+            '0',
+        ),  # disable automatic installation of system component updates
+        ('google_play_store_system_component_update_last_user_id', '-1'),
+        ('google_ota_automatic_download', '0'),
+        ('hide_error_dialogs', '1'),
+    ]
+    for setting, value in settings:
+      self.controller.adb.shell(['settings', 'put', 'global', setting, value])
 
   def _adb_shell_as_user(self, user_id: int | str, cmd: list[str]) -> bytes:
     """Runs adb as the specified user."""
