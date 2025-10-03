@@ -18,6 +18,7 @@ import logging
 import os
 import time
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_file
 from lib.utils import functools
@@ -28,6 +29,12 @@ from mobly import test_runner
 from pasit.camera import camera_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_webcam.connect_disconnect_external_webcam',
+    ]
+)
 @functools.generate_tests
 class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test recording from an external camera."""
