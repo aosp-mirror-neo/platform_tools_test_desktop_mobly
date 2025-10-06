@@ -254,7 +254,7 @@ class PassportHost:
     topology_id = topology_ids[0]
     passport_testers = self.usb_tester_client.get_usb_testers()
     passport_ids = [tester.id for tester in passport_testers.testers]
-    if topology_id not in passport_ids:
+    if topology_id.upper() not in passport_ids:
       raise errors.PassportConfigError(
           f'Topology tester {topology_id} is not controlled by passport host.'
       )

@@ -118,6 +118,7 @@ class PassportUsbServiceClient:
     Args:
       tester_serial: The serial of the USB tester to open.
     """
+    tester_serial = tester_serial.upper()
 
     ret = self._stub.OpenTester(uts_pb.OpenTesterRequest(id=tester_serial))
     self._validate_reply(ret)
