@@ -120,6 +120,15 @@ class LSNexusClient(ServoBase):
           f'Failed to verify connection to LSNexus: {response}'
       )
 
+  def get_servo_serial(self) -> str:
+    """Gets the serial number of the Servo."""
+    request = lsnexus_service_pb2.CallServodRequest(
+        method=lsnexus_service_pb2.CallServodRequest.Method.GET,
+        control='serialname',
+    )
+    response = self._call_servod(request)
+    return str(response.result.string_value)
+
   def _set_servod_value(self, name: str, value: str):
     """Sets the value of a Servod control."""
     request = lsnexus_service_pb2.CallServodRequest(
@@ -134,7 +143,9 @@ class LSNexusClient(ServoBase):
     logging.debug('Call servod %s -> %s', request, response)
     if response.HasField('failure'):
       raise ValueError(response.failure.msg)
-    return response.Success
+    if response.HasField('success'):
+      return response.success
+    raise ValueError('No response from LSNexus')
 
 
 class ServodClient(ServoBase):
