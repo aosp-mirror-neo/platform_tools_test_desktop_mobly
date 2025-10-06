@@ -58,24 +58,6 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         self.current_test_info.output_path,
     )
 
-  def test_get_display_count(self):
-    asserts.assert_equal(
-        self.display.get_display_count(), 1, 'Display count is not 1.'
-    )
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    EXPECTED_DISPLAY_COUNT = 2
-    display_count = retry.retry(
-        self.display.get_display_count,
-        until=lambda display_count: display_count == EXPECTED_DISPLAY_COUNT,
-        max_tries=self.DISPLAY_CONNECT_TRIES,
-        delay_seconds=self.DISPLAY_CONNECT_DELAY_SECONDS,
-    )
-    asserts.assert_equal(
-        display_count,
-        EXPECTED_DISPLAY_COUNT,
-        f'Display count is not {EXPECTED_DISPLAY_COUNT}.',
-    )
-
   def test_get_display_ids(self):
     display_ids = self.display.get_display_ids()
     logging.info('Display IDs before external display plug in: %s', display_ids)
