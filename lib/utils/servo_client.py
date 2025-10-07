@@ -36,10 +36,15 @@ POWER_STATE = 'power_state'
 COLD_RESET = 'cold_reset'
 BOTTOM_USBKEY_PWR = 'bottom_usbkey_pwr'
 TOP_USBKEY_PWR = 'top_usbkey_pwr'
-SERVO_PD_ROLE = 'servo_pd_role'
 
+SERVO_PD_ROLE = 'servo_pd_role'
 PD_ROLE_SINK = 'snk'
 PD_ROLE_SOURCE = 'src'
+
+LID_OPEN = 'lid_open'
+
+YES_VALUE = 'yes'
+NO_VALUE = 'no'
 
 
 @enum.unique
@@ -76,6 +81,14 @@ class ServoBase(abc.ABC):
     state = ON_STATE if usbkey_power else OFF_STATE
     self._set_servod_value(BOTTOM_USBKEY_PWR, state)
     self._set_servod_value(TOP_USBKEY_PWR, state)
+
+  def set_lid_state(self, lid_open: bool) -> None:
+    """Sets the lid state (open or closed) of the DUT via Servod.
+
+    Args:
+      lid_open: True if the lid is open, False if the lid is closed.
+    """
+    self._set_servod_value(LID_OPEN, YES_VALUE if lid_open else NO_VALUE)
 
   @abc.abstractmethod
   def _set_servod_value(self, name: str, value: str) -> None:

@@ -339,3 +339,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     if not self._servo:
       raise ServoNotConfiguredError('Failed to request power off device.')
     self._servo.set_power_state(servo_client.PowerState.OFF)
+
+  def set_lid_open(self) -> None:
+    """Sets the lid open state of the device via Servo."""
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to set lid state to open.')
+    self._servo.set_lid_state(True)
+
+  def set_lid_closed(self) -> None:
+    """Sets the lid closed state of the device via Servo."""
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to set lid state to closed.')
+    self._servo.set_lid_state(False)
