@@ -78,6 +78,21 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Checking if device is powered...')
     asserts.assert_true(self.dut.is_powered(), 'Device is not powered.')
 
+  def test_power_on_if_offline(self):
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
+    logging.info('Powering off device...')
+    self.dut.power_off()
+    logging.info('Checking if device is offline...')
+    asserts.assert_true(self.dut.is_device_offline(), 'Device is not offline.')
+    logging.info('Powering on if offline...')
+    asserts.assert_true(
+        self.dut.power_on_if_offline(), 'Device was not offline.'
+    )
+    logging.info('Checking if device is online...')
+    asserts.assert_true(self.dut.is_device_online(), 'Device is not online.')
+
 
 if __name__ == '__main__':
   test_runner.main()

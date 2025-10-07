@@ -238,7 +238,7 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
         f"External displays are not active for {display_count} displays.",
     )
     asserts.assert_true(
-        self.dut.is_device_online(20),
+        self.dut.is_device_online(),
         (
             "Device is not reporting online after suspending for "
             f"{suspend_time} seconds."

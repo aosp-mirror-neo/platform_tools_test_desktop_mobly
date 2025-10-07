@@ -36,8 +36,8 @@ class AndroidDeviceError(Exception):
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
 
-  BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
-  OFFLINE_TIMEOUT_SECONDS = 5
+  _BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
+  _IS_DEVICE_ONLINE_TIMEOUT_SECONDS = 20
 
   DEFAULT_RETRY_INTERVAL_SECONDS = 2
   DEFAULT_MAX_RETRIES_OFFLINE = 20
@@ -97,7 +97,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
-    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
+    self._wait_for_boot_completion()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     self.user_session.switch_to_login_screen_user()
@@ -117,14 +117,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     if not self._wait_for_device_offline():
       raise AndroidDeviceError('DUT failed to power off.')
 
-  def wait_for_device_online(self, timeout=BOOT_COMPLETION_TIMEOUT_SECONDS):
-    try:
-      self.controller.wait_for_boot_completion(timeout=timeout)
-    except android_device.DeviceError as e:
-      raise base_pasit_device.DeviceNotOnlineError(
-          f'Device not online after timeout {timeout} seconds.'
-      ) from e
-
   def suspend(self):
     self._stop_services()
     self._suspend()
@@ -133,7 +125,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
-    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
+    self._wait_for_boot_completion()
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -157,12 +149,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._suspend()
 
     wakeup_timer.join()
-    self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
+    self._wait_for_boot_completion()
     self._start_services()
 
-  def is_device_online(self, timeout: int) -> bool:
+  def is_device_online(self) -> bool:
     try:
-      self.controller.adb.shell(['echo', 'hello'], timeout=timeout)
+      self.controller.adb.shell(
+          ['echo', 'hello'],
+          timeout=self._IS_DEVICE_ONLINE_TIMEOUT_SECONDS,
+      )
     except adb.AdbTimeoutError:
       logging.debug('Device is not adb detectable, device is offline.')
       return False
@@ -190,6 +185,17 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return dumpsys_battery_parser.DumpsysBatteryParser(
         self.controller
     ).is_powered()
+
+  def _wait_for_boot_completion(self):
+    try:
+      self.controller.wait_for_boot_completion(
+          timeout=self._BOOT_COMPLETION_TIMEOUT_SECONDS
+      )
+    except android_device.DeviceError as e:
+      raise base_pasit_device.DeviceNotOnlineError(
+          'Device not online after timeout'
+          f' {self._BOOT_COMPLETION_TIMEOUT_SECONDS} seconds.'
+      ) from e
 
   def _start_services(self):
     logging.debug('Current user: %s', self.controller.adb.current_user_id)
@@ -221,7 +227,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       True if the device is offline, False if the device is online.
     """
     return retry.retry(
-        lambda: not self.is_device_online(self.OFFLINE_TIMEOUT_SECONDS),
+        lambda: self.is_device_offline(),
         until=lambda is_offline: is_offline,
         max_tries=max_retries,
         delay_seconds=interval,

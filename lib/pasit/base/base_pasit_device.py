@@ -19,9 +19,8 @@ from collections.abc import Iterable
 import logging
 from typing import Any
 
+from lib.utils import retry
 from lib.utils import servo_client
-
-DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS = 120
 
 
 class ShellError(Exception):
@@ -64,6 +63,9 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   Attributes:
     controller: Mobly controller instance for the tested device.
   """
+
+  _WAIT_FOR_DEVICE_ONLINE_INTERVAL_SECONDS = 4
+  _WAIT_FOR_DEVICE_ONLINE_MAX_TRIES = 30
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -114,18 +116,6 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def wait_for_device_online(self, timeout: int):
-    """Waits for the device to be online with a specific timeout.
-
-    Args:
-      timeout: The timeout in seconds to wait for the device to be online.
-
-    Raises:
-      DeviceNotOnlineError: If the device is not online after the timeout.
-    """
-    raise NotImplementedError
-
-  @abc.abstractmethod
   def suspend(self):
     """Suspends the device and waits for it to be offline.
 
@@ -167,7 +157,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def is_device_online(self, timeout: int) -> bool:
+  def is_device_online(self) -> bool:
     """Checks if the device is online."""
     raise NotImplementedError
 
@@ -202,23 +192,49 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
-  def power_on_if_offline(self, timeout: int = 5) -> bool:
-    """Performs a cold reset on the device to attempt to reconnect it.
+  def wait_for_device_online(
+      self,
+      interval: int = _WAIT_FOR_DEVICE_ONLINE_INTERVAL_SECONDS,
+      max_tries: int = _WAIT_FOR_DEVICE_ONLINE_MAX_TRIES,
+  ):
+    """Waits for the device to be online.
 
     Args:
-      timeout: The timeout in seconds to wait for the device to be online.
+      interval: The interval between device online checks.
+      max_tries: The maximum number of device online checks.
+
+    Raises:
+      DeviceNotOnlineError: If the device is not online after the maximum number
+      of tries.
+    """
+    is_online = retry.retry(
+        lambda: self.is_device_online(),
+        until=lambda is_online: is_online,
+        max_tries=max_tries,
+        delay_seconds=interval,
+    )
+    if not is_online:
+      raise DeviceNotOnlineError(
+          'Device not online after '
+          f' {max_tries} tries with {interval} seconds interval.'
+      )
+
+  def is_device_offline(self) -> bool:
+    """Checks if the device is offline."""
+    return not self.is_device_online()
+
+  def power_on_if_offline(self) -> bool:
+    """Performs a cold reset on the device to attempt to reconnect it.
 
     Returns:
       True if device was offline.
     """
-    if not self.is_device_online(timeout):
+    if self.is_device_offline():
       if self._servo:
         logging.debug('Device is offline, performing cold reset...')
         self._servo.cold_reset()
         try:
-          self.wait_for_device_online(
-              DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS
-          )
+          self.wait_for_device_online()
         except DeviceNotOnlineError:
           logging.error('Device is still offline after cold reset.')
       return True
@@ -238,7 +254,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       raise ServoNotConfiguredError('Failed to disable Servo power.')
     self._servo.disable_servo_power()
     # make sure device is online after disabling servo power
-    self.wait_for_device_online(DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS)
+    self.wait_for_device_online()
 
   def enable_servo_power(self):
     """Requests the device to enable Servo power.
@@ -250,7 +266,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       raise ServoNotConfiguredError('Failed to enable Servo power.')
     self._servo.enable_servo_power()
     # make sure device is online after enabling servo power
-    self.wait_for_device_online(DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS)
+    self.wait_for_device_online()
 
   def request_power_on(self):
     """Requests the device to power on via Servo.
