@@ -66,4 +66,8 @@ def create(test_class: base_test.BaseTestClass) -> PasitDevice:
     )
 
   servo = create_servo(test_class, hostname)
+  if servo:
+    # PASIT always wants to USE pasit peripherals and ensure that the servo
+    # usb drive is not visible to the DUT.
+    servo.set_servo_usbkey_power(False)
   return android_pasit_device.AndroidPasitDevice(device, servo)
