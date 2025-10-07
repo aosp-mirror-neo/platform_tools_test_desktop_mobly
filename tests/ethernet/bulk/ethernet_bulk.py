@@ -30,8 +30,11 @@ import sys
 
 from lib.utils import retry
 from lib.pasit.passport import passport_host
-from mobly import asserts, base_test, test_runner
 from mobly.controllers import android_device
+from mobly import asserts, base_test
+from mobly import base_suite
+from mobly import config_parser
+from mobly import suite_runner
 
 from . import dongle
 
@@ -165,8 +168,15 @@ class DesktopInternalEthernetBulkTestCases(base_test.BaseTestClass):
             )
 
 
+class DesktopInternalEthernetBulkTestCasesSuite(base_suite.BaseSuite):
+  """Test suite for the Ethernet bulk tests."""
+
+  def setup_suite(self, _config: config_parser.TestRunConfig):
+    self.add_test_class(DesktopInternalEthernetBulkTestCases)
+
+
+def main() -> None:
+  suite_runner.run_suite_class()
+
 if __name__ == '__main__':
-  if '--' in sys.argv:
-    index = sys.argv.index('--')
-    sys.argv = sys.argv[:1] + sys.argv[index + 1 :]
-  test_runner.main()
+  main()
