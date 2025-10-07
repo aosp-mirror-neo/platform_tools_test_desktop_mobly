@@ -65,23 +65,17 @@ class ServoBase(abc.ABC):
 
   def disable_servo_power(self):
     """Disables the Servo power to the DUT."""
-    self._set_servod_value(BOTTOM_USBKEY_PWR, OFF_STATE)
-    self._set_servod_value(TOP_USBKEY_PWR, OFF_STATE)
-    # allow USB-A devices to disconnect
-    time.sleep(2)
     self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SINK)
-    # wait for the servo to disable power
-    time.sleep(2)
-    self._set_servod_value(BOTTOM_USBKEY_PWR, ON_STATE)
-    self._set_servod_value(TOP_USBKEY_PWR, ON_STATE)
 
   def enable_servo_power(self):
     """Enables the Servo power to the DUT."""
     self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SOURCE)
-    # allow servo power role to settle
-    time.sleep(2)
-    self._set_servod_value(BOTTOM_USBKEY_PWR, ON_STATE)
-    self._set_servod_value(TOP_USBKEY_PWR, ON_STATE)
+
+  def set_servo_usbkey_power(self, usbkey_power: bool):
+    """Sets the power state of the USB-key via Servod."""
+    state = ON_STATE if usbkey_power else OFF_STATE
+    self._set_servod_value(BOTTOM_USBKEY_PWR, state)
+    self._set_servod_value(TOP_USBKEY_PWR, state)
 
   @abc.abstractmethod
   def _set_servod_value(self, name: str, value: str) -> None:
