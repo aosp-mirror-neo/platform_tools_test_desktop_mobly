@@ -140,7 +140,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """Emulate external display plug in using passport."""
     if device_id:
       logging.info('Plugging in external display %s', device_id)
-      self.passport_host.activate_device_by_id(device_id)
+      self.passport_host.activate_device_by_id(device_id, self.display_path_tag)
     else:
       logging.info('Plugging in external display')
       self.passport_host.activate_device_by_type(
@@ -151,7 +151,9 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """Emulate external display unplug using passport."""
     if device_id:
       logging.info('Unplugging external display %s', device_id)
-      self.passport_host.deactivate_device_by_id(device_id)
+      self.passport_host.deactivate_device_by_id(
+          device_id, self.display_path_tag
+      )
     else:
       logging.info('Unplugging external display')
       self.passport_host.deactivate_device_by_type(
