@@ -66,7 +66,7 @@ class RGBTest(ucd_base_test.UcdBaseTest):
     self.internal_display_id = display_ids[0]
 
   def teardown_test(self):
-    self.painter.clean_color_on_display()
+    self.painter.safe_clean_color_on_display()
     super().teardown_test()
 
   def generate_test_name_color_on_displays(

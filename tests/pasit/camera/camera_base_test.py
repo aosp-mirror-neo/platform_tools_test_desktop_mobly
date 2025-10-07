@@ -59,7 +59,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     """Handle the teardown for the test."""
-    self.painter.clean_color_on_display()
+    self.painter.safe_clean_color_on_display()
     self.camera.close_camera_app()
     super().teardown_test()
 
