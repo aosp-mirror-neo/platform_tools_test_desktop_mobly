@@ -15,11 +15,21 @@
 """Interface for interacting with removable storage on a device."""
 
 import abc
+from collections.abc import MutableSequence
 from typing import Any
 
 
 class BasePasitStorage(metaclass=abc.ABCMeta):
   """Interface for interacting with removable storage on a device."""
+
+  @abc.abstractmethod
+  def get_external_storage_blkdevs(self) -> MutableSequence[str]:
+    """Gets the external storage block device.
+
+    Returns:
+      The a list of external storage block devices.
+    """
+    raise NotImplementedError
 
   @abc.abstractmethod
   def get_external_mount_point(self) -> str:
