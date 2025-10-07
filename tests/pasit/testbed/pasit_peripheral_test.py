@@ -44,6 +44,12 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
 
+  def teardown_test(self):
+    """Handle the teardown for the test."""
+    if hasattr(self, 'display'):
+      self.display.save_debug_info(self.current_test_info.output_path)
+    super().teardown_test()
+
   def _get_test_name(
       self, device_type: str, device_id: str, tag: str | None = None
   ) -> str:

@@ -58,6 +58,11 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         self.current_test_info.output_path,
     )
 
+  def teardown_test(self):
+    """Handle the teardown for the test."""
+    self.display.save_debug_info(self.current_test_info.output_path)
+    super().teardown_test()
+
   def test_get_display_ids(self):
     display_ids = self.display.get_display_ids()
     logging.info('Display IDs before external display plug in: %s', display_ids)
