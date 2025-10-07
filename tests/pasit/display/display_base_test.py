@@ -70,7 +70,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def teardown_test(self):
     """Handle the teardown for the test."""
     self.display.save_debug_info(self.current_test_info.output_path)
-    self.painter.clean_color_on_display()
+    self.painter.safe_clean_color_on_display()
     super().teardown_test()
 
   def teardown_class(self):

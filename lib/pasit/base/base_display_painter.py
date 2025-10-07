@@ -15,6 +15,7 @@
 """Base class for showing colors on device displays for testing."""
 
 import abc
+import logging
 from typing import Any
 
 from lib.utils import image
@@ -73,3 +74,14 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
       Error: If the color was not successfully cleaned on the display.
     """
     raise NotImplementedError
+
+  def safe_clean_color_on_display(self):
+    """Cleans the color on the display.
+
+    Does not raise an error if the color was not successfully cleaned on the
+    display.
+    """
+    try:
+      self.clean_color_on_display()
+    except Exception as e:
+      logging.error('Failed to clean color on display %s', e)
