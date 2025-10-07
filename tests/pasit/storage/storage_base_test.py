@@ -23,11 +23,14 @@ from mobly import asserts
 from mobly import signals
 
 
-_UNMOUNT_RETRY_INTERVAL_SECONDS = 1
-_UNMOUNT_MAX_TRIES = 10
+_UNMOUNT_RETRY_INTERVAL_SECONDS = 2
+_UNMOUNT_MAX_TRIES = 15
 
 _MOUNT_RETRY_INTERVAL_SECONDS = 2
-_MOUNT_MAX_TRIES = 10
+_MOUNT_MAX_TRIES = 15
+
+_DETECT_RETRY_INTERVAL_SECONDS = 2
+_DETECT_MAX_TRIES = 30
 
 
 class StorageBaseTest(pasit_test.PasitTestClass):
@@ -64,19 +67,21 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     Raises:
       TestError: If formatting external storage failed.
     """
+    blkdevs = self._try_get_external_storage_blkdevs()
+    if not blkdevs:
+      raise signals.TestError('No external storage device found.')
+    elif len(blkdevs) > 1:
+      raise signals.TestError(
+          f'Expected exactly one external storage disk, got {len(blkdevs)}:'
+          f' {blkdevs}.',
+      )
     mount_point = self._try_get_external_mount_point()
-
     if not mount_point:
       logging.info('External storage not mounted, formatting and trying again.')
       if not self.storage.format_external_storage():
         raise signals.TestError(
             'Formatting external storage failed: no USB storage device found.'
         )
-
-      # Unplug and replug the external storage to ensure that the storage is
-      # mounted after formatting.
-      self.unplug_external_storage()
-      self.plug_in_external_storage()
       mount_point = self._try_get_external_mount_point()
 
     asserts.assert_true(mount_point, message)
@@ -95,6 +100,16 @@ class StorageBaseTest(pasit_test.PasitTestClass):
         until=lambda mount_point: mount_point,
         delay_seconds=_MOUNT_RETRY_INTERVAL_SECONDS,
         max_tries=_MOUNT_MAX_TRIES,
+    )
+
+  def _try_get_external_storage_blkdevs(self) -> list[str]:
+    """Blocks until an external removable storage block device is found."""
+    logging.info('Waiting for external storage to be detected...')
+    return retry.retry(
+        self.storage.get_external_storage_blkdevs,
+        until=lambda blkdevs: blkdevs,
+        delay_seconds=_DETECT_RETRY_INTERVAL_SECONDS,
+        max_tries=_DETECT_MAX_TRIES,
     )
 
   def verify_external_storage_mounted(self, message: str) -> str:

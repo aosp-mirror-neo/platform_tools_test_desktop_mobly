@@ -56,15 +56,20 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     storage = self.create(pasit_storage)
     logging.info('Testing storage device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
-    mount_point = retry.retry(
-        storage.get_external_mount_point,
-        until=lambda mount_point: mount_point,
+    blkdevs = retry.retry(
+        storage.get_external_storage_blkdevs,
+        until=lambda blkdevs: blkdevs,
         max_tries=10,
     )
-    logging.info('Found storage mount point: %s', mount_point)
+    logging.info('Found storage devices: %s', blkdevs)
     asserts.assert_true(
-        mount_point,
+        blkdevs,
         'No external storage device found.',
+    )
+    asserts.assert_equal(
+        len(blkdevs),
+        1,
+        f'Expected exactly one external storage device, got {len(blkdevs)}.',
     )
 
   def _camera_test_logic(self, device_id: str):
