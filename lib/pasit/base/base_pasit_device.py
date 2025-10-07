@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Iterable
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from lib.utils import retry
 from lib.utils import servo_client
@@ -53,8 +53,8 @@ class ServoNotConfiguredError(Exception):
   """Error when Servo is not configured."""
 
 
-class DeviceNotOnlineError(Exception):
-  """Error when device is not online."""
+class PasitDeviceError(Exception):
+  """Error when performing an action on a PASIT device."""
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
@@ -66,6 +66,9 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
   _WAIT_FOR_DEVICE_ONLINE_INTERVAL_SECONDS = 4
   _WAIT_FOR_DEVICE_ONLINE_MAX_TRIES = 30
+
+  _WAIT_FOR_DEVICE_OFFLINE_INTERVAL_SECONDS = 2
+  _WAIT_FOR_DEVICE_OFFLINE_MAX_TRIES = 20
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -204,18 +207,67 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       max_tries: The maximum number of device online checks.
 
     Raises:
-      DeviceNotOnlineError: If the device is not online after the maximum number
+      PasitDeviceError: If the device is not online after the maximum number
       of tries.
     """
-    is_online = retry.retry(
-        lambda: self.is_device_online(),
-        until=lambda is_online: is_online,
+    self.wait_for_device_state(
+        self.is_device_online,
+        'online',
+        interval,
+        max_tries,
+    )
+
+  def wait_for_device_offline(
+      self,
+      interval: int = _WAIT_FOR_DEVICE_OFFLINE_INTERVAL_SECONDS,
+      max_tries: int = _WAIT_FOR_DEVICE_OFFLINE_MAX_TRIES,
+  ):
+    """Waits for the device to be offline.
+
+    Args:
+      interval: The interval between device offline checks.
+      max_tries: The maximum number of device offline checks.
+
+    Raises:
+      PasitDeviceError: If the device is not offline after the maximum number
+      of tries.
+    """
+    self.wait_for_device_state(
+        self.is_device_offline,
+        'offline',
+        interval,
+        max_tries,
+    )
+
+  def wait_for_device_state(
+      self,
+      is_desired_state_func: Callable[[], bool],
+      desired_state_name: str,
+      interval: int,
+      max_tries: int,
+  ):
+    """Waits for the device to be in the desired state.
+
+    Args:
+      is_desired_state_func: The function to check if the device is in the
+        desired state.
+      desired_state_name: The name of the desired state.
+      interval: The interval between device state checks.
+      max_tries: The maximum number of device state checks.
+
+    Raises:
+      PasitDeviceError: If the device is not in the desired state after the
+      maximum number of tries.
+    """
+    is_desired_state = retry.retry(
+        is_desired_state_func,
+        until=lambda is_desired_state: is_desired_state,
         max_tries=max_tries,
         delay_seconds=interval,
     )
-    if not is_online:
-      raise DeviceNotOnlineError(
-          'Device not online after '
+    if not is_desired_state:
+      raise PasitDeviceError(
+          f'Device not {desired_state_name} after '
           f' {max_tries} tries with {interval} seconds interval.'
       )
 
@@ -235,7 +287,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
         self._servo.cold_reset()
         try:
           self.wait_for_device_online()
-        except DeviceNotOnlineError:
+        except PasitDeviceError:
           logging.error('Device is still offline after cold reset.')
       return True
     return False

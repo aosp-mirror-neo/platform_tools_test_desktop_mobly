@@ -23,7 +23,6 @@ from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
-from lib.utils import retry
 from lib.utils import servo_client
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
@@ -39,12 +38,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   _BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   _IS_DEVICE_ONLINE_TIMEOUT_SECONDS = 20
 
-  DEFAULT_RETRY_INTERVAL_SECONDS = 2
-  DEFAULT_MAX_RETRIES_OFFLINE = 20
+  _DEFAULT_RETRY_INTERVAL_SECONDS = 2
+  _DEFAULT_MAX_RETRIES_OFFLINE = 20
   # add 10 seconds to the total sleep time to account for the time it takes
   # for the device to go to sleep and some overhead
-  MIN_SLEEP_TIMER_SECONDS = (
-      DEFAULT_RETRY_INTERVAL_SECONDS * DEFAULT_MAX_RETRIES_OFFLINE + 10
+  MIN_WAKEUP_TIMEOUT_SECONDS = (
+      _DEFAULT_RETRY_INTERVAL_SECONDS * _DEFAULT_MAX_RETRIES_OFFLINE + 10
   )
 
   SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
@@ -114,8 +113,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._stop_services()
     self.request_power_off()
     logging.debug('Waiting for device to power off...')
-    if not self._wait_for_device_offline():
-      raise AndroidDeviceError('DUT failed to power off.')
+    self.wait_for_device_offline()
 
   def suspend(self):
     self._stop_services()
@@ -135,12 +133,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
     Args:
       wakeup_timeout_seconds: The wakeup timeout in seconds. Must be greater
-        than the minimum sleep timer of MIN_SLEEP_TIMER_SECONDS.
+        than the minimum timeout of MIN_WAKEUP_TIMEOUT_SECONDS.
     """
-    if wakeup_timeout_seconds < self.MIN_SLEEP_TIMER_SECONDS:
+    if wakeup_timeout_seconds < self.MIN_WAKEUP_TIMEOUT_SECONDS:
       raise ValueError(
           f'Wakeup timeout {wakeup_timeout_seconds} is less than the minimum'
-          f' sleep timer {self.MIN_SLEEP_TIMER_SECONDS}.'
+          f' sleep timer {self.MIN_WAKEUP_TIMEOUT_SECONDS}.'
       )
     self._stop_services()
     self._set_wakup_timeout(wakeup_timeout_seconds)
@@ -192,7 +190,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           timeout=self._BOOT_COMPLETION_TIMEOUT_SECONDS
       )
     except android_device.DeviceError as e:
-      raise base_pasit_device.DeviceNotOnlineError(
+      raise base_pasit_device.PasitDeviceError(
           'Device not online after timeout'
           f' {self._BOOT_COMPLETION_TIMEOUT_SECONDS} seconds.'
       ) from e
@@ -209,29 +207,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def _suspend(self):
     self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
     logging.debug('Waiting for device to suspend...')
-    if not self._wait_for_device_offline():
-      raise AndroidDeviceError('DUT failed to suspend.')
-
-  def _wait_for_device_offline(
-      self,
-      interval: int = DEFAULT_RETRY_INTERVAL_SECONDS,
-      max_retries: int = DEFAULT_MAX_RETRIES_OFFLINE,
-  ) -> bool:
-    """Waits for the device to be offline.
-
-    Args:
-      interval: The interval between retries.
-      max_retries: The maximum number of retries.
-
-    Returns:
-      True if the device is offline, False if the device is online.
-    """
-    return retry.retry(
-        lambda: self.is_device_offline(),
-        until=lambda is_offline: is_offline,
-        max_tries=max_retries,
-        delay_seconds=interval,
-    )
+    self.wait_for_device_offline()
 
   def _bypass_login_screen(self):
     self.user_session.switch_to_logged_in_user()
