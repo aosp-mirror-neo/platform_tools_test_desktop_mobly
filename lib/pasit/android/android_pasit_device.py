@@ -116,7 +116,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.user_session.switch_to_logged_in_user()
 
   def power_on(self):
-    self._request_power_on()
+    self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
     self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
@@ -133,7 +133,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._set_wakup_timeout(0)
 
   def wakeup(self):
-    self._request_power_on()
+    self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
     self.wait_for_device_online(self.BOOT_COMPLETION_TIMEOUT_SECONDS)
@@ -143,7 +143,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def power_off(self):
     self._stop_services()
-    self._request_power_off()
+    self.request_power_off()
     logging.debug('Waiting for device to power off...')
     if not self._wait_for_device_offline():
       raise AndroidDeviceError('DUT failed to power off.')

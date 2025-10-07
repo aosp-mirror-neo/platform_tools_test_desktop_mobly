@@ -171,32 +171,6 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Checks if the device is online."""
     raise NotImplementedError
 
-  def power_on_if_offline(self, timeout: int = 5) -> bool:
-    """Performs a cold reset on the device to attempt to reconnect it.
-
-    Args:
-      timeout: The timeout in seconds to wait for the device to be online.
-
-    Returns:
-      True if device was offline.
-    """
-    if not self.is_device_online(timeout):
-      if self._servo:
-        logging.debug('Device is offline, performing cold reset...')
-        self._servo.cold_reset()
-        try:
-          self.wait_for_device_online(
-              DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS
-          )
-        except DeviceNotOnlineError:
-          logging.error('Device is still offline after cold reset.')
-      return True
-    return False
-
-  def is_servo_configured(self) -> bool:
-    """Returns True if Servo is configured."""
-    return self._servo is not None
-
   @abc.abstractmethod
   def capture_screenshots(self, output_path: str, file_name_prefix: str):
     """Takes a screenshot of all the displays and saves it to the output path.
@@ -228,25 +202,31 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
-  def _request_power_on(self):
-    """Requests the device to power on via Servo.
+  def power_on_if_offline(self, timeout: int = 5) -> bool:
+    """Performs a cold reset on the device to attempt to reconnect it.
 
-    Raises:
-      ServoNotConfiguredError: If Servo is not configured.
+    Args:
+      timeout: The timeout in seconds to wait for the device to be online.
+
+    Returns:
+      True if device was offline.
     """
-    if not self._servo:
-      raise ServoNotConfiguredError('Failed to request power on device.')
-    self._servo.set_power_state(servo_client.PowerState.ON)
+    if not self.is_device_online(timeout):
+      if self._servo:
+        logging.debug('Device is offline, performing cold reset...')
+        self._servo.cold_reset()
+        try:
+          self.wait_for_device_online(
+              DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS
+          )
+        except DeviceNotOnlineError:
+          logging.error('Device is still offline after cold reset.')
+      return True
+    return False
 
-  def _request_power_off(self):
-    """Requests the device to power off via Servo.
-
-    Raises:
-      ServoNotConfiguredError: If Servo is not configured.
-    """
-    if not self._servo:
-      raise ServoNotConfiguredError('Failed to request power off device.')
-    self._servo.set_power_state(servo_client.PowerState.OFF)
+  def is_servo_configured(self) -> bool:
+    """Returns True if Servo is configured."""
+    return self._servo is not None
 
   def disable_servo_power(self):
     """Requests the device to disable Servo power.
@@ -271,3 +251,23 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     self._servo.enable_servo_power()
     # make sure device is online after enabling servo power
     self.wait_for_device_online(DEFAULT_WAIT_FOR_DEVICE_ONLINE_TIMEOUT_SECONDS)
+
+  def request_power_on(self):
+    """Requests the device to power on via Servo.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to request power on device.')
+    self._servo.set_power_state(servo_client.PowerState.ON)
+
+  def request_power_off(self):
+    """Requests the device to power off via Servo.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to request power off device.')
+    self._servo.set_power_state(servo_client.PowerState.OFF)
