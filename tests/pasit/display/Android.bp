@@ -20,6 +20,7 @@ python_test_host {
     name: "DesktopPASITDisplayTests",
     main: "pasit_display_suite.py",
     srcs: ["*.py"],
+    exclude_srcs: ["display_base_test_test.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,
@@ -39,4 +40,29 @@ python_test_host {
         "py-display-helper",
     ],
     pkg_path: "pasit/display",
+}
+
+python_test_host {
+    name: "display_base_test_test",
+    srcs: [
+        "display_base_test_test.py",
+        "display_base_test.py",
+    ],
+    data: [
+        "data/non-standard-setup.yaml",
+        "data/pasit-box.yaml",
+        "data/single-display.yaml",
+    ],
+    libs: [
+        "py-pasit-display",
+        "py-pasit-file",
+        "py-display-painter",
+        "py-display-helper",
+        "py-passport",
+        "mobly",
+        "py-pasit-test",
+    ],
+    test_options: {
+        unit_test: true,
+    },
 }
