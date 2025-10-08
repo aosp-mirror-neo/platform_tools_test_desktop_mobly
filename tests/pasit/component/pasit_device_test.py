@@ -93,6 +93,21 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Checking if device is online...')
     asserts.assert_true(self.dut.is_device_online(), 'Device is not online.')
 
+  def test_set_lid_closed_open(self):
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
+    logging.info('Setting lid closed...')
+    self.dut.set_lid_closed()
+    # expect device to be offline after setting lid closed
+    # note, that this may change in the future
+    self.dut.wait_for_device_offline()
+
+    logging.info('Setting lid open...')
+    self.dut.set_lid_open()
+    # make sure device is online after setting lid open
+    self.dut.wait_for_device_online()
+
 
 if __name__ == '__main__':
   test_runner.main()
