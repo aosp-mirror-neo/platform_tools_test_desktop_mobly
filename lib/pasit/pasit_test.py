@@ -14,6 +14,7 @@
 
 """Base test class for PASIT Mobly tests."""
 
+import logging
 import types
 from typing import Any
 
@@ -23,6 +24,7 @@ from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
+from mobly import records
 from mobly import signals
 
 
@@ -47,6 +49,7 @@ class PasitTestClass(base_test.BaseTestClass):
 
   dut: pasit_device.PasitDevice
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
+  bugreport: str
 
   def setup_class(self):
     """Setup steps before any test is executed."""
@@ -61,6 +64,7 @@ class PasitTestClass(base_test.BaseTestClass):
         f'{get_device_type_name(self.requires_device_type)}'
         ' not found in topology.',
     )
+    self.bugreport = self.user_params.get('bugreport', '')
     self.dut = pasit_device.create(self)
     self.passport_host.reset()
 
@@ -83,6 +87,16 @@ class PasitTestClass(base_test.BaseTestClass):
     if hasattr(self, 'dut'):
       self.dut.cleanup()
     super().teardown_class()
+
+  def on_fail(self, record: records.TestResultRecord):
+    """Called when a test fails."""
+    self._capture_bugreport(True)
+    super().on_fail(record)
+
+  def on_pass(self, record: records.TestResultRecord):
+    """Called when a test passes."""
+    self._capture_bugreport(False)
+    super().on_pass(record)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.
@@ -129,3 +143,23 @@ class PasitTestClass(base_test.BaseTestClass):
       self.dut.capture_screenshots(
           self.current_test_info.output_path, name_prefix
       )
+
+  def _capture_bugreport(self, test_failed: bool) -> None:
+    """Captures a bug report if configured to."""
+    if not hasattr(self, 'dut'):
+      return
+    collect_bugreport = (
+        self.bugreport == 'all'
+        or (self.bugreport == 'on_fail' and test_failed)
+    )
+    if not collect_bugreport:
+      return
+    logging.info('Collecting bug report for test.')
+    try:
+      self.dut.controller.take_bug_report(
+          test_name=self.current_test_info.name,
+          begin_time=self.current_test_info.record.begin_time,
+          destination=self.current_test_info.output_path,
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to collect bug report: %s', e)
