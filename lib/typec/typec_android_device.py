@@ -165,8 +165,7 @@ class TypecAndroidDevice:
     return retry.retry(
         lambda: not self.is_device_online(self.OFFLINE_TIMEOUT_SECONDS),
         until=lambda is_offline: is_offline,
-        max_tries=max_retries,
-        delay_seconds=interval,
+        policy=retry.RetryPolicy(max_tries=max_retries, delay_seconds=interval),
     )
 
   @property

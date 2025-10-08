@@ -183,8 +183,7 @@ class PassportVideoServiceClient:
 
     return retry.retry(
         _get_stream_info,
-        max_tries=timeout_sec,
-        delay_seconds=0,
+        retry.RetryPolicy(max_tries=timeout_sec, delay_seconds=0),
         exceptions=(grpc.RpcError,),
     )
 

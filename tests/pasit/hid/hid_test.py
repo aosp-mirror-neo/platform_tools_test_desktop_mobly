@@ -22,6 +22,7 @@ from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_file
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
 from mobly import signals
@@ -104,6 +105,7 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     new_screenshots = retry.retry(
         lambda: self._get_new_screenshots(screenshots_before),
         until=lambda new_screenshots: new_screenshots,
+        policy=test_policy.HIDTestPolicy.FIND_NEW_SCREENSHOTS_RETRY_POLICY,
     )
     asserts.assert_equal(
         len(new_screenshots),

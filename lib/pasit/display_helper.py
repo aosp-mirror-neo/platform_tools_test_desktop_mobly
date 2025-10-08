@@ -20,6 +20,7 @@ import logging
 from lib.pasit import color_capturer
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
+from lib.pasit import test_policy
 from lib.pasit.passport import passport_host
 from lib.utils import image
 from lib.utils import retry
@@ -99,8 +100,7 @@ class DisplayHelper:
     display_ids = retry.retry(
         self.display.get_display_ids,
         until=lambda display_ids: len(display_ids) == 1,
-        max_tries=10,
-        delay_seconds=2,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
     if len(display_ids) > 1:
       raise UnexpectedDisplayCountError(
@@ -123,8 +123,7 @@ class DisplayHelper:
 
     Args:
       internal_display_id: The ID of the internal display to filter out.
-      expected_external_display_count: The number of external displays
-        expected.
+      expected_external_display_count: The number of external displays expected.
 
     Returns:
       A list of external display IDs.
@@ -137,8 +136,7 @@ class DisplayHelper:
     display_ids = retry.retry(
         self.display.get_display_ids,
         until=lambda ids: len(ids) == expected_total_display_count,
-        max_tries=10,
-        delay_seconds=2,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
     if len(display_ids) != expected_total_display_count:
       raise UnexpectedDisplayCountError(
@@ -247,9 +245,7 @@ class DisplayHelper:
 
     error_message = f'No camera mapped to display {unmapped_displays_str}'
     if unmapped_cameras_str:
-      error_message += (
-          ', camera(s) matched no display: ' f'{unmapped_cameras_str}'
-      )
+      error_message += f', camera(s) matched no display: {unmapped_cameras_str}'
     return error_message
 
   def get_display_testing_camera_id(
@@ -336,7 +332,9 @@ class DisplayHelper:
       display_id_to_color: dict[
           pasit_display.PasitDisplay.DisplayId, image.NamedColor
       ],
-  ) -> tuple[pasit_display.PasitDisplay.DisplayId | None, image.NamedColor | None]:
+  ) -> tuple[
+      pasit_display.PasitDisplay.DisplayId | None, image.NamedColor | None
+  ]:
     """Tries to map a display to a camera.
 
     Matches the color displayed on the display to the color captured from the

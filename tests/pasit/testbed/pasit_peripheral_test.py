@@ -33,6 +33,7 @@ from lib.pasit import pasit_display
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.pasit.passport import utils
 from lib.utils import retry
 from mobly import asserts
@@ -65,7 +66,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     blkdevs = retry.retry(
         storage.get_external_storage_blkdevs,
         until=lambda blkdevs: blkdevs,
-        max_tries=10,
+        policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_DETECTED_RETRY_POLICY,
     )
     logging.info('Found storage devices: %s', blkdevs)
     asserts.assert_true(
@@ -88,6 +89,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     newly_plugged_cameras = retry.retry(
         lambda: self._get_newly_plugged_cameras(camera, camera_devices),
         until=lambda result: result,
+        policy=test_policy.CameraTestPolicy.DETECT_EXTERNAL_CAMERA_DEVICES_RETRY_POLICY,
     )
     asserts.assert_true(
         newly_plugged_cameras,
@@ -127,8 +129,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     display_count = retry.retry(
         lambda: len(self.display.get_display_ids()),
         until=lambda ids_count: ids_count == expected_display_count,
-        max_tries=10,
-        delay_seconds=2,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
@@ -192,8 +193,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     logging.info('Trying to map displays to cameras...')
     mapping = retry.retry(
         helper.map_displays_to_cameras,
-        max_tries=3,
-        delay_seconds=10,
+        policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
         exceptions=(display_helper.MapDisplaysToCamerasError,),
     )
     logging.info('Mapped displays to cameras: %s', mapping)

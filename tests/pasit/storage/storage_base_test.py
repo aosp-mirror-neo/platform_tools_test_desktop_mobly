@@ -18,19 +18,10 @@ import logging
 
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
 from mobly import signals
-
-
-_UNMOUNT_RETRY_INTERVAL_SECONDS = 2
-_UNMOUNT_MAX_TRIES = 15
-
-_MOUNT_RETRY_INTERVAL_SECONDS = 2
-_MOUNT_MAX_TRIES = 15
-
-_DETECT_RETRY_INTERVAL_SECONDS = 2
-_DETECT_MAX_TRIES = 30
 
 
 class StorageBaseTest(pasit_test.PasitTestClass):
@@ -98,8 +89,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     return retry.retry(
         self.storage.get_external_mount_point,
         until=lambda mount_point: mount_point,
-        delay_seconds=_MOUNT_RETRY_INTERVAL_SECONDS,
-        max_tries=_MOUNT_MAX_TRIES,
+        policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_MOUNTED_RETRY_POLICY,
     )
 
   def _try_get_external_storage_blkdevs(self) -> list[str]:
@@ -108,8 +98,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
     return retry.retry(
         self.storage.get_external_storage_blkdevs,
         until=lambda blkdevs: blkdevs,
-        delay_seconds=_DETECT_RETRY_INTERVAL_SECONDS,
-        max_tries=_DETECT_MAX_TRIES,
+        policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_DETECTED_RETRY_POLICY,
     )
 
   def verify_external_storage_mounted(self, message: str) -> str:
@@ -129,8 +118,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
         retry.retry(
             lambda: self.storage.get_external_mount_point(),
             until=lambda mount_point: not mount_point,
-            delay_seconds=_UNMOUNT_RETRY_INTERVAL_SECONDS,
-            max_tries=_UNMOUNT_MAX_TRIES,
+            policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_UNMOUNTED_RETRY_POLICY,
         ),
         message,
     )

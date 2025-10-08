@@ -148,8 +148,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     for i in range(display_count):
       retry(
           func=lambda: self._check_single_display_screenshot(i, color),
-          max_tries=3,
-          delay_seconds=3,
+          policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(ValueError, PassportBaseError),
       )
 

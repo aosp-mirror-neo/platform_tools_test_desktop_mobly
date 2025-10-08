@@ -21,12 +21,10 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
-
-_VERIFY_CAPTURE_COLOR_MAX_TRIES = 3
-_VERIFY_CAPTURE_COLOR_DELAY_SECONDS = 0
 
 
 class DisplayPaths(enum.StrEnum):
@@ -203,8 +201,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         retry.retry(
             lambda: len(self.display.get_display_ids()),
             until=lambda ids_count: ids_count == expected_count,
-            max_tries=15,
-            delay_seconds=2,
+            policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
         ),
         expected_count,
         f'Display IDs count is not {expected_count} {event_to_log}.',
@@ -235,8 +232,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
             f'{camera_capture_name}_from_camera{camera_id}',
         ),
         until=lambda status: status,
-        max_tries=_VERIFY_CAPTURE_COLOR_MAX_TRIES,
-        delay_seconds=_VERIFY_CAPTURE_COLOR_DELAY_SECONDS,
+        policy=test_policy.DisplayTestPolicy.MATCH_COLOR_RETRY_POLICY,
     )
     asserts.assert_true(
         match_status,
@@ -255,7 +251,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     # TODO: b/431215234 - Remove the retry once the bug is fixed.
     return retry.retry(
         self.helper.map_displays_to_cameras,
-        max_tries=3,
-        delay_seconds=10,
+        policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
         exceptions=(display_helper.MapDisplaysToCamerasError,),
     )

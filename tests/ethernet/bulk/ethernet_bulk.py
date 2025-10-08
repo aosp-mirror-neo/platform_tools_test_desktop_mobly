@@ -153,8 +153,10 @@ class DesktopInternalEthernetBulkTestCases(base_test.BaseTestClass):
     final_state = retry.retry(
         func=lambda: dongle_obj.enumeration_state,
         until=lambda state: state == expected_state,
-        max_tries=self.ENUMERATION_TIMEOUT // self.POLL_INTERVAL,
-        delay_seconds=self.POLL_INTERVAL,
+        policy=retry.RetryPolicy(
+            max_tries=self.ENUMERATION_TIMEOUT // self.POLL_INTERVAL,
+            delay_seconds=self.POLL_INTERVAL,
+        ),
     )
 
     if final_state != expected_state:
@@ -172,8 +174,10 @@ class DesktopInternalEthernetBulkTestCases(base_test.BaseTestClass):
     final_state = retry.retry(
         func=lambda: dongle_obj.connection_state,
         until=lambda state: state == expected_state,
-        max_tries=self.LINK_UP_TIMEOUT // self.POLL_INTERVAL,
-        delay_seconds=self.POLL_INTERVAL,
+        policy=retry.RetryPolicy(
+            max_tries=self.LINK_UP_TIMEOUT // self.POLL_INTERVAL,
+            delay_seconds=self.POLL_INTERVAL,
+        ),
         exceptions=(dongle.InterfaceNotFoundError,),
     )
 
