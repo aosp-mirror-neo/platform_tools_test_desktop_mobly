@@ -28,11 +28,26 @@ from typing import Optional, Tuple, TypeVar
 _T = TypeVar("_T")
 
 
+class RetryPolicy:
+  """Policy for retrying a function.
+
+  Attributes:
+    max_tries: Maximum number of times to retry. Defaults to 3.
+    delay_seconds: Delay between retries in seconds. Defaults to 1.
+  """
+
+  max_tries: int
+  delay_seconds: int
+
+  def __init__(self, max_tries: int = 3, delay_seconds: int = 1):
+    self.max_tries = max_tries
+    self.delay_seconds = delay_seconds
+
+
 def retry(
     func: Callable[[], _T],
+    policy: RetryPolicy,
     until: Callable[[_T], bool] = lambda _: True,
-    max_tries: int = 3,
-    delay_seconds: int = 1,
     exceptions: tuple[type[BaseException], ...] = (),
 ) -> _T:
   """A simple wrapper to retry another function.
@@ -55,8 +70,7 @@ def retry(
     func: The function to call and retry.
     until: A predicate that takes the result of func call and returns True if
       the function func should not be retried. Defaults to lambda _: True.
-    max_tries: Maximum number of times to retry. Defaults to 3.
-    delay_seconds: Delay between retries in seconds. Defaults to 1.
+    policy: The policy for the retry function.
     exceptions: A tuple of exception types to catch and retry on.
 
   Returns:
@@ -67,16 +81,18 @@ def retry(
     The last exception if all retries fail.
   """
   tries = 0
-  while tries < max_tries:
+  while tries < policy.max_tries:
     tries += 1
-    try_result, func_result = _try_function(func, tries, max_tries, exceptions)
+    try_result, func_result = _try_function(
+        func, tries, policy.max_tries, exceptions
+    )
     # If the function was successful and the 'until' predicate is met,
     # return the result.
     if try_result and until(func_result):
       return func_result
 
-    if tries >= max_tries:
-      logging.debug("Retry failed after %d attempts.", max_tries)
+    if tries >= policy.max_tries:
+      logging.debug("Retry failed after %d attempts.", policy.max_tries)
       return func_result
 
     # If the function failed or did not meet the exit predicate, log the error
@@ -84,10 +100,10 @@ def retry(
     logging.debug(
         "Attempt %d/%d failed. Retrying in %ds...",
         tries,
-        max_tries,
-        delay_seconds,
+        policy.max_tries,
+        policy.delay_seconds,
     )
-    time.sleep(delay_seconds)
+    time.sleep(policy.delay_seconds)
 
 
 def _try_function(

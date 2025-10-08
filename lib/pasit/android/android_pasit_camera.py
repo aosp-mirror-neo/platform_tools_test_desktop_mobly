@@ -115,8 +115,9 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
             desc=self._switch_mode_button_description[mode],
         ).click(),
         until=lambda _: self._mode_action_button_exists(mode),
-        max_tries=3,
-        delay_seconds=0,
+        # The policy is defined locally because it is implementation specific.
+        # Retry a few times in case the button was switched to the wrong mode.
+        policy=retry.RetryPolicy(max_tries=3, delay_seconds=0),
     )
     return self._mode_action_button_exists(mode)
 

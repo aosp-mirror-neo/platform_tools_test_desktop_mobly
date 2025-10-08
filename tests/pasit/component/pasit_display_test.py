@@ -20,6 +20,7 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import functools
 from lib.utils import retry
 from mobly import asserts
@@ -34,9 +35,6 @@ class DisplayIdType(enum.StrEnum):
 
 @functools.generate_tests
 class PasitDisplayTest(pasit_test.PasitTestClass):
-
-  DISPLAY_CONNECT_TRIES = 5
-  DISPLAY_CONNECT_DELAY_SECONDS = 5
 
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
@@ -72,8 +70,7 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     display_ids = retry.retry(
         self.display.get_display_ids,
         until=lambda display_ids: len(display_ids) == EXPECTED_DISPLAY_COUNT,
-        max_tries=self.DISPLAY_CONNECT_TRIES,
-        delay_seconds=self.DISPLAY_CONNECT_DELAY_SECONDS,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
     logging.info('Display IDs after external display plug in: %s', display_ids)
     asserts.assert_equal(
@@ -128,7 +125,7 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
           retry.retry(
               lambda: self.display.get_display_resolution(display_id),
               until=lambda resolution: resolution[0] == display_mode_id,
-              delay_seconds=5,
+              policy=test_policy.DisplayTestPolicy.DISPLAY_RESOLUTION_CHANGED_RETRY_POLICY,
           ),
           (display_mode_id, display_resolution),
           'Display resolution is not set correctly.',

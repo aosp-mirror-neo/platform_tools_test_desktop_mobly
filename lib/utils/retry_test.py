@@ -28,10 +28,12 @@ def _throw_or_return_value(exception_type, return_value: int = 0) -> int:
 class RetryTest(unittest.TestCase):
 
   def test_retry_succeeds_on_first_try(self):
-    self.assertEqual(1, retry.retry(lambda: 1))
+    self.assertEqual(1, retry.retry(lambda: 1, policy=retry.RetryPolicy()))
 
   def test_retry_returns_none_if_max_tries_is_zero(self):
-    self.assertIsNone(retry.retry(lambda: 1, max_tries=0))
+    self.assertIsNone(
+        retry.retry(lambda: 1, policy=retry.RetryPolicy(max_tries=0))
+    )
 
   def test_retry_raises_exception_if_max_tries_is_reached(self):
     exception_generator = (x for x in (Exception, TimeoutError, ValueError))
@@ -39,7 +41,7 @@ class RetryTest(unittest.TestCase):
       retry.retry(
           lambda: _throw_or_return_value(next(exception_generator)),
           exceptions=(Exception,),
-          max_tries=3,
+          policy=retry.RetryPolicy(max_tries=3),
       )
 
   def test_retry_returns_last_result_if_doesnt_throw_exception(self):
@@ -49,7 +51,7 @@ class RetryTest(unittest.TestCase):
         retry.retry(
             lambda: _throw_or_return_value(next(exception_generator), 4),
             exceptions=(Exception,),
-            max_tries=3,
+            policy=retry.RetryPolicy(max_tries=3),
         ),
     )
 
@@ -59,7 +61,7 @@ class RetryTest(unittest.TestCase):
       retry.retry(
           lambda: _throw_or_return_value(next(exception_generator)),
           exceptions=(ValueError,),
-          max_tries=3,
+          policy=retry.RetryPolicy(max_tries=3),
       )
 
   def test_retry_until_returns_5(self):
@@ -69,7 +71,7 @@ class RetryTest(unittest.TestCase):
         retry.retry(
             lambda: next(func_result_generator),
             until=lambda x: x == 5,
-            max_tries=10,
+            policy=retry.RetryPolicy(max_tries=10),
         ),
     )
 
@@ -80,7 +82,7 @@ class RetryTest(unittest.TestCase):
         retry.retry(
             lambda: next(func_result_generator),
             until=lambda x: x == 5,
-            max_tries=3,
+            policy=retry.RetryPolicy(max_tries=3),
         ),
     )
 

@@ -27,6 +27,16 @@ from mobly.controllers.android_device_lib import apk_utils
 
 DisplayPainterError = base_display_painter.BaseDisplayPainter.Error
 
+START_COLOR_FILL_TEST_APP_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=10, delay_seconds=1
+)
+STOP_COLOR_FILL_TEST_APP_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=3, delay_seconds=1
+)
+DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=3, delay_seconds=5
+)
+
 
 class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
   """AndroidDisplayPainter shows colors on Android device displays for testing.
@@ -110,8 +120,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
             color, window_count_before + 1, display_id
         ),
         exceptions=(DisplayPainterError,),
-        max_tries=10,
-        delay_seconds=1,
+        policy=START_COLOR_FILL_TEST_APP_RETRY_POLICY,
     )
     # maximize the window that shows custom background color
     self._maximize_color_fill_test_app_window()
@@ -126,6 +135,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     retry.retry(
         self._try_clean_color_on_display,
         exceptions=(DisplayPainterError,),
+        policy=STOP_COLOR_FILL_TEST_APP_RETRY_POLICY,
     )
 
   def _try_show_color_on_display(
@@ -149,7 +159,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     window_count = retry.retry(
         lambda: self._get_color_fill_test_app_window_count(),
         until=lambda window_count: window_count >= expected_window_count,
-        delay_seconds=5,
+        policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
     )
     if window_count < expected_window_count:
       raise DisplayPainterError(
@@ -178,7 +188,11 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         until=lambda _: not self.controller.ui(
             pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
         ).exists,
-        max_tries=3,
+        # The policy is defined locally because it is implementation specific.
+        # Wait to receive `gone` for every window
+        # We expect to have no more than 3 windows (with 2 external monitors),
+        # number of tries is set to 10 as a precaution.
+        policy=retry.RetryPolicy(max_tries=10, delay_seconds=1),
     ):
       raise DisplayPainterError('Color fill test app window still exists.')
 
@@ -186,6 +200,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     window_count = retry.retry(
         self._get_color_fill_test_app_window_count,
         until=lambda window_count: window_count == 0,
+        policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
     )
     if window_count != 0:
       raise DisplayPainterError(

@@ -40,6 +40,7 @@ python_library_host {
         "py-pasit-display",
         "py-display-painter",
         "py-passport",
+        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -72,6 +73,7 @@ python_library_host {
         "mobly",
         "py-desktop-utils",
         "py-snippet-uiautomator",
+        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -145,6 +147,7 @@ python_library_host {
         "mobly",
         "py-pasit-device",
         "py-passport",
+        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -160,6 +163,12 @@ python_library_host {
         "py-chromiumos-config-passport",
         "py-desktop-utils",
     ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
+    name: "py-test-policy",
+    srcs: ["test_policy.py"],
     pkg_path: "lib/pasit",
 }
 

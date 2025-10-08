@@ -21,6 +21,7 @@ import time
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_file
+from lib.pasit import test_policy
 from lib.utils import functools
 from lib.utils import image
 from lib.utils import retry
@@ -113,8 +114,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     file_list = retry.retry(
         lambda: self.file.list_files(self.camera.get_files_path()),
         until=lambda file_list: file_list,
-        max_tries=10,
-        delay_seconds=1,
+        policy=test_policy.CameraTestPolicy.FIND_CAMERA_CAPTURED_FILES_RETRY_POLICY,
     )
     asserts.assert_greater(
         len(file_list),

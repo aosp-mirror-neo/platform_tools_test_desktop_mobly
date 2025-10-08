@@ -24,6 +24,10 @@ from mobly.controllers.android_device_lib import adb
 LOGGED_IN_USER_ID = 10
 LOGIN_SCREEN_USER_ID = 0
 
+DETECT_LAUNCHER_AS_ACTIVE_PACKAGE_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=10, delay_seconds=1
+)
+
 
 class UserSessionError(Exception):
   """Raised when there is an error managing user sessions on an Android device."""
@@ -85,7 +89,7 @@ class UserSessionTools:
       # wait for the launcher to be active before proceeding
       retry.retry(
           lambda: self._ui_active_package_is(self._LAUNCHER_PACKAGE_NAME),
-          max_tries=10,
+          policy=DETECT_LAUNCHER_AS_ACTIVE_PACKAGE_RETRY_POLICY,
           exceptions=(UnexpectedActivePackageError,),
       )
     # ensure that the user switch was successful

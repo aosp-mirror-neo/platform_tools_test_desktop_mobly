@@ -22,6 +22,7 @@ from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
@@ -130,6 +131,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     return retry.retry(
         lambda: self._get_external_camera_devices(devices),
         until=lambda result: result,
+        policy=test_policy.CameraTestPolicy.DETECT_EXTERNAL_CAMERA_DEVICES_RETRY_POLICY,
     )
 
   def connect_external_camera(
@@ -164,6 +166,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
         retry.retry(
             lambda: self._is_camera_app_using_any_device(devices),
             until=lambda result: result,
+            policy=test_policy.CameraTestPolicy.CAMERA_APP_IS_USING_DEVICE_RETRY_POLICY,
         ),
         f'Camera app is not using any of {device_name}.',
     )
