@@ -121,7 +121,38 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
     raise ValueError(f'Display path {display_path} not found in topology.')
 
-  def setup_display_path(self, display_path: DisplayPaths):
+  def _determine_display_count(self, display_path: DisplayPaths) -> int:
+    """Determine the display count to use for the test.
+
+    Determines the number of displays in the topology that are in the display
+    path.  For instance if the display path is DOCK, then this will return the
+    number of unique displays that are in the topology and tagged as DOCK.
+
+    Args:
+      display_path: The display path to use for determining the display count.
+    Returns:
+      The number of displays in the topology that are in the display path.
+    """
+    displays = self.passport_host.get_device_ids_by_type(
+        self.DEVICE_TYPE_MONITOR
+    )
+    paths = self.passport_host.get_paths_by_type(
+        self.DEVICE_TYPE_MONITOR, display_path
+    )
+    # Filter so only displays that are in the list of paths are included.
+    # This is to ensure we have the correct number of displays for the a given
+    # path tag.  If the display device ID is anywehere in the path, then it is
+    # considered to be reachable for enabling/disabling by the path tag.
+    valid_displays = [
+        display_id
+        for display_id in displays
+        if any(display_id in path for path in paths)
+    ]
+    return len(valid_displays)
+
+  def setup_display_path(
+      self, display_path: DisplayPaths, min_display_count: int = 1
+  ):
     """Setup the display path for the test.
 
     This will determine the tag to use when enabling/disabling the display. And
@@ -131,6 +162,12 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.display_path_tag = self._determine_display_path(display_path)
     except ValueError as e:
       asserts.skip(f'No display path found: {e}')
+    display_cnt = self._determine_display_count(self.display_path_tag)
+    if display_cnt < min_display_count:
+      asserts.skip(
+          f'Display count {display_cnt} is less than minimum required count'
+          f' of {min_display_count} displays for this test.'
+      )
 
   def get_monitor_device_ids(self) -> list[str]:
     """Returns the device IDs of the monitors in the topology."""
