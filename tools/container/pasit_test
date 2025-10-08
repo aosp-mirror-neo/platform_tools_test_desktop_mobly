@@ -106,14 +106,6 @@ check_running_on_satlab() {
   fi
 }
 
-check_satlab_logged_in() {
-  _output=$(satlab whoami 2>&1)
-  if [[ $? -ne 0 ]]; then
-    log_color ERROR "Please log in to satlab using `satlab login` command."
-    exit 1
-  fi
-}
-
 check_satlab_drone_running_tests() {
   if [[ "$(docker exec drone docker ps | wc -l)" -gt 1 ]]; then
     log_color ERROR "Tests may be running on the satlab host, please wait for them to finish before running this script."
@@ -144,8 +136,8 @@ function start_servod() {
     SERVO_CONTAINER_NAME="${DUT_ID}-docker_servod"
   fi
 
-  satlab servod stop -host "${DUT_ID}" > /dev/null 2>&1
-  if ! satlab servod start -host "${DUT_ID}"; then
+  satlab servod stop -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json -host "${DUT_ID}" > /dev/null 2>&1
+  if ! satlab servod start -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json -host "${DUT_ID}"; then
     log_color ERROR "Failed to start servod for ${DUT_ID}"
     exit 1
   fi
@@ -438,7 +430,6 @@ elif [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
 fi
 if [[ "${QUICK_MODE}" -ne 1 ]]; then
   TEMP_DIR="$(mktemp -d)"
-  check_satlab_logged_in  # this is slighly slow and only needed for full setup
   echo -n "${TEMP_DIR}" > /tmp/pasit_temp_dir.txt
   DUT_INFO_FILE="${TEMP_DIR}/dut_info.json"
   PASIT_JSON_FILE="${TEMP_DIR}/pasit_config.json"
