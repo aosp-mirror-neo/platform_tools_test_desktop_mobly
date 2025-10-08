@@ -1,0 +1,61 @@
+TestBeds:
+- Name: pasit-android-testbed
+  TestParams:
+    servo_host: localhost
+    servo_port: 9999
+  Controllers:
+    AndroidDevice: '*'
+    PassportHost:
+    - service_host: localhost
+      service_port: 8300
+      host_topology:
+        devices:
+        - id: my-dut
+          type: DUT
+        - id: '1912901'
+          type: SWITCH_FIXTURE
+        - id: dock_1
+          type: DOCKING_STATION
+          rpm:
+            present: true
+            powerUnitHostname:
+              address: 192.168.231.110
+            powerUnitOutlet: '1'
+            type: RPM_TYPE_IP9850
+        - id: '2007901'
+          type: SWITCH_FIXTURE
+        - id: monitor_1
+          type: MONITOR
+        - id: j45sw01
+          type: SWITCH_FIXTURE
+        - id: network_1
+          type: NETWORK
+        - id: '2001901'
+          type: SWITCH_FIXTURE
+        - id: storage_1
+          type: STORAGE
+        connections:
+        - parentId: my-dut
+          childId: '1912901'
+          type: USBC
+        - parentId: '1912901'
+          childId: dock_1
+          type: USBC
+        - parentId: '2007901'
+          childId: monitor_1
+          type: HDMI
+        - parentId: dock_1
+          childId: '2007901'
+          type: HDMI
+        - parentId: dock_1
+          childId: j45sw01
+          type: ETHERNET
+        - parentId: j45sw01
+          childId: network_1
+          type: ETHERNET
+        - parentId: dock_1
+          childId: '2001901'
+          type: USBA
+        - parentId: '2001901'
+          childId: storage_1
+          type: USBA

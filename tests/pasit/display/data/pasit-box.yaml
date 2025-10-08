@@ -1,0 +1,163 @@
+TestBeds:
+- Name: pasit-android-testbed
+  TestParams:
+    servo_host: localhost
+    servo_port: 9999
+  Controllers:
+    AndroidDevice: '*'
+    PassportHost:
+    - service_host: localhost
+      service_port: 8300
+      host_topology:
+        hostname: my-dut
+        devices:
+        - id: my-dut
+          model: redrix
+          type: DUT
+        - id: '2209501'
+          type: SWITCH_FIXTURE
+        - id: dock_1
+          model: Cablematter_201056
+          type: DOCKING_STATION
+          rpm:
+            present: true
+            powerUnitHostname:
+              address: 192.168.231.110
+            powerUnitOutlet: '1'
+            type: RPM_TYPE_IP9850
+        - id: '2007901'
+          type: SWITCH_FIXTURE
+        - id: monitor_1
+          model: Dell_P2723DE
+          type: MONITOR
+        - id: '2007902'
+          type: SWITCH_FIXTURE
+        - id: monitor_2
+          model: Dell_P2723DE
+          type: MONITOR
+        - id: '2001901'
+          type: SWITCH_FIXTURE
+        - id: storage_1
+          model: Kingston_DT100G3
+          type: STORAGE
+        - id: j45sw01
+          type: SWITCH_FIXTURE
+        - id: network_1
+          type: NETWORK
+        - id: '2001902'
+          type: SWITCH_FIXTURE
+        - id: storage_2
+          model: Kingston_DT100G3
+          type: STORAGE
+        - id: '2001903'
+          type: SWITCH_FIXTURE
+        - id: camera_1
+          model: Logitech_C920
+          type: CAMERA
+        - id: '2001904'
+          type: SWITCH_FIXTURE
+        - id: hid_1
+          type: HID
+        - id: '2109002'
+          type: SWITCH_FIXTURE
+        connections:
+        - parentId: my-dut
+          childId: '2209501'
+          type: USBC
+          tags:
+          - DOCK
+          - DOCKLESS
+          - DAISY_CHAIN
+        - parentPort: A
+          parentId: '2209501'
+          childId: dock_1
+          type: USBC
+          tags:
+          - DOCK
+        - parentId: dock_1
+          childId: '2007901'
+          type: HDMI
+          tags:
+          - DOCK
+        - parentId: '2007901'
+          childId: monitor_1
+          type: HDMI
+          tags:
+          - DOCK
+        - parentId: dock_1
+          childId: '2007902'
+          type: HDMI
+          tags:
+          - DOCK
+        - parentId: '2007902'
+          childId: monitor_2
+          type: HDMI
+          tags:
+          - DOCK
+        - parentId: dock_1
+          childId: '2001901'
+          type: USBA
+          tags:
+          - DOCK
+        - parentId: '2001901'
+          childId: storage_1
+          type: USBA
+          tags:
+          - DOCK
+        - parentId: dock_1
+          childId: j45sw01
+          type: ETHERNET
+          tags:
+          - DOCK
+        - parentId: j45sw01
+          childId: network_1
+          type: ETHERNET
+          tags:
+          - DOCK
+        - parentId: my-dut
+          childId: '2001902'
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentId: '2001902'
+          childId: storage_2
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentId: my-dut
+          childId: '2001903'
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentId: '2001903'
+          childId: camera_1
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentId: my-dut
+          childId: '2001904'
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentId: '2001904'
+          childId: hid_1
+          type: USBA
+          tags:
+          - DOCKLESS
+        - parentPort: B
+          parentId: '2209501'
+          childId: monitor_1
+          type: USBC
+          tags:
+          - DOCKLESS
+          - DAISY_CHAIN
+        - parentId: monitor_1
+          childId: '2109002'
+          type: DP
+          tags:
+          - DAISY_CHAIN
+        - parentId: '2109002'
+          childId: monitor_2
+          type: DP
+          tags:
+          - DAISY_CHAIN
