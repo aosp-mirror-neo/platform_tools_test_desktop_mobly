@@ -17,6 +17,7 @@
 from collections.abc import Iterable, MutableSequence
 import logging
 
+from lib.pasit import display_camera_mapper
 from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
@@ -38,6 +39,7 @@ class CameraBaseTest(pasit_test.PasitTestClass):
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_CAMERA
 
   helper: display_helper.DisplayHelper
+  camera_mapper: display_camera_mapper.DisplayCameraMapper
   painter: display_painter.DisplayPainter
   display: pasit_display.PasitDisplay
 
@@ -51,7 +53,8 @@ class CameraBaseTest(pasit_test.PasitTestClass):
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
-    self.helper = display_helper.DisplayHelper(
+    self.helper = display_helper.DisplayHelper(self.display)
+    self.camera_mapper = display_camera_mapper.DisplayCameraMapper(
         self.passport_host,
         self.display,
         self.painter,
@@ -188,7 +191,9 @@ class CameraBaseTest(pasit_test.PasitTestClass):
     """
     internal_display_id = self.helper.get_internal_display_id()
     # Display-testing camera, pointed at internal display.
-    camera_id = self.helper.get_display_testing_camera_id(internal_display_id)
+    camera_id = self.camera_mapper.get_display_testing_camera_id(
+        internal_display_id
+    )
     external_display_id = self._plug_in_external_display(internal_display_id)
     # Show color on external display to validate external camera captures it.
     self.painter.show_color_on_display(color.value, external_display_id)

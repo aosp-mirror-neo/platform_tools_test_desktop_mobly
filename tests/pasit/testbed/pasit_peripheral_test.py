@@ -26,7 +26,7 @@ import logging
 
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
-from lib.pasit import display_helper
+from lib.pasit import display_camera_mapper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
@@ -122,7 +122,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     self.passport_host.activate_device_by_id(device_id, tag)
     expected_display_count = 2  # 1 internal + 1 external
-    if tag == display_helper.DisplayPaths.DAISY_CHAIN.value:
+    if tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value:
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
@@ -184,7 +184,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
   def _check_display_mapping(self) -> None:
     """Checks that the display mapping is correct."""
     painter = self.create(display_painter)
-    helper = display_helper.DisplayHelper(
+    camera_mapper = display_camera_mapper.DisplayCameraMapper(
         self.passport_host,
         self.display,
         painter,
@@ -192,9 +192,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     logging.info('Trying to map displays to cameras...')
     mapping = retry.retry(
-        helper.map_displays_to_cameras,
+        camera_mapper.map_displays_to_cameras,
         policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
-        exceptions=(display_helper.MapDisplaysToCamerasError,),
+        exceptions=(display_camera_mapper.MapDisplaysToCamerasError,),
     )
     logging.info('Mapped displays to cameras: %s', mapping)
     asserts.assert_equal(
@@ -273,11 +273,11 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       tags = utils.get_child_tags(
           topology,
           device.id,
-          [item.value for item in display_helper.DisplayPaths],
+          [item.value for item in display_camera_mapper.DisplayPaths],
       )
       for tag in tags:
         if (
-            tag == display_helper.DisplayPaths.DAISY_CHAIN.value
+            tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
             and not utils.is_leaf_node(topology, device.id)
         ):
           # for daisy chain, we only test the full chain, so skip all the
@@ -285,7 +285,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           continue
         if (
             not utils.is_edid(topology, device.id)
-            and tag != display_helper.DisplayPaths.DAISY_CHAIN.value
+            and tag != display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
         ):
           # generate display tests for dock and dockless only, ignoring
           # EDID devices and daisy chain

@@ -17,6 +17,7 @@
 import enum
 import logging
 
+from lib.pasit import display_camera_mapper
 from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
@@ -39,6 +40,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
   helper: display_helper.DisplayHelper
+  camera_mapper: display_camera_mapper.DisplayCameraMapper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
 
   def __init__(self, *args, **kwargs):
@@ -57,7 +59,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
-    self.helper = display_helper.DisplayHelper(
+    self.helper = display_helper.DisplayHelper(self.display)
+    self.camera_mapper = display_camera_mapper.DisplayCameraMapper(
         self.passport_host,
         self.display,
         self.painter,
@@ -226,7 +229,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         fails.
     """
     match_status = retry.retry(
-        lambda: self.helper.try_match_color(
+        lambda: self.camera_mapper.try_match_color(
             camera_id,
             expected_color,
             f'{camera_capture_name}_from_camera{camera_id}',
@@ -250,7 +253,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """Maps the displays to cameras with retry every 10 seconds."""
     # TODO: b/431215234 - Remove the retry once the bug is fixed.
     return retry.retry(
-        self.helper.map_displays_to_cameras,
+        self.camera_mapper.map_displays_to_cameras,
         policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
-        exceptions=(display_helper.MapDisplaysToCamerasError,),
+        exceptions=(display_camera_mapper.MapDisplaysToCamerasError,),
     )

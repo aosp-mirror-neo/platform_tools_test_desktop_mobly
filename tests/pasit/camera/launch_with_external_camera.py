@@ -62,7 +62,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     self.camera.maximize_camera_app_window()
     self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
-        self.helper.try_match_color(
+        self.camera_mapper.try_match_color(
             camera_id, color, 'external_camera_preview_color'
         ),
         message,

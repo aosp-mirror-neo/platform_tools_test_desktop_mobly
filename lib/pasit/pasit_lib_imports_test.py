@@ -59,6 +59,9 @@ class PASITLibImportsTest(unittest.TestCase):
   def test_display_helper(self):
     from lib.pasit import display_helper
 
+  def test_display_camera_mapper(self):
+    from lib.pasit import display_camera_mapper
+
   def test_display_painter(self):
     from lib.pasit import display_painter
 

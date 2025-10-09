@@ -49,12 +49,7 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
-    self.helper = display_helper.DisplayHelper(
-        self.passport_host,
-        self.display,
-        self.painter,
-        self.current_test_info.output_path,
-    )
+    self.helper = display_helper.DisplayHelper(self.display)
 
   def teardown_test(self):
     """Handle the teardown for the test."""

@@ -33,6 +33,19 @@ python_library_host {
     name: "py-display-helper",
     srcs: [
         "display_helper.py",
+    ],
+    libs: [
+        "mobly",
+        "py-pasit-display",
+        "py-test-policy",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
+    name: "py-display-camera-mapper",
+    srcs: [
+        "display_camera_mapper.py",
         "color_capturer.py",
     ],
     libs: [
@@ -40,7 +53,6 @@ python_library_host {
         "py-pasit-display",
         "py-display-painter",
         "py-passport",
-        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -182,6 +194,7 @@ python_test_host {
     },
     libs: [
         "py-display-helper",
+        "py-display-camera-mapper",
         "py-display-painter",
         "py-pasit-camera",
         "py-pasit-device",
