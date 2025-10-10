@@ -23,13 +23,9 @@ from display.utils import ucd_manager
 from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
-from lib.pasit.passport import errors
 from lib.utils import image
 from lib.utils.retry import retry
 from mobly import asserts
-
-
-PassportBaseError = errors.PassportBaseError
 
 
 class UcdBaseTest(pasit_test.PasitTestClass):
@@ -38,6 +34,13 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   This class sets up and resets the displays state between tests.
   It also provides helper methods for checking the displays state.
   """
+
+  class ColorMatchingError(Exception):
+    """Error matching the screenshot of a display with the expected color.
+
+    Raised when the screenshot of a display does not match the expected color or
+    is black.
+    """
 
   _ucd_manager: ucd_manager.UcdManager
   # Maximum number of displays that can be tested with the current DUT.
@@ -90,7 +93,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
       # If they're not, let's reset our system so we can start fresh after.
       self._perform_sanity_check()
       logging.debug("Sanity check passed.")
-    except PassportBaseError:
+    except ucd_manager.UcdManagerError:
       logging.info("Sanity check failed.")
       # If we fail, either the DUT or the UCD are having trouble.
       # Let's reconnect the UCD and reboot the DUT.
@@ -134,9 +137,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
           None, it will only check that the screenshot is not black.
 
     Raises:
-        ValueError: If any screenshot does not match the expected color or is
-        black.
-        PassportBaseError: If there is an error getting the screenshot.
+        ColorMatchingError: If any screenshot does not match the expected color
+        or is black.
 
     Returns:
         True if all screenshots are valid (not black or match the expected
@@ -146,7 +148,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
       retry(
           func=lambda: self._check_single_display_screenshot(i, color),
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
-          exceptions=(ValueError, PassportBaseError),
+          exceptions=(self.ColorMatchingError),
       )
 
   def _check_single_display_screenshot(
@@ -165,9 +167,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         color).
 
     Raises:
-        ValueError: If the screenshot does not match the expected color or is
-        black.
-        PassportBaseError: If there is an error getting the screenshot.
+        ColorMatchingError: If the screenshot does not match the expected color
+        or is black.
     """
     logging.debug("Checking screenshot for display %d", display_index)
     screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
@@ -185,7 +186,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
           crop_ratio=self._CROP_RATIO_FOR_COLOR_CHECK,
       ):
         self._save_screenshot(screenshot_bmp, filename)
-        raise ValueError(
+        raise self.ColorMatchingError(
             "Screenshot for display"
             f" {display_index} does not match the expected color {color}. Saved"
             f" to {filename}."
@@ -200,7 +201,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
       filename = f"display_{display_index}_{timestamp}_raw.bmp"
       if not image.is_rgb_image_not_black(screenshot_raw):
         self._save_screenshot(screenshot_bmp, filename)
-        raise ValueError(
+        raise self.ColorMatchingError(
             f"Screenshot for display {display_index} is black. Saved to"
             f" {filename}."
         )

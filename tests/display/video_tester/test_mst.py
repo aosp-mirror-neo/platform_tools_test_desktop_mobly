@@ -18,13 +18,11 @@ import time
 
 from display.utils import interface_types
 from display.utils import ucd_base_test
-from lib.pasit.passport import errors
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
+from mobly import signals
 from mobly import suite_runner
-
-PassportBaseError = errors.PassportBaseError
 
 
 class MstTest(ucd_base_test.UcdBaseTest):
@@ -60,12 +58,12 @@ class MstTest(ucd_base_test.UcdBaseTest):
         ss_sbm=is_sbm,
         mst_sink_count=1,
     ):
-      raise PassportBaseError("Failed to set DP link capabilities.")
+      raise signals.TestError("Failed to set DP link capabilities.")
     time.sleep(5)
     if not self.passport_host.video_tester_client.perform_attach_operation(
         True
     ):
-      raise PassportBaseError("Failed to attach to the DUT.")
+      raise signals.TestError("Failed to attach to the DUT.")
     time.sleep(5)
 
     asserts.assert_true(
@@ -78,7 +76,7 @@ class MstTest(ucd_base_test.UcdBaseTest):
 class MstTestSuite(base_suite.BaseSuite):
   """Test suite for testing low level MST features."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(MstTest)
 
 

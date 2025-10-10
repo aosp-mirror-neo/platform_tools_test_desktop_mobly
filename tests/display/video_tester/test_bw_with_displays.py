@@ -18,14 +18,10 @@
 from display.utils import board_capabilities
 from display.utils import interface_types
 from display.utils import ucd_base_test
-from lib.pasit.passport import errors
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
-
-PassportBaseError = errors.PassportBaseError
 
 
 class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
