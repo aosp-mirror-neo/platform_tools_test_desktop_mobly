@@ -19,7 +19,6 @@ from display.utils import ucd_base_test
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.utils import image
-from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -56,14 +55,7 @@ class RGBTest(ucd_base_test.UcdBaseTest):
   def setup_class(self):
     super().setup_class()
     self.painter = self.create(display_painter)
-
-    display_ids = self.display.get_display_ids()
-    asserts.assert_equal(
-        len(display_ids),
-        1,
-        "There should be only one display connected to the DUT.",
-    )
-    self.internal_display_id = display_ids[0]
+    self.internal_display_id = self.helper.get_internal_display_id()
 
   def teardown_test(self):
     self.painter.safe_clean_color_on_display()
@@ -80,12 +72,8 @@ class RGBTest(ucd_base_test.UcdBaseTest):
     self.skip_if_display_count_not_supported(display_count)
 
     self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
-    external_display_ids = self.get_external_display_ids()
-    asserts.assert_equal(
-        len(external_display_ids),
-        display_count,
-        f"The number of display IDs {display_count} does not match the expected"
-        f" number of external displays {len(external_display_ids)}.",
+    external_display_ids = self.helper.get_external_display_ids(
+        self.internal_display_id, display_count
     )
 
     for display_id in external_display_ids:
@@ -97,10 +85,11 @@ class RGBTest(ucd_base_test.UcdBaseTest):
 
     self.check_all_screenshots_for_displays(display_count, color.value)
 
+
 class RGBTestSuite(base_suite.BaseSuite):
   """Test suite for testing displays with different colors."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(RGBTest)
 
 
