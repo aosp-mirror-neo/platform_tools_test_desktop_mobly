@@ -18,9 +18,9 @@ package {
 }
 
 python_test_host {
-    name: "DesktopInternalEthernetBulkTestCases",
-    main: "ethernet_bulk.py",
-    srcs: ["*.py"],
+    name: "DesktopInternalEthernetTestCases",
+    main: "bulk/ethernet_bulk.py",
+    srcs: ["bulk/*.py"],
     defaults: ["PASIT-defaults"],
     device_common_data: [
         ":mobly-bundled-snippets",
