@@ -46,6 +46,8 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.ads = self.register_controller(android_device)
     self.dut = typec_android_device.TypecAndroidDevice(self.ads[0])
 
+    self.passport.save_topology_diagram(self.log_path)
+
   def teardown_test(self):
     # Reset the tester's state.
     self._set_usb_tester_default_state()
