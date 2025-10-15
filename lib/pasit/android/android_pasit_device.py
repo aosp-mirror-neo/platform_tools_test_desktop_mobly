@@ -169,9 +169,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return True
 
   def capture_screenshots(self, output_path: str, file_name_prefix: str):
-    self.controller.take_screenshot(
-        output_path, file_name_prefix, all_displays=True
-    )
+    try:
+      self.controller.take_screenshot(
+          output_path, file_name_prefix, all_displays=True
+      )
+    except adb.AdbError as e:
+      logging.error('Failed to capture screenshot: %s', e)
 
   def get_screenshots_path(self) -> str:
     return self.SCREENSHOTS_PATH
