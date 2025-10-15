@@ -74,12 +74,13 @@ class PasitTestClass(base_test.BaseTestClass):
     self.passport_host.capture_images_from_all_cameras(
         self.current_test_info.output_path, 'on_teardown_test'
     )
-    self.capture_screenshots('on_teardown_test')
+    if self.dut.power_on_if_offline():
+      asserts.fail('DUT is offline after test.')
+    else:
+      self.capture_screenshots('on_teardown_test')
 
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
-    if self.dut.power_on_if_offline():
-      asserts.fail('DUT is offline after test.')
     super().teardown_test()
 
   def teardown_class(self):
