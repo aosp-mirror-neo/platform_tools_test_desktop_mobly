@@ -26,6 +26,7 @@ python_library_host {
         "py-chromiumos-config-passport",
         "py-desktop-utils",
         "py-pasit-display",
+        "py-display-helper",
     ],
     pkg_path: "display/utils",
 }

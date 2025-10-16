@@ -20,6 +20,7 @@ import time
 
 from display.utils import modetest_helper
 from display.utils import ucd_manager
+from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
 from lib.pasit.passport import errors
@@ -42,6 +43,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   # Maximum number of displays that can be tested with the current DUT.
   max_tested_displays: int
   display: pasit_display.PasitDisplay
+  helper: display_helper.DisplayHelper
 
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
@@ -79,13 +81,8 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         f" {self._ucd_manager.max_supported_displays}",
     )
     self.display = self.create(pasit_display)
-    display_ids = self.display.get_display_ids()
-    asserts.assert_equal(
-        len(display_ids),
-        1,
-        "There should be only one display connected to the DUT.",
-    )
-    self.internal_display_id = display_ids[0]
+    self.helper = display_helper.DisplayHelper(self.display)
+    self.internal_display_id = self.helper.get_internal_display_id()
 
   def teardown_test(self):
     try:
@@ -151,16 +148,6 @@ class UcdBaseTest(pasit_test.PasitTestClass):
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(ValueError, PassportBaseError),
       )
-
-  def get_external_display_ids(self):
-    """Get the IDs of all external displays connected to the DUT."""
-    display_ids = self.display.get_display_ids()
-    external_display_ids = [
-        display_id
-        for display_id in display_ids
-        if display_id != self.internal_display_id
-    ]
-    return external_display_ids
 
   def _check_single_display_screenshot(
       self, display_index: int, color: image.Color | None
