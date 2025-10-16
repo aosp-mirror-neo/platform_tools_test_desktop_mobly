@@ -83,9 +83,10 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
 
   def teardown_class(self):
     """Handle the teardown for the class."""
-    super().teardown_class()
     if self.hid_device:
       self.passport_host.hid_client.close(self.hid_device)
+    self.hid.cleanup()
+    super().teardown_class()
 
   def teardown_test(self):
     # ensure that switches are not disabled between tests by not calling the
