@@ -32,6 +32,7 @@ class EdidDatum:
       interface_type: interface_types.InterfaceType,
       edid_hex_string: str,
       is_4k: bool = False,
+      is_8k: bool = False,
       is_hdr: bool = False,
       is_vrr: bool = False,
   ):
@@ -47,6 +48,7 @@ class EdidDatum:
     self.interface_type = interface_type
     self.edid_hex_string = edid_hex_string
     self.is_4k = is_4k
+    self.is_8k = is_8k
     self.is_hdr = is_hdr
     self.is_vrr = is_vrr
 

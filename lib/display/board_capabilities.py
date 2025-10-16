@@ -32,7 +32,7 @@ class BoardName(Enum):
 
 # A map of board names to their corresponding EdidForMaxRes objects.
 boardMaxSupportedRes: Dict[BoardName, EdidForMaxMode] = {
-    BoardName.FATCAT: edid_for_max_supported_modes._8k_120Hz_Timings_EDID,
+    BoardName.FATCAT: edid_for_max_supported_modes._8k_60Hz_Timings_EDID,
     BoardName.BRYA: edid_for_max_supported_modes._8k_60Hz_Timings_EDID,
 }
 

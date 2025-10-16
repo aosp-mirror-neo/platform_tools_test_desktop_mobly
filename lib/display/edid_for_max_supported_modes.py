@@ -40,18 +40,9 @@ class EdidForMaxMode:
                 f"  Refresh Rate: {self.RefreshRate} Hz\n"
                 f"  EDID Data: {self.Edid.name if self.Edid else 'Not available'}")
 
-_8k_120Hz_Timings_EDID = EdidForMaxMode(
-    Hactive=7680,
-    Vactive=4320,
-    RefreshRate=120,
-    # TODO Add the correct 8K120 EDID here b/441736353
-    Edid=edids_list.UCD_500_DP1
-)
-
 _8k_60Hz_Timings_EDID = EdidForMaxMode(
    Hactive=7680,
     Vactive=4320,
     RefreshRate=60,
-    # TODO Add the correct 8k60 EDID here b/441736353
-    Edid=edids_list.UCD_500_DP1
+    Edid=edids_list.GENERATED_8k_60Hz
 )
