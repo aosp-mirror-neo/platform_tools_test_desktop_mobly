@@ -46,6 +46,10 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.ads = self.register_controller(android_device)
     self.dut = typec_android_device.TypecAndroidDevice(self.ads[0])
 
+    # Make ADB run as root from the start. Some dts/libtypec actions require
+    # this.
+    self.dut.adb.root()
+
     self.passport.save_topology_diagram(self.log_path)
 
   def teardown_test(self):
