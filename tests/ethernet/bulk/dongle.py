@@ -165,7 +165,7 @@ class DongleManager:
     def attach_passport(self, passport: passport_host.PassportHost) -> None:
         """Attaches the passport controller to the manager."""
         self.passport = passport
-        self.swcl = self.passport._switch_client
+        self.swcl = self.passport.switch_client
 
     def attach_dut(self, dut: android_device.AndroidDevice) -> None:
         """Attaches the DUT controller and propagates it to all dongles."""
