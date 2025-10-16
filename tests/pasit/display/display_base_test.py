@@ -131,6 +131,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
     Args:
       display_path: The display path to use for determining the display count.
+
     Returns:
       The number of displays in the topology that are in the display path.
     """
@@ -170,33 +171,42 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
           f' of {min_display_count} displays for this test.'
       )
 
-  def get_monitor_device_ids(self) -> list[str]:
-    """Returns the device IDs of the monitors in the topology."""
-    return self.passport_host.get_device_ids_by_type(self.DEVICE_TYPE_MONITOR)
+  def plug_in_external_displays(self, external_display_count: int):
+    """Emulate multiple external display plug in using passport.
 
-  def plug_in_external_display(self, device_id: str | None = None):
+    Skips the test if the number of monitors in the topology is less than the
+    given display count.
+
+    Args:
+      external_display_count: The number of external displays to plug in.
+    """
+    monitor_ids = self.passport_host.get_device_ids_by_type(
+        self.DEVICE_TYPE_MONITOR
+    )
+    asserts.skip_if(
+        len(monitor_ids) < external_display_count,
+        f'Expected at least {external_display_count} monitors, but'
+        f' found {len(monitor_ids)}.',
+    )
+    for monitor_id in monitor_ids[:external_display_count]:
+      logging.info('Plugging in external display %s', monitor_id)
+      self.passport_host.activate_device_by_id(
+          monitor_id, self.display_path_tag
+      )
+
+  def plug_in_external_display(self):
     """Emulate external display plug in using passport."""
-    if device_id:
-      logging.info('Plugging in external display %s', device_id)
-      self.passport_host.activate_device_by_id(device_id, self.display_path_tag)
-    else:
-      logging.info('Plugging in external display')
-      self.passport_host.activate_device_by_type(
-          self.DEVICE_TYPE_MONITOR, self.display_path_tag
-      )
+    logging.info('Plugging in external display')
+    self.passport_host.activate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    )
 
-  def unplug_external_display(self, device_id: str | None = None):
+  def unplug_external_display(self):
     """Emulate external display unplug using passport."""
-    if device_id:
-      logging.info('Unplugging external display %s', device_id)
-      self.passport_host.deactivate_device_by_id(
-          device_id, self.display_path_tag
-      )
-    else:
-      logging.info('Unplugging external display')
-      self.passport_host.deactivate_device_by_type(
-          self.DEVICE_TYPE_MONITOR, self.display_path_tag
-      )
+    logging.info('Unplugging external display')
+    self.passport_host.deactivate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    )
 
   def verify_display_count(self, expected_count: int, event_to_log: str):
     """Verifies that the display count is equal to the expected count."""

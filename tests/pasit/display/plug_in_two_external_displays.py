@@ -20,7 +20,6 @@ from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import functools
 from lib.utils import image
-from mobly import asserts
 from mobly import test_runner
 from pasit.display import display_base_test
 
@@ -79,14 +78,7 @@ class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
-      monitor_ids = self.get_monitor_device_ids()
-      asserts.skip_if(
-          len(monitor_ids) != _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN,
-          f'Expected {_EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN} monitors, but'
-          f' found {len(monitor_ids)}.',
-      )
-      for monitor_id in monitor_ids:
-        self.plug_in_external_display(monitor_id)
+      self.plug_in_external_displays(_EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN)
 
     self.verify_display_count(
         _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN + 1,
