@@ -41,7 +41,7 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
     )
     self.controller.load_snippet('hid', self.HID_SNIPPET_PACKAGE_NAME)
 
-  def __del__(self):
+  def cleanup(self):
     """Cleans up after testing.
 
     Uninstalls the HidDeviceSnippet when the object is garbage collected.

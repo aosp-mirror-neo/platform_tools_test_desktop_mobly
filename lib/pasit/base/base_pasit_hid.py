@@ -25,6 +25,7 @@ class BasePasitHID(metaclass=abc.ABCMeta):
   @dataclasses.dataclass
   class DeviceInfo:
     """Represents information about an HID device."""
+
     name: str
     vendor_id: int
     product_id: int
@@ -33,6 +34,11 @@ class BasePasitHID(metaclass=abc.ABCMeta):
   def __init__(self, controller: Any):
     """Initializes the PasitHID."""
     self.controller = controller
+
+  @abc.abstractmethod
+  def cleanup(self) -> None:
+    """Cleans up after testing."""
+    raise NotImplementedError
 
   @abc.abstractmethod
   def get_hid_devices(self) -> List[DeviceInfo]:
