@@ -15,6 +15,7 @@
 """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
 
 from collections.abc import Iterable
+import datetime
 import logging
 import threading
 import time
@@ -34,6 +35,15 @@ class AndroidDeviceError(Exception):
 
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
+
+  UiApplication = base_pasit_device.BasePasitDevice.UiApplication
+
+  _UI_APPLICATION_PACKAGE_NAME = {
+      UiApplication.SETTINGS: 'com.android.settings',
+  }
+
+  _WAIT_APP_OPEN_TIMEOUT_SECONDS = 10
+  _WAIT_APP_CLOSE_TIMEOUT_SECONDS = 10
 
   _BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   _IS_DEVICE_ONLINE_TIMEOUT_SECONDS = 20
@@ -181,6 +191,38 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def get_temp_dir(self) -> str:
     return self.TMP_DIR
+
+  def wait_app_open(self, app: UiApplication) -> bool:
+    if app not in self._UI_APPLICATION_PACKAGE_NAME:
+      raise ValueError(
+          f'Unsupported UI application: {app}. Supported applications:'
+          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
+      )
+    return (
+        self.controller.ui(
+            pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+        ).wait.exists(
+            timeout=datetime.timedelta(
+                seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
+            )
+        ),
+    )
+
+  def wait_app_close(self, app: UiApplication) -> bool:
+    if app not in self._UI_APPLICATION_PACKAGE_NAME:
+      raise ValueError(
+          f'Unsupported UI application: {app}. Supported applications:'
+          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
+      )
+    return (
+        self.controller.ui(
+            pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+        ).wait.gone(
+            timeout=datetime.timedelta(
+                seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
+            )
+        ),
+    )
 
   def is_powered(self) -> bool:
     return dumpsys_battery_parser.DumpsysBatteryParser(

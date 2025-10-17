@@ -16,6 +16,7 @@
 
 import abc
 from collections.abc import Iterable
+import enum
 import logging
 from typing import Any, Callable
 
@@ -64,6 +65,11 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   Attributes:
     controller: Mobly controller instance for the tested device.
   """
+
+  class UiApplication(enum.Enum):
+    """Represents a UI application on the device."""
+
+    SETTINGS = 'Settings'
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -178,6 +184,36 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def get_temp_dir(self) -> str:
     """Returns the temporary directory on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def wait_app_open(self, app: UiApplication) -> bool:
+    """Waits for the UI application to appear.
+
+    Args:
+      app: The UI application to wait for.
+
+    Returns:
+      True if the UI application appeared, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def wait_app_close(self, app: UiApplication) -> bool:
+    """Wait for the UI application to close.
+
+    Args:
+      app: The UI application to wait for.
+
+    Returns:
+      True if the UI application closed, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod

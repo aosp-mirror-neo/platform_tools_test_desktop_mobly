@@ -15,7 +15,6 @@
 """PASIT HID tests that use the HID emulator to send HID events to the DUT."""
 
 from collections.abc import Iterable
-import datetime
 import logging
 
 from android.platform.test.annotations import DesktopTest
@@ -126,7 +125,6 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     return diff
 
   def test_combo_keys_settings(self) -> None:
-    _SETTINGS_SYSTEM_PACKAGE_NAME = 'com.android.settings'
     show_settings_keys = self.hid.get_shortcut_combination(
         self.hid.KeyboardShortcut.SETTINGS
     )
@@ -137,20 +135,12 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
         self.hid_device, show_settings_keys
     )
     asserts.assert_true(
-        # TODO: b/428769831 - Move App package names and checks to android
-        # specific helper class
-        self.dut.controller.ui(pkg=_SETTINGS_SYSTEM_PACKAGE_NAME).wait.exists(
-            timeout=datetime.timedelta(seconds=5),
-        ),
+        self.dut.wait_app_open(self.dut.UiApplication.SETTINGS),
         f'Failed to find the keyboard shortcuts window',
     )
     self.passport_host.hid_client.send_keypress(self.hid_device, home_keys)
     asserts.assert_true(
-        # TODO: b/428769831 - Move App package names and checks to android
-        # specific helper class
-        self.dut.controller.ui(pkg=_SETTINGS_SYSTEM_PACKAGE_NAME).wait.gone(
-            timeout=datetime.timedelta(seconds=5),
-        ),
+        self.dut.wait_app_close(self.dut.UiApplication.SETTINGS),
         f'Failed to close the settings window',
     )
 
