@@ -46,10 +46,7 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
         self.hid.KeyboardShortcut.SCREENSHOT
     )
     screenshots_before = self.get_screenshots()
-    logging.info('Sending screenshot keys to DUT: %s', screenshot_keys)
-    self.passport_host.hid_client.send_keypress(
-        self.hid_device, screenshot_keys
-    )
+    self.emulate_keypress(screenshot_keys)
 
     logging.debug('Checking for new screenshots')
     new_screenshots = retry.retry(
@@ -80,14 +77,12 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
     home_keys = self.hid.get_shortcut_combination(
         self.hid.KeyboardShortcut.HOME
     )
-    self.passport_host.hid_client.send_keypress(
-        self.hid_device, show_settings_keys
-    )
+    self.emulate_keypress(show_settings_keys)
     asserts.assert_true(
         self.dut.wait_app_open(self.dut.UiApplication.SETTINGS),
         f'Failed to find the keyboard shortcuts window',
     )
-    self.passport_host.hid_client.send_keypress(self.hid_device, home_keys)
+    self.emulate_keypress(home_keys)
     asserts.assert_true(
         self.dut.wait_app_close(self.dut.UiApplication.SETTINGS),
         f'Failed to close the settings window',
