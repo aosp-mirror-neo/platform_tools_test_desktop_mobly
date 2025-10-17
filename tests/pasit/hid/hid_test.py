@@ -94,8 +94,9 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
     pass
 
   def test_combo_keys_screenshot(self) -> None:
-    # TODO: b/428769831 - Move key definitions to android specific helper class
-    screenshot_keys = ['Meta', 'S']
+    screenshot_keys = self.hid.get_shortcut_combination(
+        self.hid.KeyboardShortcut.SCREENSHOT
+    )
     screenshots_before = self.get_screenshots()
     logging.info('Sending screenshot keys to DUT: %s', screenshot_keys)
     self.passport_host.hid_client.send_keypress(
@@ -126,9 +127,12 @@ class HIDComboKeysTests(pasit_test.PasitTestClass):
 
   def test_combo_keys_settings(self) -> None:
     _SETTINGS_SYSTEM_PACKAGE_NAME = 'com.android.settings'
-    # TODO: b/428769831 - Move key definitions to android specific helper class
-    show_settings_keys = ['Meta', 'I']
-    home_keys = ['Meta', 'H']
+    show_settings_keys = self.hid.get_shortcut_combination(
+        self.hid.KeyboardShortcut.SETTINGS
+    )
+    home_keys = self.hid.get_shortcut_combination(
+        self.hid.KeyboardShortcut.HOME
+    )
     self.passport_host.hid_client.send_keypress(
         self.hid_device, show_settings_keys
     )

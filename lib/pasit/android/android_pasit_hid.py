@@ -26,6 +26,9 @@ from mobly.controllers.android_device_lib import apk_utils
 
 class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   """PasitHID for Android devices."""
+
+  KeyboardShortcut = base_pasit_hid.BasePasitHID.KeyboardShortcut
+
   HID_SNIPPET_PACKAGE_NAME = 'com.google.android.hiddevicesnippet'
   HID_SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
@@ -76,3 +79,14 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
       )
     logging.debug('HID devices: %s', hid_devices)
     return hid_devices
+
+  def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
+    match shortcut:
+      case self.KeyboardShortcut.SCREENSHOT:
+        return ['Meta', 'S']
+      case self.KeyboardShortcut.SETTINGS:
+        return ['Meta', 'I']
+      case self.KeyboardShortcut.HOME:
+        return ['Meta', 'H']
+      case _:
+        raise ValueError(f'Unsupported shortcut: {shortcut}')
