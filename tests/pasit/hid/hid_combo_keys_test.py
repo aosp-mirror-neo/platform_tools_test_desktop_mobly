@@ -18,17 +18,10 @@ from collections.abc import Iterable
 import logging
 
 from android.platform.test.annotations import DesktopTest
-from lib.pasit import pasit_file
-from lib.pasit import pasit_hid
-from lib.pasit import pasit_test
 from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
-from mobly import signals
-
-
-class HIDSetupError(Exception):
-  """Error raised when a HID test fails."""
+from pasit.hid import hid_base_test
 
 
 @DesktopTest(
@@ -38,59 +31,8 @@ class HIDSetupError(Exception):
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
     ]
 )
-class HIDComboKeysTests(pasit_test.PasitTestClass):
+class HIDComboKeysTests(hid_base_test.HIDBaseTest):
   """Test for HID functionality."""
-
-  file_interface: pasit_file.PasitFile
-  hid_device: str | None = None
-  requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_HID
-
-  def setup_class(self):
-    """Handle the setup for the test."""
-    super().setup_class()
-    self.file_interface = self.create(pasit_file)
-    self.hid = self.create(pasit_hid)
-    default_hid_devices = self.hid.get_hid_devices()
-    # Initialize HID once before all tests. HID must be connected to the DUT
-    # before initialization to provide power to HID emulator.
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
-    # After activation, HID devices should be visible to passport
-    hid_devices = self.passport_host.hid_client.get_hid_devices()
-    logging.info('Passport HID devices: %s', hid_devices)
-    if len(hid_devices) != 1:
-      raise signals.TestError(
-          'Expected 1 HID device connected to the Passport host, but found'
-          f' {len(hid_devices)} devices. Check your testbed configuration to'
-          ' ensure only one and only one HID device is connected to the'
-          ' Passport host.'
-      )
-    self.hid_device = hid_devices[0]
-    self.passport_host.hid_client.open(self.hid_device)
-
-    # after activation the HID devices should be visible to the DUT
-    updated_hid_devices = self.hid.get_hid_devices()
-    new_hid_devices = [
-        dev for dev in updated_hid_devices if dev not in default_hid_devices
-    ]
-    logging.info('New HID devices seen by DUT: %s', new_hid_devices)
-    asserts.assert_equal(
-        len(new_hid_devices),
-        3,
-        'Expected DUT to have 3 new HID devices after activation of HID'
-        ' emulator.',
-    )
-
-  def teardown_class(self):
-    """Handle the teardown for the class."""
-    if self.hid_device:
-      self.passport_host.hid_client.close(self.hid_device)
-    self.hid.cleanup()
-    super().teardown_class()
-
-  def teardown_test(self):
-    # ensure that switches are not disabled between tests by not calling the
-    # super class teardown_test.
-    pass
 
   def test_combo_keys_screenshot(self) -> None:
     screenshot_keys = self.hid.get_shortcut_combination(

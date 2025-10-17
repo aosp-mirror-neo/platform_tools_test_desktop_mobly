@@ -17,21 +17,21 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
-from pasit.hid import hid_test
+from pasit.hid import hid_combo_keys_test
 
 
 class PasitHIDSuite(base_suite.BaseSuite):
   """PASIT HID Suite, contains all HID tests for PASIT."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig) -> None:
+  def setup_suite(self, _: config_parser.TestRunConfig) -> None:
     self.add_test_class(
-        hid_test.HIDComboKeysTests,
+        hid_combo_keys_test.HIDComboKeysTests,
     )
 
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == '__main__':
   main()
