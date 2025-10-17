@@ -14,15 +14,17 @@
 
 """PASIT HID tests that use the HID emulator to send HID events to the DUT."""
 
-from collections.abc import Iterable
 import logging
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_file
+from lib.pasit import pasit_hid
 from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
 from pasit.hid import hid_base_test
+
+KeyboardShortcut = pasit_hid.PasitHID.KeyboardShortcut
 
 
 @DesktopTest(
@@ -42,18 +44,9 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
     self.file = self.create(pasit_file)
 
   def test_combo_keys_screenshot(self) -> None:
-    screenshot_keys = self.hid.get_shortcut_combination(
-        self.hid.KeyboardShortcut.SCREENSHOT
-    )
-    screenshots_before = self.get_screenshots()
-    self.emulate_keypress(screenshot_keys)
-
-    logging.debug('Checking for new screenshots')
-    new_screenshots = retry.retry(
-        lambda: self._get_new_screenshots(screenshots_before),
-        until=lambda new_screenshots: new_screenshots,
-        policy=test_policy.HIDTestPolicy.FIND_NEW_SCREENSHOTS_RETRY_POLICY,
-    )
+    screenshots_before = self._get_screenshots()
+    self.emulate_shortcut_combination(KeyboardShortcut.SCREENSHOT)
+    new_screenshots = self._wait_for_new_screenshots(screenshots_before)
     asserts.assert_equal(
         len(new_screenshots),
         1,
@@ -61,34 +54,47 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
         f' got, new screenshots: {new_screenshots},',
     )
 
-  def _get_new_screenshots(
-      self, screenshots_before: list[str]
-  ) -> Iterable[str]:
-    screenshots_after = self.get_screenshots()
-    # diff the screenshots to ensure that a new screenshot was taken
-    diff = set(screenshots_after) - set(screenshots_before)
-    logging.debug('Screenshots after: %s', screenshots_after)
-    return diff
-
   def test_combo_keys_settings(self) -> None:
-    show_settings_keys = self.hid.get_shortcut_combination(
-        self.hid.KeyboardShortcut.SETTINGS
-    )
-    home_keys = self.hid.get_shortcut_combination(
-        self.hid.KeyboardShortcut.HOME
-    )
-    self.emulate_keypress(show_settings_keys)
+    self.emulate_shortcut_combination(KeyboardShortcut.SETTINGS)
     asserts.assert_true(
         self.dut.wait_app_open(self.dut.UiApplication.SETTINGS),
         f'Failed to find the keyboard shortcuts window',
     )
-    self.emulate_keypress(home_keys)
+    self.emulate_shortcut_combination(KeyboardShortcut.HOME)
     asserts.assert_true(
         self.dut.wait_app_close(self.dut.UiApplication.SETTINGS),
         f'Failed to close the settings window',
     )
 
-  def get_screenshots(self) -> list[str]:
+  def emulate_shortcut_combination(self, shortcut: KeyboardShortcut) -> None:
+    """Emulates a shortcut combination on the HID emulator."""
+    keys = self.hid.get_shortcut_combination(shortcut)
+    self.emulate_keypress(keys)
+
+  def _wait_for_new_screenshots(
+      self, screenshots_before: list[str]
+  ) -> list[str]:
+    """Waits for new screenshots to be taken.
+
+    Args:
+      screenshots_before: The list of screenshots before the screenshot keys
+        were sent to the DUT.
+
+    Returns:
+      The list of new screenshots taken after the screenshot keys were sent to
+      the DUT.
+    """
+    logging.debug('Checking for new screenshots')
+    screenshots_after = retry.retry(
+        self._get_screenshots,
+        until=lambda screenshots: len(screenshots) > len(screenshots_before),
+        policy=test_policy.HIDTestPolicy.FIND_NEW_SCREENSHOTS_RETRY_POLICY,
+    )
+    diff = set(screenshots_after) - set(screenshots_before)
+    logging.debug('Screenshots after: %s', screenshots_after)
+    return diff
+
+  def _get_screenshots(self) -> list[str]:
     """Returns the list of screenshots on the DUT.
 
     If the screenshots directory does not exist, returns an empty list.
