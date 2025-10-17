@@ -16,7 +16,6 @@
 
 import logging
 
-from lib.pasit import pasit_file
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
 from mobly import asserts
@@ -26,14 +25,12 @@ from mobly import signals
 class HIDBaseTest(pasit_test.PasitTestClass):
   """Test for HID functionality."""
 
-  file_interface: pasit_file.PasitFile
   hid_device: str | None = None
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_HID
 
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.file_interface = self.create(pasit_file)
     self.hid = self.create(pasit_hid)
     default_hid_devices = self.hid.get_hid_devices()
     # Initialize HID once before all tests. HID must be connected to the DUT

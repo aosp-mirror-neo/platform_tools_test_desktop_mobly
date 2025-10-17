@@ -18,6 +18,7 @@ from collections.abc import Iterable
 import logging
 
 from android.platform.test.annotations import DesktopTest
+from lib.pasit import pasit_file
 from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
@@ -33,6 +34,12 @@ from pasit.hid import hid_base_test
 )
 class HIDComboKeysTests(hid_base_test.HIDBaseTest):
   """Test for HID functionality."""
+
+  file: pasit_file.PasitFile
+
+  def setup_class(self):
+    super().setup_class()
+    self.file = self.create(pasit_file)
 
   def test_combo_keys_screenshot(self) -> None:
     screenshot_keys = self.hid.get_shortcut_combination(
@@ -92,6 +99,6 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
     If the screenshots directory does not exist, returns an empty list.
     """
     try:
-      return self.file_interface.list_files(self.dut.get_screenshots_path())
+      return self.file.list_files(self.dut.get_screenshots_path())
     except FileNotFoundError:
       return []
