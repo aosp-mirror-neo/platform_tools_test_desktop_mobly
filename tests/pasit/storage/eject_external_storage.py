@@ -16,31 +16,28 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
+from lib.utils import functools
 from mobly import asserts
 from mobly import test_runner
 from pasit.storage import storage_base_test
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# boolean indicating whether to reboot the DUT before ejecting the storage.
-_TEST_ARGUMENTS: tuple[tuple[bool, ...], ...] = ((False,), (True,))
 
-
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_storage.eject_unplug_external_storage_media',
+    ]
+)
+@functools.generate_tests
 class EjectExternalStorageTest(storage_base_test.StorageBaseTest):
   """Test ejecting and re-inserting external storage after a reboot."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.eject_test_logic,
-        name_func=self.eject_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def eject_test_name(self, reboot: bool) -> str:
-    """Get the test name for the given test args."""
-    return 'test_eject_after_reboot' if reboot else 'test_mount_and_eject'
-
-  def eject_test_logic(self, reboot: bool):
+  @functools.with_variants(
+      after_reboot=(True,),
+      no_reboot=(False,),
+  )
+  def test_eject(self, reboot: bool):
     """Test ejecting and re-inserting external storage after a reboot.
 
     Plug in external storage, reboot the DUT if needed, eject the storage,

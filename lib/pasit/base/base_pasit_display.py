@@ -21,6 +21,42 @@ from typing import Any
 class BasePasitDisplay(metaclass=abc.ABCMeta):
   """Interface for display operations for PASIT testing."""
 
+  class DisplayId(str):
+    """Class for holding the display ID and additional information."""
+
+    _id: str
+    _human_readable_id: str
+
+    def __new__(
+        cls, display_id: str, human_readable_id: str = ''
+    ) -> 'DisplayId':
+      obj = str.__new__(cls, display_id)
+      obj._id = display_id
+      obj._human_readable_id = human_readable_id
+      return obj
+
+    @property
+    def id(self) -> str:
+      return self._id
+
+    @property
+    def human_readable_id(self) -> str:
+      return self._human_readable_id
+
+    def __str__(self):
+      # __str__ may be used by legacy code which expected display_id to be a
+      # string so do not modify this without considering the impact on legacy
+      # code.
+      return f'{self._id}'
+
+    def __repr__(self):
+      if self._human_readable_id:
+        return f'{self._human_readable_id} [ID={self._id}]'
+      return f'[ID={self._id}]'
+
+    def __hash__(self):
+      return hash(self._id)
+
   class DisplayResolution:
     """Class for holding the resolution of a display."""
 
@@ -34,6 +70,9 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     def __repr__(self):
       return f'{self.width} x {self.height}'
 
+    def __eq__(self, other):
+      return self.width == other.width and self.height == other.height
+
   class InfoNotFoundError(Exception):
     """Error raised when the display info is not found."""
 
@@ -42,17 +81,19 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     self.controller = controller
 
   @abc.abstractmethod
-  def get_display_count(self) -> int:
-    """Returns the number of connected displays."""
+  def save_debug_info(self, output_path: str):
+    """Saves the debug info of the display."""
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_display_ids(self) -> list[str]:
+  def get_display_ids(self) -> list[DisplayId]:
     """Returns the display IDs."""
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_display_resolution(self, display_id: str = '') -> DisplayResolution:
+  def get_display_resolution(
+      self, display_id: DisplayId | None = None
+  ) -> tuple[str, DisplayResolution]:
     """Returns the resolution of the display.
 
     Args:
@@ -60,13 +101,15 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
         resolution of the first display will be returned.
 
     Returns:
-      The resolution of the display.
+      A tuple of (display_mode_id, resolution). The display_mode_id is the ID
+      for the resolution setting, and the resolution is the resolution of the
+      display.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
   def get_supported_display_resolutions(
-      self, display_id: str = ''
+      self, display_id: DisplayId | None = None
   ) -> dict[str, DisplayResolution]:
     """Returns the supported resolutions of the display.
 
@@ -77,6 +120,21 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     Returns:
       A dictionary of supported resolutions of the display. The key is the
       ID for the resolution setting, and the value is the resolution.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_display_resolution(
+      self,
+      display_mode_id: str,
+      display_id: DisplayId | None = None,
+  ):
+    """Sets the resolution of the display.
+
+    Args:
+      display_mode_id: The ID for the resolution setting.
+      display_id: The display ID to set the resolution of. If not specified, the
+        resolution of the internal display will be set.
     """
     raise NotImplementedError
 
@@ -113,5 +171,23 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
 
     Returns:
       The night light temperature in Kelvin.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def set_mirror_mode(self, enabled: bool):
+    """Enables or disables the mirror mode.
+
+    Args:
+      enabled: True to enable the mirror mode, False to disable it.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_mirror_mode(self) -> bool:
+    """Returns the mirror mode enabled status.
+
+    Returns:
+      True if the mirror mode is enabled, False otherwise.
     """
     raise NotImplementedError

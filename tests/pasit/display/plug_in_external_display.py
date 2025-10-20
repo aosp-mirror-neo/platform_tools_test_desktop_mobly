@@ -16,64 +16,85 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# PowerState indicating the DUT state when external display is plugged in.
-_TEST_ARGUMENTS: tuple[tuple[dut_state_manager.PowerState, ...], ...] = (
-    (dut_state_manager.PowerState.ON,),
-    (dut_state_manager.PowerState.OFF,),
-    (dut_state_manager.PowerState.SUSPEND,),
+
+# CUJs this test covers (full or partial) go/al-traceability
+@DesktopTest(
+    cujs=['b/379291743', 'b/379290750'],
+    manual=[
+        'al_connect_disconnect_scenarios.boot_al_device_with_new_display_connected',
+        'al_dock_and_display.connect_dp_display_with_usb_c_adapter',
+        'al_dock_and_display.single_external_display_extended_mode',
+        'al_dock_and_display.usb_typec_docking_station_testing',
+    ],
 )
-
-
+@functools.generate_tests
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.display_test_logic,
-        name_func=self.display_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def display_test_name(
-      self, state_when_plug_display: dut_state_manager.PowerState
-  ) -> str:
-    """Get the test name for the given test args."""
-    return f'test_plug_in_display_when_dut_{state_when_plug_display.value}'
-
-  def display_test_logic(
-      self, state_when_plug_display: dut_state_manager.PowerState
+  @functools.with_variants(
+      on_dock=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      on_dockless=(
+          dut_state_manager.PowerState.ON,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+      off_dock=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      off_dockless=(
+          dut_state_manager.PowerState.OFF,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+      suspended_dock=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DOCK,
+      ),
+      suspended_dockless=(
+          dut_state_manager.PowerState.SUSPEND,
+          display_base_test.DisplayPaths.DOCKLESS,
+      ),
+  )
+  def test_plug_in_display_when_dut(
+      self,
+      state_when_plug_display: dut_state_manager.PowerState,
+      display_path: display_base_test.DisplayPaths,
   ):
     """Test that plugs in an external display when DUT is in different states."""
-    self._skip_if_servo_needed_and_not_configured(state_when_plug_display)
+    self.skip_if_servo_needed_and_not_configured(state_when_plug_display)
+    self.setup_display_path(display_path)
 
     internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
-      self._plug_in_external_display()
+      self.plug_in_external_display()
 
-    self._verify_display_count(2, 'after external display plug in')
+    self.verify_display_count(2, 'after external display plug in')
 
-    display_id_to_camera_id = self._map_displays_to_cameras_with_retries()
+    display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
 
     logging.info('Open red background on external display')
-    external_display_id = self.helper.get_external_display_id(
-        internal_display_id
+    external_display_ids = self.helper.get_external_display_ids(
+        internal_display_id, 1
     )
+    external_display_id = external_display_ids[0]
     self.painter.show_color_on_display(
         image.NamedColor.RED.value, external_display_id
     )
 
     logging.info('Verify background color on external display')
-    self._capture_screenshots('external_display_red')
-    self._verify_captured_color(
+    self.capture_screenshots('external_display_red')
+    self.verify_captured_color(
         display_id_to_camera_id[external_display_id],
         image.NamedColor.RED,
         'external_display_red',

@@ -329,16 +329,17 @@ function generate_config() {
     exit 1
   fi
 
-  if ! "${TOPOLOGY_CONVERTER_CMD}" convert --ignore-unknown-fields --ignore-unknown-fields -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
+  if ! "${TOPOLOGY_CONVERTER_CMD}" convert -i "${SHIVAS_JSON_FILE}" -o "${CONFIG_OUTPUT_FILE}"; then
     echo -e "\n\nFailed to generate config yaml file for ${DUT_HOSTNAME}"
     exit 1
   fi
   rm "${SHIVAS_JSON_FILE}"
+  sed -i -e '/^\s*powerUnitHostname:/,/^\s*powerUnitOutlet:/ { /^\s*port:/d; }' \
+    -e "/^\s*powerUnitHostname:/,/^\s*address:/c\            powerUnitHostname:\n              address: 127.0.0.1\n              port: ${IP_POWER_SWITCH_TUNNEL_PORT}" "${CONFIG_OUTPUT_FILE}"
   if [[ "${PORT_OFFSET}" -ne 0 ]]; then
     echo "Updating ports in config file with offset ${PORT_OFFSET}..."
     sed -i "s/5555/${DUT_ADB_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
     sed -i "s/8300/${PASSPORT_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
-    sed -i "s/8080/${IP_POWER_SWITCH_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
     sed -i "s/9999/${SERVOD_TUNNEL_PORT}/g" "${CONFIG_OUTPUT_FILE}"
   fi
   if [[ "${CROS_TESTING}" == true ]]; then

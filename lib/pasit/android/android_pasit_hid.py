@@ -26,8 +26,11 @@ from mobly.controllers.android_device_lib import apk_utils
 
 class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   """PasitHID for Android devices."""
-  HID_SNIPPET_PACKAGE_NAME = 'com.google.android.hiddevicesnippet'
-  HID_SNIPPET_APK_PATH = os.path.join(
+
+  KeyboardShortcut = base_pasit_hid.BasePasitHID.KeyboardShortcut
+
+  _HID_SNIPPET_PACKAGE_NAME = 'com.google.android.hiddevicesnippet'
+  _HID_SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
       'HidDeviceSnippet.apk',
   )
@@ -37,42 +40,42 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
     super().__init__(controller)
     apk_utils.install(
         self.controller,
-        self.HID_SNIPPET_APK_PATH,
+        self._HID_SNIPPET_APK_PATH,
     )
-    self.controller.load_snippet('hid', self.HID_SNIPPET_PACKAGE_NAME)
+    self.controller.load_snippet('hid', self._HID_SNIPPET_PACKAGE_NAME)
 
-  def __del__(self):
+  def cleanup(self):
     """Cleans up after testing.
 
     Uninstalls the HidDeviceSnippet when the object is garbage collected.
     """
     self.controller.unload_snippet('hid')
-    apk_utils.uninstall(self.controller, self.HID_SNIPPET_PACKAGE_NAME)
+    apk_utils.uninstall(self.controller, self._HID_SNIPPET_PACKAGE_NAME)
 
   def get_hid_devices(self) -> List[base_pasit_hid.BasePasitHID.DeviceInfo]:
     """Returns a list of connected HID devices using the Mobly snippet."""
-    if not isinstance(self.controller, android_device.AndroidDevice):
-      raise TypeError(
-          'AndroidPasitHID requires an AndroidDevice controller, but got'
-          f' {type(self.controller)}'
-      )
-
-    try:
-      devices_json = self.controller.hid.getHidDevices()
-    except Exception as e:
-      # Handle potential errors during RPC call (e.g., snippet not loaded)
-      raise RuntimeError('Failed to get HID devices from snippet.') from e
-    hid_devices: List[base_pasit_hid.BasePasitHID.DeviceInfo] = []
-    for device_info in devices_json:
-      # The snippet returns a list of dictionaries.
-      # Convert each dictionary to our HidDeviceInfo dataclass.
-      hid_devices.append(
-          base_pasit_hid.BasePasitHID.DeviceInfo(
-              name=device_info['name'],
-              vendor_id=device_info['vendorId'],
-              product_id=device_info['productId'],
-              type=device_info['type'],
-          )
-      )
+    devices_json = self.controller.hid.getHidDevices()
+    # The snippet returns a list of dictionaries.
+    # Convert each dictionary to our HidDeviceInfo dataclass.
+    hid_devices = [
+        base_pasit_hid.BasePasitHID.DeviceInfo(
+            name=device_info['name'],
+            vendor_id=device_info['vendorId'],
+            product_id=device_info['productId'],
+            type=device_info['type'],
+        )
+        for device_info in devices_json
+    ]
     logging.debug('HID devices: %s', hid_devices)
     return hid_devices
+
+  def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
+    match shortcut:
+      case self.KeyboardShortcut.SCREENSHOT:
+        return ['Meta', 'S']
+      case self.KeyboardShortcut.SETTINGS:
+        return ['Meta', 'I']
+      case self.KeyboardShortcut.HOME:
+        return ['Meta', 'H']
+      case _:
+        raise ValueError(f'Unsupported shortcut: {shortcut}')

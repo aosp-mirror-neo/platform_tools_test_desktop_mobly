@@ -14,38 +14,45 @@
 
 """Test that shuts down DUT with external display plugged in."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import image
 from mobly import test_runner
 from pasit.display import display_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_connect_disconnect_scenarios.disconnect_display_while_al_device_shutting_down',
+        'al_persistence_of_settings.shutdown_al_device_while_display_connected',
+    ]
+)
 class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that shuts down DUT with external display plugged in."""
 
   def test_shutdown_with_external_display(self):
     """Get the test name for the given test args."""
-    self._skip_if_servo_needed_and_not_configured(
+    self.skip_if_servo_needed_and_not_configured(
         dut_state_manager.PowerState.OFF
     )
 
-    self._plug_in_external_display()
-    self._verify_display_count(2, 'after external display plug in')
+    self.plug_in_external_display()
+    self.verify_display_count(2, 'after external display plug in')
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, dut_state_manager.PowerState.OFF
     ):
       cameras = self.passport_host.get_cameras()
       for camera in cameras:
-        self._verify_captured_color(
+        self.verify_captured_color(
             camera,
             image.NamedColor.BLACK,
             f'black_after_shutdown_{camera}',
             'Display should be black after shutdown.',
         )
-      self._unplug_external_display()
+      self.unplug_external_display()
 
-    self._verify_display_count(1, 'after external display unplug')
+    self.verify_display_count(1, 'after external display unplug')
 
 
 if __name__ == '__main__':

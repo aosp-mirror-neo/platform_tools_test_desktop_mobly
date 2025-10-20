@@ -90,14 +90,6 @@ class ActiveCC(enum.Enum):
   CC2 = uts_pb.CC2
 
 
-class CableMode(enum.Enum):
-  """Cable mode of the USB tester."""
-
-  CABLE_MODE_NOT_SET = uts_pb.CABLE_MODE_NOT_SET
-  NORMAL = uts_pb.NORMAL
-  ELEC_TEST = uts_pb.ELEC_TEST
-
-
 class PassportUsbServiceClient:
   """Passport USB service client."""
 
@@ -126,6 +118,7 @@ class PassportUsbServiceClient:
     Args:
       tester_serial: The serial of the USB tester to open.
     """
+    tester_serial = tester_serial.upper()
 
     ret = self._stub.OpenTester(uts_pb.OpenTesterRequest(id=tester_serial))
     self._validate_reply(ret)
@@ -157,24 +150,19 @@ class PassportUsbServiceClient:
   def active_port(self, port_id: typing.Literal[0, 1] | None) -> None:
     """Sets the active port."""
     if port_id is None:
-      for port_id_deactivate in range(2):
-        req = uts_pb.SetActivePortRequest(
-            id=self._tester_serial,
-            port_id=port_id_deactivate,
-            state=uts_pb.PortState.PORT_STATE_OFF,
-        )
-        self._validate_reply(self._stub.SetActivePort(req))
+      req = uts_pb.SetActivePortRequest(
+          id=self._tester_serial,
+          port_id=0,
+          state=uts_pb.PortState.PORT_STATE_OFF,
+      )
+      self._validate_reply(self._stub.SetActivePort(req))
     else:
-      for port_id_action, action in zip(
-          [1 ^ port_id, port_id],
-          [uts_pb.PortState.PORT_STATE_OFF, uts_pb.PortState.PORT_STATE_ON],
-      ):
-        req = uts_pb.SetActivePortRequest(
-            id=self._tester_serial,
-            port_id=port_id_action,
-            state=action,
-        )
-        self._validate_reply(self._stub.SetActivePort(req))
+      req = uts_pb.SetActivePortRequest(
+          id=self._tester_serial,
+          port_id=port_id,
+          state=uts_pb.PortState.PORT_STATE_ON,
+      )
+      self._validate_reply(self._stub.SetActivePort(req))
 
   def hard_reset(self) -> None:
     """Hard resets the USB tester."""
@@ -352,7 +340,7 @@ class PassportUsbServiceClient:
     )
 
   @property
-  def display_port_alternate_mode(self) -> bool:
+  def dpam_enabled(self) -> bool:
     """Gets the Display Port alternate mode on/off state.
 
     Returns:
@@ -361,8 +349,8 @@ class PassportUsbServiceClient:
     ret = self._get_capability(capability=uts_pb.DISPLAY_PORT_AM)
     return ret.display_port_am
 
-  @display_port_alternate_mode.setter
-  def display_port_alternate_mode(self, enabled: bool) -> None:
+  @dpam_enabled.setter
+  def dpam_enabled(self, enabled: bool) -> None:
     """Enable or disable Display Port alternate mode.
 
     Args:
@@ -409,19 +397,6 @@ class PassportUsbServiceClient:
     )
 
   @property
-  def cable_mode(self) -> CableMode:
-    ret = self._get_capability(capability=uts_pb.CABLE_MODE)
-    return CableMode(ret.cable_mode)
-
-  @cable_mode.setter
-  def cable_mode(self, cable_mode: CableMode) -> None:
-    self._set_capability(
-        uts_pb.SetUsbTesterCapabilityRequest(
-            capability=uts_pb.CABLE_MODE, cable_mode=cable_mode.value
-        )
-    )
-
-  @property
   def source_pdo_count(self) -> int:
     ret = self._get_capability(capability=uts_pb.SRC_PDO_COUNT)
     return ret.non_descrete
@@ -433,6 +408,16 @@ class PassportUsbServiceClient:
             capability=uts_pb.SRC_PDO_COUNT, non_descrete=count
         )
     )
+
+  @property
+  def vbus_voltage(self) -> int:
+    ret = self._get_capability(capability=uts_pb.VBUS_VOLTAGE)
+    return ret.non_descrete
+
+  @property
+  def vbus_current(self) -> int:
+    ret = self._get_capability(capability=uts_pb.VBUS_CURRENT)
+    return ret.non_descrete
 
   def get_dut_pdos(self) -> list[int]:
     """Gets the PD source power data objects (PDOs) of the USB tester.
@@ -459,6 +444,13 @@ class PassportUsbServiceClient:
     )
     self._validate_reply(ret)
 
+  def simulate_key_press(self):
+    """Simulates a key press on the USB tester."""
+    ret = self._stub.SimulateKeyPress(
+        uts_pb.SimulateKeyPressRequest(id=self._tester_serial)
+    )
+    self._validate_reply(ret)
+
   def _validate_reply(
       self,
       reply: (
@@ -473,6 +465,7 @@ class PassportUsbServiceClient:
           | uts_pb.DoCableReplugReply
           | uts_pb.LoadEdidReply
           | uts_pb.GetPdosReply
+          | uts_pb.SimulateKeyPressReply
       ),
   ) -> None:
     """Validates the reply from a gRPC call.

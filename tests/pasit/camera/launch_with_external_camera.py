@@ -14,27 +14,31 @@
 
 """Test launching the camera app with an external camera plugged in."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.utils import image
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_webcam.connect_disconnect_external_webcam',
+    ]
+)
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
 
   def test_launch_with_external_camera(self):
     """Test launching the camera app with an external camera plugged in."""
 
-    internal_camera_devices = self.camera.get_connected_cameras()
-    self._plug_in_external_camera()
-    self._wait_for_external_camera_devices(internal_camera_devices)
+    self.connect_external_camera()
+    self.launch_camera_app()
+    self.capture_screenshots('camera_app_launched')
 
-    self._launch_camera_app()
-    self._capture_screenshots('camera_app_launched')
-
-    self._switch_camera()
-    self._capture_screenshots('after_switch_to_external_camera')
+    self.switch_camera()
+    self.capture_screenshots('after_switch_to_external_camera')
     self._verify_external_camera_captures_color(
         image.NamedColor.RED,
         'External camera preview (on the internal display) should be showing'
@@ -51,14 +55,14 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
       message: The message to use for the assertion if the verification fails.
     """
     # Display-testing camera, pointed at internal display.
-    camera_id = self._show_color_for_external_camera_preview(color)
+    camera_id = self.show_color_for_external_camera_preview(color)
 
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
     self.camera.maximize_camera_app_window()
-    self._capture_screenshots('external_camera_preview_color')
+    self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
-        self.helper.try_match_color(
+        self.camera_mapper.try_match_color(
             camera_id, color, 'external_camera_preview_color'
         ),
         message,

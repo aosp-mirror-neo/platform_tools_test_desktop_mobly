@@ -1,0 +1,481 @@
+#!/bin/bash
+#  Copyright (C) 2024 The Android Open Source Project
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# Run PASIT testbed suite on a Satlab host.
+#
+# This script can be used to run PASIT testbed suite on a Satlab host.
+# It can be used to run the suite on a ChromeOS or Android device.
+#
+# To run the suite, run:
+# ./pasit_test
+# To run the suite in quick mode (bypassing re-running of the setup), run:
+# ./pasit_test -q
+# To pass additional arguments to the test suite, run:
+# ./pasit_test [-q] -- <arg1> <arg2> <arg3>...
+# To run passport client commands, run:
+# ./pasit_test -p -- <command> <subcommand> <subcommand args>...
+
+usage() {
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--] [args...]"
+  echo
+  echo "Run PASIT testbed suite on a Satlab host."
+  echo
+  echo "This script can be used to run the suite on a ChromeOS or Android device."
+  echo
+  echo "Options:"
+  echo "  -h, --help          Show this help message and exit."
+  echo "  -q, --quick         Quick mode. Bypasses re-running of the setup."
+  echo "  -p, --passport      Run passport client commands."
+  echo "  -- [args...]        All arguments after '--' are passed to the test suite or passport client."
+  echo
+  echo "Examples:"
+  echo "  # Run the full test suite setup and execution"
+  echo "  $0"
+  echo
+  echo "  # Run in quick mode (bypasses setup)"
+  echo "  $0 -q"
+  echo
+  echo "  # Pass additional arguments to the test suite"
+  echo "  $0 -q -- --tests=<Class Name>[.<Test Name>]"
+  echo
+  echo "  # Run a passport client command"
+  echo "  $0 -p -- -h"
+  echo
+  echo "  # Upload all logs to the gcs bucket"
+  echo "  $0 -u"
+  exit 1
+}
+
+
+PASSPORT_DOCKER_REGISTRY="us-docker.pkg.dev/cros-passport"
+PASIT_ANDROID_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/android:latest"
+PASIT_CROS_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/cros:latest"
+PASIT_VOLUME_NAME="pasit_volume"
+PASIT_PERSISTENT_CONTAINER_NAME="pasit_persistent_container"
+PASIT_PERSISTENT_LOG_CONTAINER_NAME="pasit_persistent_log_upload_container"
+
+# Define ANSI color codes
+# Note: \e or \x1B both represent the ESC character
+RED='\e[31m'    # Error
+GREEN='\e[32m'  # Good
+YELLOW='\e[33m' # Warn
+NC='\e[0m'      # No Color / Reset
+
+# Function to print colored log messages
+log_color() {
+    local level="$1"
+    local message="$2"
+    local color=""
+
+    case "$level" in
+        "ERROR")
+            color="$RED"
+            ;;
+        "GOOD")
+            color="$GREEN"
+            ;;
+        "WARN")
+            color="$YELLOW"
+            ;;
+        *)
+            # Default to no color if level is unknown
+            color="$NC"
+            ;;
+    esac
+
+    # Print the log message with the chosen color and reset afterward
+    echo -e "${color}[$level]${NC} $message"
+}
+
+check_running_on_satlab() {
+  if [[ ! -x /usr/local/bin/satlab ]]; then
+    log_color ERROR "No satlab command found, this script must be run on a satlab host."
+    exit 1
+  fi
+}
+
+check_satlab_drone_running_tests() {
+  if [[ "$(docker exec drone docker ps | wc -l)" -gt 1 ]]; then
+    log_color ERROR "Tests may be running on the satlab host, please wait for them to finish before running this script."
+    exit 1
+  fi
+}
+
+get_dut_info() {
+  local dns_info="$(satlab get dns)"
+  local dut_line="$(echo "$dns_info" | grep "satlab-" | grep -v -i -E "ip.*power|192.168.231.110")"
+  DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
+  DUT_ID="$(echo "$dut_line" | awk '{print $2}')"
+
+  if ! satlab get dut "${DUT_ID}" > "${DUT_INFO_FILE}"; then
+    log_color ERROR"Failed to get DUT info from satlab for ${DUT_ID}"
+    exit 1
+  fi
+
+  jq '.. | .pasit? | select(. != null)' "${DUT_INFO_FILE}" > "${PASIT_JSON_FILE}"
+}
+
+function start_servod() {
+  local SERVO_CONTAINER_NAME
+  log_color INFO "Setting up servod for ${DUT_ID}..."
+
+  SERVO_CONTAINER_NAME=$(jq -r '.. | .servoHostname? | select(. != null)' "${DUT_INFO_FILE}")
+  if [[ -z "${SERVO_CONTAINER_NAME}" ]]; then
+    SERVO_CONTAINER_NAME="${DUT_ID}-docker_servod"
+  fi
+
+  satlab servod stop -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json -host "${DUT_ID}" > /dev/null 2>&1
+  if ! satlab servod start -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json -host "${DUT_ID}"; then
+    log_color ERROR "Failed to start servod for ${DUT_ID}"
+    exit 1
+  fi
+
+  SERVO_IP="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
+  if [[ $? -ne 0 || -z "${SERVO_IP}" ]]; then
+    log_color ERROR -e "\n\nERROR: Failed to get Servod container IP."
+    exit 1
+  fi
+  log_color GOOD "Servod started, SERVO_IP: ${SERVO_IP}"
+}
+
+start_passport() {
+  local PASSPORT_CONTAINER="passport-dev"
+  local PASSPORT_DOCKER_IMAGE="${PASSPORT_DOCKER_REGISTRY}/passport/passport:latest"
+  # stop any existing passport container
+  docker rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
+
+  if ! docker exec -i compose sh -c \
+    "/usr/local/bin/docker pull ${PASSPORT_DOCKER_IMAGE}"; then
+    log_color ERROR "failed to pull latest passport docker image"
+    exit 1
+  fi
+  # start container
+  log_color INFO "Starting passport container..."
+  if ! docker run \
+    -d \
+    --rm \
+    --name ${PASSPORT_CONTAINER} \
+    --privileged \
+    -p 8300:8300 \
+    "${PASSPORT_DOCKER_IMAGE}" ; then
+    echo "ERROR: failed to start passport container"
+    exit 1
+  fi
+
+  PASSPORT_IP="$(docker inspect -f \
+    '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+    "${PASSPORT_CONTAINER}")"
+  if [[ $? -ne 0 || -z "${PASSPORT_IP}" ]]; then
+    log_color ERROR "Failed to get Passport container IP."
+    exit 1
+  fi
+  log_color GOOD "passport started,PASSPORT_IP: ${PASSPORT_IP}"
+}
+
+setup_docker_credentials() {
+  if ! docker exec -i compose sh -c \
+      "cat /home/satlab/keys/pubsub-key-do-not-delete.json \
+      | /usr/local/bin/docker login -u _json_key --password-stdin \
+      ${PASSPORT_DOCKER_REGISTRY}" > /dev/null 2>&1; then
+    log_color ERROR "failed to login to docker registry."
+    exit 1
+  fi
+}
+
+pull_pasit_testbed_containers() {
+  if ! docker exec -i compose sh -c \
+    "/usr/local/bin/docker pull ${PASIT_ANDROID_IMAGE}"; then
+    log_color ERROR "failed to pull ${PASIT_ANDROID_IMAGE}"
+    exit 1
+  fi
+  if ! docker exec -i compose sh -c \
+    "/usr/local/bin/docker pull ${PASIT_CROS_IMAGE}"; then
+    log_color ERROR "failed to pull ${PASIT_CROS_IMAGE}"
+    exit 1
+  fi
+}
+
+determine_cros_or_android() {
+  local android_port=5555
+  local cros_port=22
+  if nc -z -w 1 "${DUT_IP}" "${android_port}" &> /dev/null; then
+    if ! adb connect "${DUT_IP}:${android_port}"; then
+      log_color ERROR "Failed to connect to ADB on ${DUT_IP}:${android_port}."
+      exit 1
+    fi
+    log_color GOOD "Found an Android device (ADB) listening on ${DUT_IP}:${android_port}."
+    DEVICE_TYPE="android"
+    return
+  fi
+  if nc -z -w 1 "${DUT_IP}" "${cros_port}" &> /dev/null; then
+    log_color GOOD "Found a ChromeOS device (SSH) listening on ${DUT_IP}:${cros_port}."
+    DEVICE_TYPE="cros"
+    return
+  fi
+  log_color ERROR "Failed to find a ChromeOS or Android device listening on ${DUT_IP}."
+  exit 1
+}
+
+create_volume_and_start_persistent_container() {
+  # clean up any existing containers and volumes
+  docker rm -f ${PASIT_PERSISTENT_CONTAINER_NAME} > /dev/null 2>&1
+  docker volume rm ${PASIT_VOLUME_NAME} > /dev/null 2>&1
+
+  docker volume create ${PASIT_VOLUME_NAME}
+  # start a container and keep the container running for 1 hour
+  # this container is used to copy files to and from the satlab host and the
+  # pasit shared volume
+  if ! docker run \
+    -d \
+    --rm \
+    --name ${PASIT_PERSISTENT_CONTAINER_NAME} \
+    --volume ${PASIT_VOLUME_NAME}:/workdir \
+    --network host \
+    --entrypoint /usr/bin/sleep \
+    ${PASIT_ANDROID_IMAGE} 1h; then
+    log_color ERROR "Failed to start PASIT persistent container."
+    exit 1
+  fi
+}
+
+generate_pasit_config() {
+  create_volume_and_start_persistent_container
+  # all the differen tools seem to return data slightly different we have to
+  # massage the data a bit to make it work with topology_converter as dut info
+  # doesn't return json in same format is shiavs :-(
+  log_color INFO "Constructing the PASIT config yaml file..."
+  cp ${PASIT_JSON_FILE} ${TEMP_DIR}/pasit_config_original.json
+  sed -i 's/_id/Id/g' "${PASIT_JSON_FILE}"
+  sed -i 's/_port/Port/g' "${PASIT_JSON_FILE}"
+  sed -i 's/_name/Name/g' "${PASIT_JSON_FILE}"
+  sed -i 's/_outlet/Outlet/g' "${PASIT_JSON_FILE}"
+  sed -i 's/_type.*2$/Type": "TYPE_IP9850"/g' "${PASIT_JSON_FILE}"
+  if ! docker cp ${TEMP_DIR}/pasit_config.json ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir; then
+    log_color ERROR "Failed to copy PASIT config JSON file to shared volume."
+    exit 1
+  fi
+  # use topology_converter to generate the YAML config
+  if ! docker run -it --rm\
+    -v ${PASIT_VOLUME_NAME}:/workdir \
+    --entrypoint /tools/pasit/topology_converter \
+    ${PASIT_ANDROID_IMAGE}  \
+    convert \
+    -i /workdir/pasit_config.json \
+    -o /workdir/pasit_config.yaml; then
+    log_color ERROR "Failed to generate PASIT config YAML file."
+    log_color ERROR "Please check the PASIT config JSON file: ${PASIT_JSON_FILE}"
+    exit 1
+  fi
+  # wait for the file to be written to the shared volume timeout after 30 seconds
+  count=0
+  while ! docker exec -i ${PASIT_PERSISTENT_CONTAINER_NAME} ls /workdir/pasit_config.yaml > /dev/null 2>&1; do
+    sleep 1
+    count=$((count+1))
+    if [[ $count -gt 30 ]]; then
+      log_color ERROR "Not able to find PASIT config YAML file in shared volume."
+      exit 1
+    fi
+  done
+  set -e
+  docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml ${TEMP_DIR}/pasit_config.yaml
+  # now we need to change some IP addresses and ports
+  log_color INFO "modifying pasit_config.yaml: ${TEMP_DIR}/pasit_config.yaml"
+  # servo_host -> IP address of servod container
+  sed -i "s/servo_host: .*/servo_host: ${SERVO_IP}/g" \
+    ${TEMP_DIR}/pasit_config.yaml
+  # dut_ip -> IP address of DUT
+  if [[ "${DEVICE_TYPE}" == "cros" ]]; then
+    sed -i "s/AndroidDevice:.*/CrosDevice:\n    - hostname: ${DUT_IP}/" \
+      ${TEMP_DIR}/pasit_config.yaml
+  fi
+  # passport service_host -> IP address of passport container
+  sed -i "s/service_host: .*/service_host: ${PASSPORT_IP}/g" \
+    ${TEMP_DIR}/pasit_config.yaml
+  docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
+  set +e
+  log_color GOOD "PASIT config YAML file generated: ${TEMP_DIR}/pasit_config.yaml"
+}
+
+run_pasit_testbed_suite() {
+  log_color GOOD "Starting PASIT testbed suite..."
+  local RUN_CONTAINER_NAME
+  if [[ "${DEVICE_TYPE}" == "cros" ]]; then
+    RUN_CONTAINER_NAME="cros_pasit_run_container"
+    docker rm -f ${RUN_CONTAINER_NAME} > /dev/null 2>&1
+    docker run \
+      -v ${PASIT_VOLUME_NAME}:/workdir \
+      --network host \
+      --name ${RUN_CONTAINER_NAME} \
+      ${PASIT_CROS_IMAGE} -- -c /workdir/pasit_config.yaml ${forwarded_args} \
+      | tee ${TEMP_DIR}/pasit_run_output.txt
+  else
+    RUN_CONTAINER_NAME="${PASIT_PERSISTENT_CONTAINER_NAME}"
+    # connect to the DUT via ADB in the persistent container
+    docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} adb connect "${DUT_IP}:5555"
+    # run the test suite in the persistent container
+    docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} \
+      /tools/pasit/DesktopPASITTestbedTests \
+      -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
+  fi
+
+  local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
+  # copy the logs to the host for easier debugging
+  if ! docker cp ${RUN_CONTAINER_NAME}:${log_dir} ${TEMP_DIR}; then
+    log_color ERROR "Failed to copy logs out of the persistent container."
+    exit 1
+  fi
+  log_color INFO "logs can be found in ${TEMP_DIR}/$(basename ${log_dir}) directory"
+}
+
+upload_logs() {
+  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json)"
+  local temp_dir="$(cat /tmp/pasit_temp_dir.txt)"
+  if [[ -z "${temp_dir}" ]]; then
+    log_color ERROR "No temp directory found, run tests before uploading logs."
+    exit 1
+  fi
+  echo "Uploading logs to: gs://${gcs_bucket}..."
+  # stop the persistent container
+  docker stop ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} > /dev/null 2>&1
+  # start background container to upload the logs
+  if ! docker run \
+    -d \
+    --rm \
+    --name ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} \
+    --volume ${PASIT_VOLUME_NAME}:/workdir \
+    --volume satlab_keys:/home/satlab/keys \
+    --network host \
+    google/cloud-sdk:396.0.0-slim sleep 1h; then
+    log_color ERROR "Failed to start PASIT persistent container."
+    exit 1
+  fi
+  if ! docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} \
+    gcloud auth login \
+    --cred-file /home/satlab/keys/pubsub-key-do-not-delete.json; then
+    log_color ERROR "Failed to login to gcloud for uploading logs to GCS."
+    exit 1
+  fi
+  # copy the entire temp directory to the shared volume and upload it to GCS
+  local upload_dir="pasit_test_$(date +%Y%m%d_%H%M%S)"
+  local gcs_logs_dir="gs://${gcs_bucket}/pasit_logs/${upload_dir}"
+  docker cp ${temp_dir} ${PASIT_PERSISTENT_LOG_CONTAINER_NAME}:/workdir/${upload_dir}
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} gsutil cp -r /workdir/${upload_dir} ${gcs_logs_dir}
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} rm -rf /workdir/${upload_dir}
+
+  echo
+  echo
+  echo "Logs uploaded successfully to ${gcs_logs_dir}."
+  echo "File a bug at go/file-pasit-bug and include: the gcs link, dut_id, and "
+  echo "satlab IP address in the bug description."
+}
+
+# parse the arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      ;;
+    --)
+      shift;
+      break
+      ;;
+    --quick|-q)
+      QUICK_MODE=1
+      shift;
+      ;;
+    --passport|-p)
+      PASSPORT_CLIENT=1
+      shift;
+      ;;
+    --upload-logs|-u)
+      UPLOAD_LOGS=1
+      shift;
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+check_running_on_satlab
+
+if [[ $# -gt 0 ]]; then
+  forwarded_args="${@}"
+fi
+
+check_satlab_drone_running_tests
+
+if [[ "${UPLOAD_LOGS}" -eq 1 ]]; then
+  upload_logs
+  exit 0
+elif [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
+  if ! docker ps | grep "passport-dev"; then
+    start_passport
+  fi
+  docker run --rm -it --network=host us-docker.pkg.dev/cros-passport/passport/passport:latest /usr/bin/cros-passport ${forwarded_args}
+  exit 0
+fi
+if [[ "${QUICK_MODE}" -ne 1 ]]; then
+  TEMP_DIR="$(mktemp -d)"
+  echo -n "${TEMP_DIR}" > /tmp/pasit_temp_dir.txt
+  DUT_INFO_FILE="${TEMP_DIR}/dut_info.json"
+  PASIT_JSON_FILE="${TEMP_DIR}/pasit_config.json"
+  get_dut_info
+  if [[ -z "$DUT_IP" ]]; then
+    echo "No DUT found, please check the satlab config."
+    exit 1
+  fi
+  if [[ -z "$DUT_ID" ]]; then
+    echo "No IP Power found, please check the satlab config."
+    exit 1
+  fi
+  log_color GOOD "Setting up for DUT: ${DUT_ID}"
+  setup_docker_credentials
+  pull_pasit_testbed_containers
+  determine_cros_or_android
+  start_passport
+  start_servod
+  generate_pasit_config
+  echo -e "${DUT_IP}" > /tmp/pasit_dut_ip.txt
+else
+  TEMP_DIR="$(cat /tmp/pasit_temp_dir.txt)"
+  DUT_IP="$(cat /tmp/pasit_dut_ip.txt)"
+  if [[ -z "${DUT_IP}" || -z "${TEMP_DIR}" ]]; then
+    log_color ERROR "Please run this script without --quick|-q to setup the containers."
+    exit 1
+  fi
+  # skip the setup and use the existing containers for faster re-runs
+  determine_cros_or_android
+  log_color GOOD "Skipping setup and running tests on ${DUT_IP}"
+  if [[ ! -f "${TEMP_DIR}/pasit_config.yaml" ]]; then
+    log_color ERROR "PASIT config YAML file not found, please run this script without --quick|-q."
+    exit 1
+  fi
+  # check if the necessary containers are running
+  if ! docker ps | grep ${PASIT_PERSISTENT_CONTAINER_NAME}; then
+    log_color ERROR "Persistent container is not running, please run this script without --quick|-q to setup the container."
+    exit 1
+  fi
+  if ! docker ps | grep "docker_servod"; then
+    log_color ERROR "Servod container is not running, please run this script without --quick|-q to setup the container."
+    exit 1
+  fi
+  if ! docker ps | grep "passport-dev"; then
+    log_color ERROR "Passport container is not running, please run this script without --quick|-q to setup the container."
+    exit 1
+  fi
+fi
+run_pasit_testbed_suite

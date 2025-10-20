@@ -14,8 +14,7 @@ Additionaly, there are tests for pasit library that require a physical DUT
 ### Guidelines
 
 -   Use `verify_` prefix for methods that contains asserts.
--   Define values for `delay_seconds` and `max_tries` for `retry` in local
-    private constants.
+-   In pasit tests, define values for retry policy in test_policy.py
 
 ## lib/
 

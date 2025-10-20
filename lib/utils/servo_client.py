@@ -17,6 +17,7 @@
 import abc
 import enum
 import logging
+import time
 import xmlrpc.client as xmlrpc_client
 from chromiumos.test.api.bols import bols_service_pb2
 from chromiumos.test.api.lsnexus import lsnexus_service_pb2
@@ -28,26 +29,80 @@ class ServoConnectionError(Exception):
   """Error when trying to connect to Servo."""
 
 
+ON_STATE = 'on'
+OFF_STATE = 'off'
+
+POWER_STATE = 'power_state'
+COLD_RESET = 'cold_reset'
+BOTTOM_USBKEY_PWR = 'bottom_usbkey_pwr'
+TOP_USBKEY_PWR = 'top_usbkey_pwr'
+
+SERVO_PD_ROLE = 'servo_pd_role'
+PD_ROLE_SINK = 'snk'
+PD_ROLE_SOURCE = 'src'
+
+LID_OPEN = 'lid_open'
+
+YES_VALUE = 'yes'
+NO_VALUE = 'no'
+
+
 @enum.unique
 class PowerState(str, enum.Enum):
   """Power states for the DUT."""
 
-  ON = 'on'
-  OFF = 'off'
+  ON = ON_STATE
+  OFF = OFF_STATE
 
 
 class ServoBase(abc.ABC):
   """Base class for interacting with Servod"""
 
-  @abc.abstractmethod
   def set_power_state(self, power_state: PowerState):
     """Sets the power state of the DUT via Servod."""
-    pass
+    self._set_servod_value(POWER_STATE, power_state.value)
+
+  def cold_reset(self):
+    """Performs a cold reset of the DUT via Servod."""
+    self._set_servod_value(COLD_RESET, ON_STATE)
+    time.sleep(1)
+    self._set_servod_value(COLD_RESET, OFF_STATE)
+
+  def disable_servo_power(self):
+    """Disables the Servo power to the DUT."""
+    self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SINK)
+
+  def enable_servo_power(self):
+    """Enables the Servo power to the DUT."""
+    self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SOURCE)
+
+  def set_servo_usbkey_power(self, usbkey_power: bool):
+    """Sets the power state of the USB-key via Servod."""
+    state = ON_STATE if usbkey_power else OFF_STATE
+    self._set_servod_value(BOTTOM_USBKEY_PWR, state)
+    self._set_servod_value(TOP_USBKEY_PWR, state)
+
+  def set_lid_state(self, lid_open: bool) -> None:
+    """Sets the lid state (open or closed) of the DUT via Servod.
+
+    Args:
+      lid_open: True if the lid is open, False if the lid is closed.
+    """
+    self._set_servod_value(LID_OPEN, YES_VALUE if lid_open else NO_VALUE)
 
   @abc.abstractmethod
-  def verify_connected(self):
-    """Verifies that the client is connected to the Servod."""
-    pass
+  def _set_servod_value(self, name: str, value: str) -> None:
+    """Sets the value of a Servod control."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def verify_connected(self) -> None:
+    """Verifies that the client is connected to the Servod.
+
+    Raises:
+      ServoConnectionError: If the client is not connected to the Servod.
+    """
+    raise NotImplementedError
 
 
 class LSNexusClient(ServoBase):
@@ -72,12 +127,21 @@ class LSNexusClient(ServoBase):
           f'Failed to verify connection to LSNexus: {response}'
       )
 
-  def set_power_state(self, power_state: PowerState):
-    """Sets the power state of the DUT via Servod."""
+  def get_servo_serial(self) -> str:
+    """Gets the serial number of the Servo."""
+    request = lsnexus_service_pb2.CallServodRequest(
+        method=lsnexus_service_pb2.CallServodRequest.Method.GET,
+        control='serialname',
+    )
+    response = self._call_servod(request)
+    return str(response.result.string_value)
+
+  def _set_servod_value(self, name: str, value: str):
+    """Sets the value of a Servod control."""
     request = lsnexus_service_pb2.CallServodRequest(
         method=lsnexus_service_pb2.CallServodRequest.Method.SET,
-        control='power_state',
-        args=[bols_service_pb2.ServodValue(string_value=power_state.value)],
+        control=name,
+        args=[bols_service_pb2.ServodValue(string_value=value)],
     )
     self._call_servod(request)
 
@@ -86,7 +150,9 @@ class LSNexusClient(ServoBase):
     logging.debug('Call servod %s -> %s', request, response)
     if response.HasField('failure'):
       raise ValueError(response.failure.msg)
-    return response.Success
+    if response.HasField('success'):
+      return response.success
+    raise ValueError('No response from LSNexus')
 
 
 class ServodClient(ServoBase):
@@ -106,9 +172,7 @@ class ServodClient(ServoBase):
           f'Failed to verify connection to Servod: {response}'
       )
 
-  def set_power_state(self, power_state: PowerState):
-    """Sets the power state of the DUT via Servod."""
-
-    value = power_state.value
-    response = self._xmlrpc_client.set('power_state', value)
-    logging.debug('Set power state to "%s" -> %s', value, response)
+  def _set_servod_value(self, name: str, value: str):
+    """Sets the value of a Servod control."""
+    response = self._xmlrpc_client.set(name, value)
+    logging.debug('Set %s to "%s" -> %s', name, value, response)

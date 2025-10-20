@@ -26,13 +26,14 @@ import logging
 
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
-from lib.pasit import display_helper
+from lib.pasit import display_camera_mapper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.pasit.passport import utils
 from lib.utils import retry
 from mobly import asserts
@@ -43,6 +44,12 @@ from mobly import test_runner
 class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
+
+  def teardown_test(self):
+    """Handle the teardown for the test."""
+    if hasattr(self, 'display'):
+      self.display.save_debug_info(self.current_test_info.output_path)
+    super().teardown_test()
 
   def _get_test_name(
       self, device_type: str, device_id: str, tag: str | None = None
@@ -56,15 +63,20 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     storage = self.create(pasit_storage)
     logging.info('Testing storage device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
-    mount_point = retry.retry(
-        storage.get_external_mount_point,
-        until=lambda mount_point: mount_point,
-        max_tries=10,
+    blkdevs = retry.retry(
+        storage.get_external_storage_blkdevs,
+        until=lambda blkdevs: blkdevs,
+        policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_DETECTED_RETRY_POLICY,
     )
-    logging.info('Found storage mount point: %s', mount_point)
+    logging.info('Found storage devices: %s', blkdevs)
     asserts.assert_true(
-        mount_point,
+        blkdevs,
         'No external storage device found.',
+    )
+    asserts.assert_equal(
+        len(blkdevs),
+        1,
+        f'Expected exactly one external storage device, got {len(blkdevs)}.',
     )
 
   def _camera_test_logic(self, device_id: str):
@@ -77,6 +89,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     newly_plugged_cameras = retry.retry(
         lambda: self._get_newly_plugged_cameras(camera, camera_devices),
         until=lambda result: result,
+        policy=test_policy.CameraTestPolicy.DETECT_EXTERNAL_CAMERA_DEVICES_RETRY_POLICY,
     )
     asserts.assert_true(
         newly_plugged_cameras,
@@ -109,16 +122,16 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     self.passport_host.activate_device_by_id(device_id, tag)
     expected_display_count = 2  # 1 internal + 1 external
-    if tag == display_helper.DisplayPaths.DAISY_CHAIN.value:
+    if tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value:
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
     display_count = retry.retry(
-        self.display.get_display_count,
-        until=lambda count: count == expected_display_count,
-        max_tries=10,
-        delay_seconds=2,
+        lambda: len(self.display.get_display_ids()),
+        until=lambda ids_count: ids_count == expected_display_count,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
+    self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
         display_count,
         expected_display_count,
@@ -171,7 +184,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
   def _check_display_mapping(self) -> None:
     """Checks that the display mapping is correct."""
     painter = self.create(display_painter)
-    helper = display_helper.DisplayHelper(
+    camera_mapper = display_camera_mapper.DisplayCameraMapper(
         self.passport_host,
         self.display,
         painter,
@@ -179,10 +192,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     logging.info('Trying to map displays to cameras...')
     mapping = retry.retry(
-        helper.map_displays_to_cameras,
-        max_tries=3,
-        delay_seconds=10,
-        exceptions=(display_helper.MapDisplaysToCamerasError,),
+        camera_mapper.map_displays_to_cameras,
+        policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
+        exceptions=(display_camera_mapper.MapDisplaysToCamerasError,),
     )
     logging.info('Mapped displays to cameras: %s', mapping)
     asserts.assert_equal(
@@ -261,24 +273,23 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       tags = utils.get_child_tags(
           topology,
           device.id,
-          [item.value for item in display_helper.DisplayPaths],
+          [item.value for item in display_camera_mapper.DisplayPaths],
       )
       for tag in tags:
         if (
-            tag == display_helper.DisplayPaths.DAISY_CHAIN.value
+            tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
             and not utils.is_leaf_node(topology, device.id)
         ):
           # for daisy chain, we only test the full chain, so skip all the
           # intermediate displays and only test the leaf node.
           continue
-        # generate display count tests
-        display_count_test_devices.append((device.id, tag))
         if (
             not utils.is_edid(topology, device.id)
-            and tag != display_helper.DisplayPaths.DAISY_CHAIN.value
+            and tag != display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
         ):
-          # generate display mapping tests for dock and dockless only, ignoring
+          # generate display tests for dock and dockless only, ignoring
           # EDID devices and daisy chain
+          display_count_test_devices.append((device.id, tag))
           display_mapping_devices.append((device.id, tag))
 
     if display_count_test_devices:

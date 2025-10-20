@@ -21,6 +21,8 @@ import urllib.request
 
 from lib.pasit.passport import ip_power
 
+_TIMEOUT = 10
+
 
 class IP9850(ip_power.PassportRPM):
   """A class for controlling IP 9850 power switches for PASIT."""
@@ -37,8 +39,8 @@ class IP9850(ip_power.PassportRPM):
     url = f'http://{address}/{self.LOGIN_URL_STRING}+cmd=getpower'
 
     try:
-      with urllib.request.urlopen(url, timeout=10) as response:
-        resp_text = response.read()
+      with urllib.request.urlopen(url, timeout=_TIMEOUT) as response:
+        resp_text = read_until_timeout_or_eof(response)
         if response.status != http.HTTPStatus.OK:
           logging.debug(
               'IP 9850 online check failed for %s: %s',
@@ -77,8 +79,8 @@ class IP9850(ip_power.PassportRPM):
     url = f'http://{address}/{self.LOGIN_URL_STRING}+cmd=setpower+{set_string}'
 
     try:
-      with urllib.request.urlopen(url, timeout=10) as response:
-        resp_text = response.read()
+      with urllib.request.urlopen(url, timeout=_TIMEOUT) as response:
+        resp_text = read_until_timeout_or_eof(response)
         # Check status first, then content
         if response.status != http.HTTPStatus.OK:
           raise ip_power.PassportRPMError(
@@ -107,3 +109,16 @@ class IP9850(ip_power.PassportRPM):
           self.power_unit_endpoint,
           power_state,
       ) from e
+
+
+def read_until_timeout_or_eof(response: http.client.HTTPResponse) -> bytes:
+  """Reads the response until the timeout or EOF is reached."""
+  concat_bytes = b''
+  try:
+    resp_byte = response.read(1)
+    while resp_byte:
+      concat_bytes += resp_byte
+      resp_byte = response.read(1)
+  except TimeoutError:
+    pass
+  return concat_bytes

@@ -14,9 +14,10 @@
 
 r"""Converts PASIT topology between JSON and YAML.
 
-JSON format is compatible with pasit_host.proto format and can be used to set
-topology in the lab.  YAML format is compatible with Mobly testbed configs and
-can be used to develop and run mobly tests.
+JSON format is compatible with shivas format and can be used to set topology
+in the lab.  YAML format is compatible with Mobly testbed configs and
+can be used to develop and run mobly tests.  Textproto format is compatible
+with legacy Tast tests and should not be used for shivas.
 
 To Convert between JSON to YAML:
 
@@ -32,11 +33,14 @@ topology_converter graph -i \
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+import urllib.parse
 
 from chromiumos.test.lab.api import pasit_host_pb2
+from chromiumos.test.lab.api import rpm_pb2
 from google.protobuf import json_format
 from google.protobuf import text_format
 import yaml
@@ -61,10 +65,70 @@ def parse_json(
   pasit_host = pasit_host_pb2.PasitHost()
   with open(json_file, 'r') as f:
     data = f.read()
+    data = _convert_ufs_rpm_to_proto_json(data)
     json_format.Parse(
         data, pasit_host, ignore_unknown_fields=ignore_unknown_fields
     )
   return pasit_host
+
+
+def _convert_ufs_rpm_to_proto_json(json_data: str) -> str:
+  """Converts the RPM data from JSON to proto format.
+
+  The UFS data uses a different format than the pasit_host.proto.  This method
+  converts the data to the format used in pasit_host.proto, so that it can be
+  ingested as a pasit_host.proto.
+  """
+  json_data = json.loads(json_data)
+  for device in json_data['devices']:
+    ufs_rpm = device.get('rpm')
+    if ufs_rpm is None:
+      continue
+    hostname = ufs_rpm.get('powerunitName')
+    if hostname is None:
+      raise ValueError('powerunitName is required for RPMs.')
+    outlet = ufs_rpm.get('powerunitOutlet')
+    if outlet is None:
+      raise ValueError('powerunitOutlet is required for RPMs.')
+    powerunit_type = ufs_rpm.get('powerunitType')
+    if powerunit_type is not None and powerunit_type != 'TYPE_IP9850':
+      raise ValueError(f'Only IP9850 RPMs are supported {powerunit_type}.')
+    parsed_hostname = urllib.parse.urlsplit(f'//{hostname}')
+    device['rpm'] = {
+        'present': True,
+        'powerUnitHostname': {'address': parsed_hostname.hostname},
+        'powerUnitOutlet': outlet,
+        'type': rpm_pb2.RPMType.RPM_TYPE_IP9850,
+    }
+    if parsed_hostname.port:
+      device['rpm']['powerUnitHostname']['port'] = parsed_hostname.port
+  return json.dumps(json_data)
+
+
+def _convert_output_to_ufs_format(json_data: str) -> str:
+  """Converts the output data from proto format to UFS format."""
+  json_data = json.loads(json_data)
+  for device in json_data['devices']:
+    rpm_proto = device.get('rpm')
+    if rpm_proto is None:
+      continue
+    hostname = rpm_proto.get('powerUnitHostname').get('address')
+    if hostname is None:
+      raise ValueError('powerUnitHostname is required for RPMs.')
+    port = rpm_proto.get('powerUnitHostname').get('port')
+    combined_hostname = f'{hostname}:{port}' if port else hostname
+    outlet = rpm_proto.get('powerUnitOutlet')
+    if outlet is None:
+      raise ValueError('powerUnitOutlet is required for RPMs.')
+    powerunit_type = rpm_proto.get('type')
+    if powerunit_type != 'RPM_TYPE_IP9850':
+      raise ValueError(f'Only IP9850 RPMs are supported {powerunit_type}.')
+    device['rpm'] = {
+        'powerunitName': combined_hostname,
+        'powerunitOutlet': outlet,
+        'powerunitType': 'TYPE_IP9850',
+    }
+  return json.dumps(json_data, indent=2)
 
 
 def write_to_mobly_yaml(topology: pasit_host_pb2.PasitHost, yaml_file: str):
@@ -95,6 +159,13 @@ def write_to_mobly_yaml(topology: pasit_host_pb2.PasitHost, yaml_file: str):
 
   with open(yaml_file, 'w') as f:
     yaml.dump(topology, f, indent=2, sort_keys=False)
+
+
+def write_to_json(topology: pasit_host_pb2.PasitHost, output_file: str):
+  json_data = json_format.MessageToJson(topology)
+  json_data = _convert_output_to_ufs_format(json_data)
+  with open(output_file, 'w') as f:
+    f.write(json_data)
 
 
 def parse_yaml(
@@ -305,8 +376,7 @@ def main():
       print('Failed to parse input file.')
       sys.exit(1)
     if output_file.endswith('.json'):
-      with open(output_file, 'w') as f:
-        f.write(json_format.MessageToJson(topology))
+      write_to_json(topology, output_file)
     elif output_file.endswith('.yaml') or output_file.endswith('.yml'):
       write_to_mobly_yaml(topology, output_file)
     elif output_file.endswith('.textproto'):

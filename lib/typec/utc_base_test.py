@@ -46,6 +46,12 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.ads = self.register_controller(android_device)
     self.dut = typec_android_device.TypecAndroidDevice(self.ads[0])
 
+    # Make ADB run as root from the start. Some dts/libtypec actions require
+    # this.
+    self.dut.adb.root()
+
+    self.passport.save_topology_diagram(self.log_path)
+
   def teardown_test(self):
     # Reset the tester's state.
     self._set_usb_tester_default_state()
@@ -62,5 +68,4 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.utc.pd_init_state = usb.InitPdState.PD_DRP
     self.utc.usb_channel = usb.UsbChannel.USB_3
     self.utc.usb_path = usb.UsbPath.USB_PATH_INTERNAL
-    self.utc.cable_mode = usb.CableMode.NORMAL
     self.utc.source_pdo_count = usb.DEFAULT_SRC_PDO_COUNT

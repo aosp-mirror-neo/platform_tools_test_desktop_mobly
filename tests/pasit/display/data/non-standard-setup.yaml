@@ -1,0 +1,108 @@
+TestBeds:
+- Name: pasit-android-testbed
+  TestParams:
+    servo_host: localhost
+    servo_port: 9999
+  Controllers:
+    AndroidDevice: '*'
+    PassportHost:
+    - service_host: localhost
+      service_port: 8300
+      host_topology:
+        devices:
+        - id: my-dut
+          type: DUT
+        - id: '1912902'
+          type: SWITCH_FIXTURE
+        - id: '2406802'
+          type: SWITCH_FIXTURE
+        - id: '2001903'
+          type: SWITCH_FIXTURE
+        - id: '2001905'
+          type: SWITCH_FIXTURE
+        - id: '2001906'
+          type: SWITCH_FIXTURE
+        - id: '2007905'
+          type: SWITCH_FIXTURE
+        - id: j45sw01
+          type: SWITCH_FIXTURE
+        - id: dock
+          type: DOCKING_STATION
+          rpm:
+            present: true
+            powerUnitHostname:
+              address: 127.0.0.1
+              port: 8080
+            powerUnitOutlet: '1'
+            type: RPM_TYPE_IP9850
+        - id: camera
+          type: CAMERA
+        - id: storage
+          type: STORAGE
+        - id: monitor_1
+          type: MONITOR
+        - id: monitor_2
+          type: MONITOR
+        - id: network_1
+          type: NETWORK
+        - id: hid
+          type: HID
+        connections:
+        - parentId: my-dut
+          childId: '1912902'
+          type: USBC
+          tags:
+          - DOCK
+        - parentId: '1912902'
+          childId: dock
+          type: USBC
+          tags:
+          - DOCK
+        - parentId: dock
+          childId: '2406802'
+          type: DP
+          tags:
+          - DOCK
+        - parentId: '2406802'
+          childId: monitor_1
+          type: DP
+          tags:
+          - DOCK
+        - parentId: dock
+          childId: j45sw01
+          type: ETHERNET
+          tags:
+          - DOCK
+        - parentId: j45sw01
+          childId: network_1
+          type: ETHERNET
+          tags:
+          - DOCK
+        - parentId: my-dut
+          childId: '2001906'
+          type: USBA
+        - parentId: '2001906'
+          childId: storage
+          type: USBA
+        - parentId: my-dut
+          childId: '2001905'
+          type: USBA
+        - parentId: '2001905'
+          childId: camera
+          type: USBA
+        - parentId: my-dut
+          childId: '2001903'
+          type: USBA
+        - parentId: '2001903'
+          childId: hid
+          type: USBA
+        - parentId: my-dut
+          childId: '2007905'
+          type: HDMI
+          tags:
+          - DOCKLESS
+        - parentId: '2007905'
+          childId: monitor_2
+          type: HDMI
+          tags:
+          - DOCKLESS

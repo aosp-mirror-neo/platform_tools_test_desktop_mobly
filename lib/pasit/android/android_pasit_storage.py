@@ -58,6 +58,10 @@ class AndroidPasitStorage(base_pasit_storage.BasePasitStorage):
         SmVolumeInfo(vold_mount) for vold_mount in volumes.decode().splitlines()
     ]
 
+  def get_external_storage_blkdevs(self) -> MutableSequence[str]:
+    disks = self.controller.adb.shell(['sm', 'list-disks'])
+    return disks.decode().splitlines()
+
   def get_external_mount_point(self) -> str:
     volumes = self._get_volume_info()
     if not volumes or not volumes[0].mounted:
@@ -75,14 +79,15 @@ class AndroidPasitStorage(base_pasit_storage.BasePasitStorage):
     return True
 
   def format_external_storage(self) -> bool:
-    volumes = self._get_volume_info()
-    if len(volumes) != 1:
+    disks = self.get_external_storage_blkdevs()
+    if len(disks) != 1:
       self.controller.log.error(
-          'Expected exactly one volume, got %d: %s.', len(volumes), volumes
+          'Expected exactly one disk, got %d: %s.', len(disks), disks
       )
       return False
+    disk = disks[0]
     self.controller.log.info(
-        'Formatting external storage: %s.', volumes[0].volume_id
+        'Formatting external storage: %s.', disk
     )
-    self.controller.adb.shell(['sm', 'format', volumes[0].volume_id])
+    self.controller.adb.shell(['sm', 'partition', disk, 'public', '100'])
     return True

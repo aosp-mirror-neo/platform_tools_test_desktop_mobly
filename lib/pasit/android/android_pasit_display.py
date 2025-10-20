@@ -15,10 +15,15 @@
 """AndroidPasitDisplay handles display operations for PASIT testing on Android devices."""
 
 
-import logging
-import re
-from lib.pasit.base import base_pasit_display
+import os
+import typing
 
+from lib.pasit.android import dumpsys_display_parser
+from lib.pasit.android import dumpsys_surfaceflinger_parser
+from lib.pasit.base import base_pasit_display
+from mobly.controllers.android_device_lib import adb
+
+DisplayId = base_pasit_display.BasePasitDisplay.DisplayId
 DisplayResolution = base_pasit_display.BasePasitDisplay.DisplayResolution
 InfoNotFoundError = base_pasit_display.BasePasitDisplay.InfoNotFoundError
 
@@ -26,71 +31,82 @@ InfoNotFoundError = base_pasit_display.BasePasitDisplay.InfoNotFoundError
 class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
   """PasitDisplay for Android devices."""
 
-  def get_display_count(self) -> int:
-    dut_displays = (
-        self.controller.adb.shell('ls -1d /sys/class/drm/card?-*')
-        .decode('utf-8')
-        .splitlines()
+  def save_debug_info(self, output_path: str) -> None:
+    with open(os.path.join(output_path, 'sys_class_drm_card.txt'), 'w') as f:
+      dut_displays = self._write_command_with_output(
+          f, 'ls -1d /sys/class/drm/card?-*'
+      )
+      for display in dut_displays.splitlines():
+        drm_card_path = os.path.join(display.strip(), 'status')
+        self._write_command_with_output(f, f'cat {drm_card_path}')
+
+    self._save_command_output(output_path, 'modetest_output.txt', 'modetest')
+    self._save_command_output(
+        output_path, 'dumpsys_display.txt', 'dumpsys display'
     )
-    display_count = 0
-    for display in dut_displays:
-      display = display.strip()
-      status = (
-          self.controller.adb.shell(['cat', f'{display}/status'])
-          .decode('utf-8')
-          .strip()
-      )
-      if status == 'connected':
-        display_count += 1
-    return display_count
+    self._save_command_output(
+        output_path, 'dumpsys_surfaceflinger.txt', 'dumpsys SurfaceFlinger'
+    )
 
-  def get_display_ids(self) -> list[str]:
-    # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0, ...
-    display_info_lines = self._get_display_info_lines()
-    display_ids = []
-    for line in display_info_lines:
-      match = re.search(r'displayId (\d+)', line)
-      if match:
-        display_ids.append(match.group(1))
-    return display_ids
+  def _write_command_with_output(self, f: typing.TextIO, command: str) -> str:
+    f.write(command)
+    f.write('\n')
+    output = self._safe_adb_shell(command)
+    f.write(output)
+    f.write('\n\n')
+    return output
 
-  def get_display_resolution(self, display_id: str = '') -> DisplayResolution:
-    # ..., real 1920 x 1200, largest app 1920 x 1200, smallest app 1920 x 1200
-    display_info_line = self._get_display_info_line(display_id)
-    resolution_match = re.search(r'real (\d+) x (\d+)', display_info_line)
-    if not resolution_match:
-      raise InfoNotFoundError(
-          f'Failed to get display resolution for display id "{display_id}".'
+  def _save_command_output(
+      self, output_path: str, file_name: str, command: str
+  ) -> None:
+    with open(os.path.join(output_path, file_name), 'w') as f:
+      output = self._safe_adb_shell(command)
+      f.write(output)
+
+  def _safe_adb_shell(self, command: str) -> str:
+    try:
+      return self.controller.adb.shell(command).decode('utf-8')
+    except adb.AdbError as e:
+      return (
+          f'command: {command} ret: {e.ret_code}\nstdout:'
+          f' {e.stdout.decode("utf-8")}\nstderr: {e.stderr.decode("utf-8")}'
       )
 
-    width = int(resolution_match.group(1))
-    height = int(resolution_match.group(2))
-    return DisplayResolution(width, height)
+  def get_display_ids(self) -> list[DisplayId]:
+    return dumpsys_display_parser.DumpsysDisplayParser(
+        self.controller
+    ).get_display_ids()
+
+  def get_display_resolution(
+      self, display_id: DisplayId | None = None
+  ) -> tuple[str, DisplayResolution]:
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    return dumpsys_surfaceflinger_parser.DumpsysSurfaceFlingerParser(
+        self.controller
+    ).get_display_resolution(display_id)
 
   def get_supported_display_resolutions(
-      self, display_id: str = ''
+      self, display_id: DisplayId | None = None
   ) -> dict[str, DisplayResolution]:
-    # supportedModes [{id=3, width=1920, height=1080, fps=60.0, vsync=60.0,
-    # synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}, ...]
-    display_info_line = self._get_display_info_line(display_id)
-    supported_modes_match = re.search(
-        r'supportedModes \[((\{.*?\})+)\]', display_info_line
-    )
-    if not supported_modes_match:
-      raise InfoNotFoundError(
-          f'Failed to get supported display resolutions for display id'
-          f' "{{display_id}}".'
-      )
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    return dumpsys_surfaceflinger_parser.DumpsysSurfaceFlingerParser(
+        self.controller
+    ).get_supported_display_resolutions(display_id)
 
-    supported_modes = supported_modes_match.group(1)
-    logging.debug('supportedModes: %s', supported_modes)
-    matches = re.findall(
-        r'id=(\d+), width=(\d+), height=(\d+)', supported_modes
-    )
-    return {
-        match[0]: DisplayResolution(int(match[1]), int(match[2]))
-        for match in matches
-    }
+  def set_display_resolution(
+      self,
+      display_mode_id: str,
+      display_id: DisplayId | None = None,
+  ):
+    display_id = self._get_internal_display_id_if_empty(display_id)
+    self.controller.adb.shell([
+        'service',
+        'call',
+        'SurfaceFlinger',
+        '1035',
+        f'i32 {display_mode_id}',
+        f'i64 {display_id.unique_id}',
+    ])
 
   def set_night_light_enabled(self, enabled: bool):
     self.controller.adb.shell([
@@ -144,37 +160,35 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
           f'Failed to parse night_display_color_temperature: {output}'
       ) from None
 
-  def _get_display_info_lines(self) -> list[str]:
-    dumpsys_display_lines = (
-        self.controller.adb.shell(['dumpsys', 'display']).decode().splitlines()
+  def _get_internal_display_id_if_empty(
+      self, display_id: DisplayId | None = None
+  ) -> DisplayId:
+    if not display_id:
+      return dumpsys_display_parser.DumpsysDisplayParser(
+          self.controller
+      ).get_internal_display_id()
+    return display_id
+
+  def set_mirror_mode(self, enabled: bool):
+    self.controller.adb.shell([
+        'settings',
+        'put',
+        'secure',
+        'mirror_built_in_display',
+        '1' if enabled else '0',
+    ])
+
+  def get_mirror_mode(self) -> bool:
+    # mirror_built_in_display is 1 if mirror mode is enabled, 0 otherwise.
+    return (
+        self.controller.adb.shell([
+            'settings',
+            'get',
+            'secure',
+            'mirror_built_in_display',
+        ])
+        .decode('utf-8')
+        .strip()
+        .lower()
+        .startswith('1')
     )
-    # example line:
-    # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0...
-    return [
-        line for line in dumpsys_display_lines if 'mBaseDisplayInfo' in line
-    ]
-
-  def _get_display_info_line(self, display_id: str = '') -> str:
-    """Returns the display info line for the given display ID.
-
-    Args:
-      display_id: The display ID to get the info line for. If not specified, the
-        info line for the built-in display will be returned.
-
-    Returns:
-      The display info line for the given display ID. Example line:
-      mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0, ...
-    """
-    display_info_lines = self._get_display_info_lines()
-    display_id_match = (
-        f'displayId {display_id}' if display_id else 'Built-in Screen'
-    )
-    display_info_lines = [
-        line for line in display_info_lines if display_id_match in line
-    ]
-    if len(display_info_lines) != 1:
-      raise ValueError(
-          f'Expected 1 display info line for {display_id_match}, but got'
-          f' {len(display_info_lines)}'
-      )
-    return display_info_lines[0]

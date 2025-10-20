@@ -33,6 +33,19 @@ python_library_host {
     name: "py-display-helper",
     srcs: [
         "display_helper.py",
+    ],
+    libs: [
+        "mobly",
+        "py-pasit-display",
+        "py-test-policy",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
+    name: "py-display-camera-mapper",
+    srcs: [
+        "display_camera_mapper.py",
         "color_capturer.py",
     ],
     libs: [
@@ -63,12 +76,16 @@ python_library_host {
         "*/*device.py",
         "*device.py",
         "dut_state_manager.py",
+        "*/snippet_tools.py",
+        "*/user_session_tools.py",
+        "*/dumpsys_battery_parser.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [
         "mobly",
         "py-desktop-utils",
         "py-snippet-uiautomator",
+        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -77,6 +94,9 @@ python_library_host {
     name: "py-pasit-display",
     srcs: [
         "*/*display.py",
+        "*/*display_id.py",
+        "*/dumpsys_display_parser.py",
+        "*/dumpsys_surfaceflinger_parser.py",
         "*display.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -139,6 +159,7 @@ python_library_host {
         "mobly",
         "py-pasit-device",
         "py-passport",
+        "py-test-policy",
     ],
     pkg_path: "lib/pasit",
 }
@@ -157,6 +178,12 @@ python_library_host {
     pkg_path: "lib/pasit",
 }
 
+python_library_host {
+    name: "py-test-policy",
+    srcs: ["test_policy.py"],
+    pkg_path: "lib/pasit",
+}
+
 python_test_host {
     name: "pasit_lib_imports_test",
     srcs: [
@@ -167,6 +194,7 @@ python_test_host {
     },
     libs: [
         "py-display-helper",
+        "py-display-camera-mapper",
         "py-display-painter",
         "py-pasit-camera",
         "py-pasit-device",
@@ -176,5 +204,62 @@ python_test_host {
         "py-pasit-storage",
         "py-pasit-test",
         "py-passport",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_display_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_display_parser_test.py",
+    srcs: [
+        "android/dumpsys_display_parser_test.py",
+    ],
+    data: [
+        "android/testdata/dumpsys_display_internal.txt",
+        "android/testdata/dumpsys_display_external.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-display",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_surfaceflinger_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_surfaceflinger_parser_test.py",
+    srcs: [
+        "android/dumpsys_surfaceflinger_parser_test.py",
+    ],
+    data: [
+        "android/testdata/dumpsys_surfaceflinger_internal.txt",
+        "android/testdata/dumpsys_surfaceflinger_external.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-display",
+    ],
+}
+
+python_test_host {
+    name: "dumpsys_battery_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/dumpsys_battery_parser_test.py",
+    srcs: [
+        "android/dumpsys_battery_parser_test.py",
+    ],
+    data: [
+        "android/testdata/dumpsys_battery_not_charging.txt",
+        "android/testdata/dumpsys_battery_usb_charging.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-device",
     ],
 }

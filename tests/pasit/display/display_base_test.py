@@ -14,15 +14,24 @@
 
 """Base test for PASIT display tests."""
 
+import enum
 import logging
 
+from lib.pasit import display_camera_mapper
 from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
+
+
+class DisplayPaths(enum.StrEnum):
+  DOCK = 'DOCK'
+  DOCKLESS = 'DOCKLESS'
+  DAISY_CHAIN = 'DAISY_CHAIN'
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -31,7 +40,12 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
   helper: display_helper.DisplayHelper
+  camera_mapper: display_camera_mapper.DisplayCameraMapper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.display_path_tag = None
 
   def setup_class(self):
     """Handle the setup for the test.
@@ -45,15 +59,19 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
-    self.helper = display_helper.DisplayHelper(
+    self.helper = display_helper.DisplayHelper(self.display)
+    self.camera_mapper = display_camera_mapper.DisplayCameraMapper(
         self.passport_host,
         self.display,
         self.painter,
         self.current_test_info.output_path,
     )
+    self.display_path_tag = None
 
   def teardown_test(self):
-    self.painter.clean_color_on_display()
+    """Handle the teardown for the test."""
+    self.display.save_debug_info(self.current_test_info.output_path)
+    self.painter.safe_clean_color_on_display()
     super().teardown_test()
 
   def teardown_class(self):
@@ -62,40 +80,147 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.painter.cleanup()
     super().teardown_class()
 
-  def _plug_in_external_display(self):
+  def _determine_display_path(
+      self, display_path: DisplayPaths
+  ) -> DisplayPaths | None:
+    """Determine the display path to use for the test.
+
+    This will account for both tagged and untagged displays.  It defaults by
+    searching for a display with a tag, and if none are found, it will attempt
+    infer the path type of an untagged display.
+
+    Returns:
+      The display path to use for the test.
+    Raises:
+      ValueError: If the display path cannot be determined.
+    """
+    if not self.passport_host.is_device_type_present(
+        self.DEVICE_TYPE_MONITOR, None
+    ):
+      raise ValueError('No displays found in topology.')
+    if self.passport_host.is_device_type_present(
+        self.DEVICE_TYPE_MONITOR, display_path
+    ):
+      return display_path
+    paths = self.passport_host.get_paths_by_type(self.DEVICE_TYPE_MONITOR, None)
+    # if there are no tagged paths attempt to infer the path type, by checking
+    # whether or not a display is connected via a dock.  We only attempt to
+    # infer if all the display paths are the same (dock or dockless).
+    dock_path_count = 0
+    for path in paths:
+      for node in path:
+        if (
+            self.passport_host.get_device_by_id(node).type
+            == self.DEVICE_TYPE_DOCK
+        ):
+          dock_path_count += 1
+
+    if display_path == DisplayPaths.DOCK and dock_path_count == len(paths):
+      return None
+    if display_path == DisplayPaths.DOCKLESS and dock_path_count == 0:
+      return None
+
+    raise ValueError(f'Display path {display_path} not found in topology.')
+
+  def _determine_display_count(self, display_path: DisplayPaths) -> int:
+    """Determine the display count to use for the test.
+
+    Determines the number of displays in the topology that are in the display
+    path.  For instance if the display path is DOCK, then this will return the
+    number of unique displays that are in the topology and tagged as DOCK.
+
+    Args:
+      display_path: The display path to use for determining the display count.
+
+    Returns:
+      The number of displays in the topology that are in the display path.
+    """
+    displays = self.passport_host.get_device_ids_by_type(
+        self.DEVICE_TYPE_MONITOR
+    )
+    paths = self.passport_host.get_paths_by_type(
+        self.DEVICE_TYPE_MONITOR, display_path
+    )
+    # Filter so only displays that are in the list of paths are included.
+    # This is to ensure we have the correct number of displays for the a given
+    # path tag.  If the display device ID is anywehere in the path, then it is
+    # considered to be reachable for enabling/disabling by the path tag.
+    valid_displays = [
+        display_id
+        for display_id in displays
+        if any(display_id in path for path in paths)
+    ]
+    return len(valid_displays)
+
+  def setup_display_path(
+      self, display_path: DisplayPaths, min_display_count: int = 1
+  ):
+    """Setup the display path for the test.
+
+    This will determine the tag to use when enabling/disabling the display. And
+    will skip the test if the display path cannot be determined.
+    """
+    try:
+      self.display_path_tag = self._determine_display_path(display_path)
+    except ValueError as e:
+      asserts.skip(f'No display path found: {e}')
+    display_cnt = self._determine_display_count(self.display_path_tag)
+    if display_cnt < min_display_count:
+      asserts.skip(
+          f'Display count {display_cnt} is less than minimum required count'
+          f' of {min_display_count} displays for this test.'
+      )
+
+  def plug_in_external_displays(self, external_display_count: int):
+    """Emulate multiple external display plug in using passport.
+
+    Skips the test if the number of monitors in the topology is less than the
+    given display count.
+
+    Args:
+      external_display_count: The number of external displays to plug in.
+    """
+    monitor_ids = self.passport_host.get_device_ids_by_type(
+        self.DEVICE_TYPE_MONITOR
+    )
+    asserts.skip_if(
+        len(monitor_ids) < external_display_count,
+        f'Expected at least {external_display_count} monitors, but'
+        f' found {len(monitor_ids)}.',
+    )
+    for monitor_id in monitor_ids[:external_display_count]:
+      logging.info('Plugging in external display %s', monitor_id)
+      self.passport_host.activate_device_by_id(
+          monitor_id, self.display_path_tag
+      )
+
+  def plug_in_external_display(self):
     """Emulate external display plug in using passport."""
     logging.info('Plugging in external display')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    self.passport_host.activate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+    )
 
-  def _unplug_external_display(self):
+  def unplug_external_display(self):
     """Emulate external display unplug using passport."""
     logging.info('Unplugging external display')
-    self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_MONITOR)
-
-  def _verify_display_count(self, expected_count: int, event_to_log: str):
-    """Verifies that the display count is equal to the expected count."""
-    asserts.assert_equal(
-        retry.retry(
-            self.display.get_display_count,
-            until=lambda count: count == expected_count,
-            max_tries=10,
-            delay_seconds=2,
-        ),
-        expected_count,
-        f'Display count is not {expected_count} {event_to_log}.',
+    self.passport_host.deactivate_device_by_type(
+        self.DEVICE_TYPE_MONITOR, self.display_path_tag
     )
+
+  def verify_display_count(self, expected_count: int, event_to_log: str):
+    """Verifies that the display count is equal to the expected count."""
     asserts.assert_equal(
         retry.retry(
             lambda: len(self.display.get_display_ids()),
             until=lambda ids_count: ids_count == expected_count,
-            max_tries=10,
-            delay_seconds=2,
+            policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
         ),
         expected_count,
         f'Display IDs count is not {expected_count} {event_to_log}.',
     )
 
-  def _verify_captured_color(
+  def verify_captured_color(
       self,
       camera_id: str,
       expected_color: image.NamedColor,
@@ -113,12 +238,17 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       failure_message: The message to use for the assertion if the verification
         fails.
     """
-    asserts.assert_true(
-        self.helper.try_match_color(
+    match_status = retry.retry(
+        lambda: self.camera_mapper.try_match_color(
             camera_id,
             expected_color,
             f'{camera_capture_name}_from_camera{camera_id}',
         ),
+        until=lambda status: status,
+        policy=test_policy.DisplayTestPolicy.MATCH_COLOR_RETRY_POLICY,
+    )
+    asserts.assert_true(
+        match_status,
         failure_message,
     )
     logging.info(
@@ -127,12 +257,13 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         expected_color.name,
     )
 
-  def _map_displays_to_cameras_with_retries(self) -> dict[str, str]:
+  def map_displays_to_cameras_with_retries(
+      self,
+  ) -> dict[pasit_display.PasitDisplay.DisplayId, str]:
     """Maps the displays to cameras with retry every 10 seconds."""
     # TODO: b/431215234 - Remove the retry once the bug is fixed.
     return retry.retry(
-        self.helper.map_displays_to_cameras,
-        max_tries=3,
-        delay_seconds=10,
-        exceptions=(display_helper.MapDisplaysToCamerasError,),
+        self.camera_mapper.map_displays_to_cameras,
+        policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
+        exceptions=(display_camera_mapper.MapDisplaysToCamerasError,),
     )

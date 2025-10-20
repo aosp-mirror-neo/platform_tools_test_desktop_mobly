@@ -14,45 +14,37 @@
 
 """Test external storage operability after plugging in and unplugging."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.utils import functools
 from mobly import test_runner
 from pasit.storage import write_to_storage_base_test
 
 
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_storage.boot_reboot_with_media_connected',
+        'al_external_storage.plug_external_media_while_suspend',
+        'al_external_storage.suspend_resume_with_media_connected',
+        'al_external_storage.transfer_and_delete_files',
+    ]
+)
+@functools.generate_tests
 class PlugUnplugExternalStorageTest(
     write_to_storage_base_test.WriteToStorageBaseTest
 ):
   """Test external storage operability after plugging in and unplugging."""
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.plug_in_storage_test_logic,
-        name_func=lambda power_state: (
-            f'test_plug_in_storage_when_dut_{power_state.value}'
-        ),
-        arg_sets=(
-            (dut_state_manager.PowerState.ON,),
-            (dut_state_manager.PowerState.OFF,),
-            (dut_state_manager.PowerState.SUSPEND,),
-        ),
-    )
-
-    self.generate_tests(
-        test_logic=self.unplug_storage_test_logic,
-        name_func=lambda power_state: (
-            f'test_unplug_storage_when_dut_{power_state.value}'
-        ),
-        arg_sets=(
-            (dut_state_manager.PowerState.ON,),
-            (dut_state_manager.PowerState.SUSPEND,),
-        ),
-    )
-
-  def plug_in_storage_test_logic(
+  @functools.with_variants(
+      on=(dut_state_manager.PowerState.ON,),
+      off=(dut_state_manager.PowerState.OFF,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  def test_plug_in_storage_when_dut(
       self, state_when_plug_storage: dut_state_manager.PowerState
   ):
-    """Generate test logic for a specific dut state.
+    """Test external storage operability after plugging in.
 
     Args:
       state_when_plug_storage: The power state of the DUT when external storage
@@ -61,7 +53,7 @@ class PlugUnplugExternalStorageTest(
     Write to external storage after plugging it in when DUT is in a specific
     state.
     """
-    self._skip_if_servo_needed_and_not_configured(state_when_plug_storage)
+    self.skip_if_servo_needed_and_not_configured(state_when_plug_storage)
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_storage
@@ -78,7 +70,11 @@ class PlugUnplugExternalStorageTest(
         external_storage_file_path, self.host_file_content
     )
 
-  def unplug_storage_test_logic(
+  @functools.with_variants(
+      on=(dut_state_manager.PowerState.ON,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  def test_unplug_storage_when_dut(
       self, state_when_unplug_storage: dut_state_manager.PowerState
   ):
     """Generate test logic for a specific dut state.
@@ -90,7 +86,7 @@ class PlugUnplugExternalStorageTest(
     Write to external storage after unplugging it when DUT is in a specific
     state and then replugging it.
     """
-    self._skip_if_servo_needed_and_not_configured(state_when_unplug_storage)
+    self.skip_if_servo_needed_and_not_configured(state_when_unplug_storage)
 
     self.plug_in_external_storage()
     self.verify_external_storage_mounted_or_reformat(

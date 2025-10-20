@@ -14,6 +14,7 @@
 
 """Base test class for PASIT Mobly tests."""
 
+import logging
 import types
 from typing import Any
 
@@ -44,9 +45,11 @@ class PasitTestClass(base_test.BaseTestClass):
   DEVICE_TYPE_CAMERA = pasit_host_pb2.PasitHost.Device.Type.CAMERA
   DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
   DEVICE_TYPE_HID = pasit_host_pb2.PasitHost.Device.Type.HID
+  DEVICE_TYPE_DOCK = pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION
 
   dut: pasit_device.PasitDevice
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
+  bugreport: str
 
   def setup_class(self):
     """Setup steps before any test is executed."""
@@ -61,15 +64,25 @@ class PasitTestClass(base_test.BaseTestClass):
         f'{get_device_type_name(self.requires_device_type)}'
         ' not found in topology.',
     )
+    self.bugreport = self.user_params.get('bugreport', '')
     self.dut = pasit_device.create(self)
     self.passport_host.reset()
 
+    self.passport_host.save_topology_diagram(self.log_path)
+
   def teardown_test(self):
     """Teardown steps after each test is executed."""
-    # ensure that the passport switches are disabled after the test
-    self.passport_host.reset()
+
+    self.passport_host.capture_images_from_all_cameras(
+        self.current_test_info.output_path, 'on_teardown_test'
+    )
     if self.dut.power_on_if_offline():
       asserts.fail('DUT is offline after test.')
+    else:
+      self.capture_screenshots('on_teardown_test')
+
+    # ensure that the passport switches are disabled after the test
+    self.passport_host.reset()
     super().teardown_test()
 
   def teardown_class(self):
@@ -79,13 +92,14 @@ class PasitTestClass(base_test.BaseTestClass):
     super().teardown_class()
 
   def on_fail(self, record: records.TestResultRecord):
-    """Called on test failure."""
-    if hasattr(self, 'pasport_host'):
-      self.passport_host.capture_images_from_all_cameras(
-          self.current_test_info.output_path, 'on_fail'
-      )
-    self._capture_screenshots('on_fail_screenshot')
+    """Called when a test fails."""
+    self._capture_bugreport(True)
     super().on_fail(record)
+
+  def on_pass(self, record: records.TestResultRecord):
+    """Called when a test passes."""
+    self._capture_bugreport(False)
+    super().on_pass(record)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.
@@ -116,7 +130,7 @@ class PasitTestClass(base_test.BaseTestClass):
           f' {self.controller_configs}'
       )
 
-  def _skip_if_servo_needed_and_not_configured(
+  def skip_if_servo_needed_and_not_configured(
       self, desired_state: dut_state_manager.PowerState
   ):
     """Skip the test if servo is required and not configured."""
@@ -126,9 +140,29 @@ class PasitTestClass(base_test.BaseTestClass):
         'Test requires servo and servo is not configured.',
     )
 
-  def _capture_screenshots(self, name_prefix: str):
+  def capture_screenshots(self, name_prefix: str):
     """Capture screenshots and save them to the test output directory."""
     if hasattr(self, 'dut'):
       self.dut.capture_screenshots(
           self.current_test_info.output_path, name_prefix
       )
+
+  def _capture_bugreport(self, test_failed: bool) -> None:
+    """Captures a bug report if configured to."""
+    if not hasattr(self, 'dut'):
+      return
+    collect_bugreport = (
+        self.bugreport == 'all'
+        or (self.bugreport == 'on_fail' and test_failed)
+    )
+    if not collect_bugreport:
+      return
+    logging.info('Collecting bug report for test.')
+    try:
+      self.dut.controller.take_bug_report(
+          test_name=self.current_test_info.name,
+          begin_time=self.current_test_info.record.begin_time,
+          destination=self.current_test_info.output_path,
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to collect bug report: %s', e)

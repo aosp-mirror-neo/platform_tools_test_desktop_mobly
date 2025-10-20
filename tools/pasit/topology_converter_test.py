@@ -21,7 +21,6 @@ import unittest
 from unittest import mock
 
 from google.protobuf import json_format
-
 import topology_converter
 
 TEST_DATA = [
@@ -342,6 +341,58 @@ class TopologyConverterTest(unittest.TestCase):
           validate_mock_popen(
               mock_popen, mock_process, self.test_graph_file, dot_data
           )
+
+  def test_json_formatting(self):
+    JSON_FORMATTING_TEST_DATA = [
+        {
+            'name': 'no_port',
+            'json': """{
+  "devices": [
+    {
+      "id": "dock",
+      "type": "DOCKING_STATION",
+      "rpm": {
+        "powerunitName": "192.168.231.110",
+        "powerunitOutlet": "1",
+        "powerunitType": "TYPE_IP9850"
+      }
+    }
+  ]
+}
+""",
+        },
+        {
+            'name': 'with_port',
+            'json': """{
+  "devices": [
+    {
+      "id": "dock",
+      "type": "DOCKING_STATION",
+      "rpm": {
+        "powerunitName": "my-rpm-hostname:80",
+        "powerunitOutlet": "2",
+        "powerunitType": "TYPE_IP9850"
+      }
+    }
+  ]
+}
+""",
+        },
+    ]
+    for _, case in enumerate(JSON_FORMATTING_TEST_DATA):
+      json_data = case['json']
+      with self.subTest(name=f'test_case_{case["name"]}'):
+        with open(self.test_json_file, 'w') as f:
+          f.write(json_data)
+        parsed = topology_converter.parse_json(self.test_json_file)
+        topology_converter.write_to_json(parsed, self.test_json_file)
+        with open(self.test_json_file, 'r') as f:
+          back_to_json = f.read()
+        # compare after stripping whitespace and newlines
+        self.assertEqual(
+            back_to_json.strip('\n').strip(' '),
+            json_data.strip('\n').strip(' '),
+        )
 
 
 def setup_mock_popen(mock_popen):

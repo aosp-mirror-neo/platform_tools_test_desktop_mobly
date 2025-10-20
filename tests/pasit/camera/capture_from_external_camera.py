@@ -18,24 +18,25 @@ import logging
 import os
 import time
 
-from lib.pasit import display_helper
-from lib.pasit import display_painter
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import pasit_camera
-from lib.pasit import pasit_display
 from lib.pasit import pasit_file
+from lib.pasit import test_policy
+from lib.utils import functools
 from lib.utils import image
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
-# Each tuple is a list of arguments for a test case. The first argument is a
-# camera mode.
-_TEST_ARGUMENTS: tuple[tuple[pasit_camera.PasitCamera.Mode, ...], ...] = (
-    (pasit_camera.PasitCamera.Mode.PHOTO,),
-    (pasit_camera.PasitCamera.Mode.VIDEO,),
+
+@DesktopTest(
+    manual=[
+        'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
+        'al_external_webcam.connect_disconnect_external_webcam',
+    ]
 )
-
-
+@functools.generate_tests
 class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test recording from an external camera."""
 
@@ -44,59 +45,33 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.display = self.create(pasit_display)
-    self.painter = self.create(display_painter)
     self.file = self.create(pasit_file)
-
-  def setup_test(self):
-    """Handle the setup for the test."""
-    super().setup_test()
-    self.helper = display_helper.DisplayHelper(
-        self.passport_host,
-        self.display,
-        self.painter,
-        self.current_test_info.output_path,
-    )
     self._cleanup_files()
 
   def teardown_test(self):
     """Handle the teardown for the test."""
     self._cleanup_files()
-    self.painter.clean_color_on_display()
     super().teardown_test()
 
-  def pre_run(self):
-    """Generate tests for each test case."""
-    self.generate_tests(
-        test_logic=self.camera_test_logic,
-        name_func=self.camera_test_name,
-        arg_sets=_TEST_ARGUMENTS,
-    )
-
-  def camera_test_name(self, camera_mode: pasit_camera.PasitCamera.Mode) -> str:
-    """Get the test name for the given test args."""
-    return f'test_capture_from_external_camera_{camera_mode.value}'
-
-  def camera_test_logic(self, camera_mode: pasit_camera.PasitCamera.Mode):
+  @functools.with_variants(
+      photo=(pasit_camera.PasitCamera.Mode.PHOTO,),
+      video=(pasit_camera.PasitCamera.Mode.VIDEO,),
+  )
+  def test_capture_from_external_camera(
+      self, camera_mode: pasit_camera.PasitCamera.Mode
+  ):
     """Test recording from an external camera."""
-    internal_camera_devices = self.camera.get_connected_cameras()
-    self._plug_in_external_camera()
-    self._wait_for_external_camera_devices(internal_camera_devices)
+    self.connect_external_camera()
+    self.launch_camera_app()
+    self.switch_camera()
 
-    self._launch_camera_app()
-    self._switch_camera()
-
-    external_display_id = self._connect_external_display()
-    self._switch_mode(camera_mode)
-    self._capture_screenshots(f'{camera_mode.value}_mode')
+    external_display_id = self.connect_external_display()
+    self.switch_mode(camera_mode)
+    self.capture_screenshots(f'{camera_mode.value}_mode')
 
     self._capture_from_external_camera(camera_mode, external_display_id)
     self._verify_captured_files_exist()
     self._copy_captured_files_to_output_path()
-
-  def _connect_external_display(self) -> str:
-    internal_display_id = self.helper.get_internal_display_id()
-    return self._plug_in_external_display(internal_display_id)
 
   def _capture_from_external_camera(
       self, mode: pasit_camera.PasitCamera.Mode, external_display_id: str
@@ -115,7 +90,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     )
     logging.info('Take photo')
     self.camera.take_photo()
-    self._capture_screenshots('photo_taken')
+    self.capture_screenshots('photo_taken')
 
   def _capture_video(
       self, external_display_id: str, per_color_duration_seconds: int = 5
@@ -130,14 +105,19 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
     for color in colors:
       self.painter.show_color_on_display(color.value, external_display_id)
       time.sleep(per_color_duration_seconds)  # for video content to be recorded
-      self._capture_screenshots(f'{color.name}_color_recorded')
+      self.capture_screenshots(f'{color.name}_color_recorded')
       self.painter.clean_color_on_display()
     logging.info('Stop recording video')
     self.camera.stop_recording_video()
 
   def _verify_captured_files_exist(self):
+    file_list = retry.retry(
+        lambda: self.file.list_files(self.camera.get_files_path()),
+        until=lambda file_list: file_list,
+        policy=test_policy.CameraTestPolicy.FIND_CAMERA_CAPTURED_FILES_RETRY_POLICY,
+    )
     asserts.assert_greater(
-        len(self.file.list_files(self.camera.get_files_path())),
+        len(file_list),
         0,
         'No photos or videos were captured.',
     )

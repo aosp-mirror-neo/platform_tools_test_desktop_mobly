@@ -39,7 +39,7 @@ python_test_host {
         "py-pasit-display",
         "py-pasit-hid",
         "py-display-painter",
-        "py-display-helper",
+        "py-display-camera-mapper",
     ],
     pkg_path: "pasit/testbed",
 }

@@ -14,9 +14,10 @@
 
 """Controller for interacting with PASIT testbed via a Passport API Host."""
 
-from collections.abc import Callable, MutableSequence, Sequence
+from collections.abc import Callable, MutableSequence
 import logging
 import os
+import time
 from typing import Any
 
 from chromiumos.test.lab.api import pasit_host_pb2
@@ -31,6 +32,7 @@ from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
 from lib.utils import image
+from lib.utils import constants
 from mobly import logger as mobly_logger
 
 
@@ -69,29 +71,51 @@ class PassportHost:
   Attributes:
     topology: The topology of the Pasit Testbed.
     address: The address of the PassportHost (in the form of hostname:port).
-    hid_client: The client for the HID service.
     log: The logger for the PassportHost.
+    camera_client: The client for the camera service.
+    hid_client: The client for the HID service.
+    switch_client: The client for the switch service.
     usb_tester_client: The client for the USB tester service.
     video_tester_client: The client for the video tester service.
   """
 
-  _camera_client: passport_camera_service_client.PassportCameraServiceClient = (
-      None
-  )
-  usb_tester_client: passport_usb_service_client.PassportUsbServiceClient = None
-  video_tester_client: (
-      passport_video_service_client.PassportVideoServiceClient | None
-  ) = None
-  _switch_client: passport_switch_service_client.PassportSwitchServiceClient
-  hid_client: hid_service_client.PassportHIDServiceClient | None = None
-  _dut_id = None
-  _devices: dict[str, pasit_host_pb2.PasitHost.Device] = {}
-  _connections: dict[
-      str, MutableSequence[pasit_host_pb2.PasitHost.Connection]
-  ] = {}
-  _ip_power_clients: dict[str, ip_power.PassportRPM] = {}
+  _dut_id: str
+  _devices: dict[str, pasit_host_pb2.PasitHost.Device]
+  _connections: dict[str, MutableSequence[pasit_host_pb2.PasitHost.Connection]]
+  _ip_power_clients: dict[str, ip_power.PassportRPM]
+
+  topology: pasit_host_pb2.PasitHost
+  log: logging.Logger
+
+  camera_client: passport_camera_service_client.PassportCameraServiceClient
+  hid_client: hid_service_client.PassportHIDServiceClient
+  switch_client: passport_switch_service_client.PassportSwitchServiceClient
+  usb_tester_client: passport_usb_service_client.PassportUsbServiceClient
+  video_tester_client: passport_video_service_client.PassportVideoServiceClient
+
+  def _initialize_clients(self, address: str):
+    """Creates a client for the given service."""
+    self.camera_client = (
+        passport_camera_service_client.PassportCameraServiceClient(address)
+    )
+    self.hid_client = hid_service_client.PassportHIDServiceClient(address)
+    self.switch_client = (
+        passport_switch_service_client.PassportSwitchServiceClient(address)
+    )
+    self.usb_tester_client = (
+        passport_usb_service_client.PassportUsbServiceClient(address)
+    )
+    self.video_tester_client = (
+        passport_video_service_client.PassportVideoServiceClient(address)
+    )
 
   def __init__(self, config):
+
+    self._dut_id = ''
+    self._devices = {}
+    self._connections = {}
+    self._ip_power_clients = {}
+
     self._config = config
     self.log = mobly_logger.PrefixLoggerAdapter(
         logging.getLogger(),
@@ -102,6 +126,15 @@ class PassportHost:
         },
     )
 
+    self._initialize_topology()
+    self._connect_to_service()
+    self._parse_topology()
+    self._validate_topology_switches()
+    self._activate_usb_testers()
+    self._setup_ip_power_clients()
+
+  def _initialize_topology(self):
+    """Initializes the topology from the config."""
     topology = self._config.get('host_topology', None)
     if topology is None:
       # If no topology is found, that's fine. The test will need to manage the
@@ -128,18 +161,6 @@ class PassportHost:
       self.topology.hostname = f'{service_host}:{service_port}'  # pylint: disable=bad-whitespace
 
     self.log.debug('PassportHost topology: %s' % self.topology)
-    self._connect_to_service()
-    self._parse_topology()
-    self._validate_topology_switches()
-    self._activate_usb_testers()
-    self._setup_ip_power_clients()
-
-  def _ensure_passport_connected(self):
-    """Ensures the Passport API Service is connected."""
-    if not self._switch_client:
-      raise errors.PassportServiceConnectionError(
-          'Cannot perform operation, Pasport client is not connected.'
-      )
 
   def _connect_to_service(self):
     """Connects to the Passport API Service."""
@@ -150,19 +171,7 @@ class PassportHost:
       )
 
     self.log.info('Connecting to Passport API at address: %s' % self.address)
-    self._camera_client = (
-        passport_camera_service_client.PassportCameraServiceClient(self.address)
-    )
-    self.hid_client = hid_service_client.PassportHIDServiceClient(self.address)
-    self._switch_client = (
-        passport_switch_service_client.PassportSwitchServiceClient(self.address)
-    )
-    self.usb_tester_client = (
-        passport_usb_service_client.PassportUsbServiceClient(self.address)
-    )
-    self.video_tester_client = (
-        passport_video_service_client.PassportVideoServiceClient(self.address)
-    )
+    self._initialize_clients(self.address)
 
   def _parse_topology(self):
     """Parses the topology and stores the devices and connections."""
@@ -205,7 +214,6 @@ class PassportHost:
 
   def _setup_ip_power_clients(self):
     """Sets up the IP power clients."""
-    dock_device_id = ''
     for device in self.topology.devices:
       if device.rpm.present:
         if not device.rpm.type == rpm_pb2.RPMType.RPM_TYPE_IP9850:
@@ -222,31 +230,6 @@ class PassportHost:
               f'IP power client for device {device.id}  at {endpoint} is not'
               ' online',
           )
-      if device.type == pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION:
-        dock_device_id = device.id
-
-    if not self._ip_power_clients and dock_device_id:
-      # If no IP power clients are used in the topology, try to use known
-      # defaults.
-      # TODO: b/401048925 - remove this once the proto changes are complete
-      # and the IP power switch is set in the topology. For now,
-      # try the default IP and localhost:8080 for port forward dev testing
-      # ignoring the error if both fail.
-      logging.debug(
-          'No IP power clients are used in the topology falling back to try'
-          ' known defaults.'
-      )
-      dock_power = _get_dock_power('192.168.231.110', '1')
-      if dock_power is None:
-        dock_power = _get_dock_power('localhost:8080', '1')
-      if dock_power is not None:
-        logging.debug(
-            'Using IP power switch %s:%s for %s.',
-            dock_power.power_unit_endpoint,
-            dock_power.power_unit_outlet,
-            dock_device_id,
-        )
-        self._ip_power_clients[dock_device_id] = dock_power
 
   def _activate_usb_testers(self):
     """Acivate the topology usb tester.
@@ -266,13 +249,13 @@ class PassportHost:
       raise errors.PassportConfigError(
           f'More than 1 usb tester found, found {len(topology_ids)} testers.'
       )
-    if len(topology_ids) == 0:
+    if not topology_ids:
       logging.info('No USB testers are used in the topology.')
       return
     topology_id = topology_ids[0]
     passport_testers = self.usb_tester_client.get_usb_testers()
     passport_ids = [tester.id for tester in passport_testers.testers]
-    if topology_id not in passport_ids:
+    if topology_id.upper() not in passport_ids:
       raise errors.PassportConfigError(
           f'Topology tester {topology_id} is not controlled by passport host.'
       )
@@ -313,39 +296,48 @@ class PassportHost:
       tag: str | None,
       error_message: str,
   ) -> MutableSequence[str]:
-    """Returns the path to the device that matches the given function."""
-    current_path = []
-    stack = [self._dut_id]
-    visited: dict[str, bool] = {self._dut_id: True}
-    children: dict[str, int] = {}
+    """Returns the first found path to the device that matches the given function."""
+    paths = self._paths_to_device(target_device_fn, tag)
+    if not paths:
+      raise errors.DevicePathNotFoundError(error_message)
+    return paths[0]
 
-    while stack:
-      current = stack.pop()
-      current_path.append(current)
+  def _paths_to_device(
+      self,
+      target_device_fn: Callable[[pasit_host_pb2.PasitHost.Device], bool],
+      tag: str | None,
+  ) -> MutableSequence[MutableSequence[str]]:
+    """Returns all paths to the device(s) that match the given function/tag."""
+    paths: list[list[str]] = []
 
-      if target_device_fn(self._devices[current]):
-        return current_path
+    # Helper function to perform the recursive search
+    def find_paths_recursive(current_node_id: str, current_path: list[str]):
+      # Check if the current node is a target
+      if target_device_fn(self._devices[current_node_id]):
+        # Add a copy of the found path to our results
+        paths.append(list(current_path))
 
-      for node in self._connections[current]:
-        if visited.get(node.child_id, False):
+      # Explore neighbors sorting by child ids to ensure deterministic results
+      for connection in sorted(
+          self._connections.get(current_node_id, []),
+          key=lambda connection: connection.child_id,
+      ):
+        child_id = connection.child_id
+        # 1. Check for tag match
+        if tag and tag not in connection.tags:
           continue
-        if tag and tag not in node.tags:
+        # 2. Prevent cycles by ensuring we don't revisit a node in the current path
+        if child_id in current_path:
           continue
-        stack.append(node.child_id)
-        visited[node.child_id] = True
-        children.setdefault(current, 0)
-        children[current] += 1
+        # 3. Recurse with the updated path
+        find_paths_recursive(child_id, current_path + [child_id])
 
-      while len(current_path) > 1 and children.get(current, 0) == 0:
-        current_path.pop()
-        current = current_path[-1]
-        children.setdefault(current, 0)
-        children[current] -= 1
-
-    raise errors.DevicePathNotFoundError(error_message)
+    # Start the search from the root DUT
+    find_paths_recursive(self._dut_id, [self._dut_id])
+    return paths
 
   def _connections_in_path(
-      self, path: Sequence[str]
+      self, path: MutableSequence[str]
   ) -> MutableSequence[pasit_host_pb2.PasitHost.Connection]:
     """Returns the connections in the given path."""
     connections = []
@@ -376,6 +368,46 @@ class PassportHost:
     except errors.DevicePathNotFoundError:
       return False
 
+  def get_device_count_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+  ) -> int:
+    """Returns the number of devices of the given type in the topology."""
+    return len([
+        device for device in self.topology.devices if device.type == device_type
+    ])
+
+  def get_device_ids_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+  ) -> list[str]:
+    """Returns the device IDs of the given type in the topology."""
+    return [
+        device.id
+        for device in self.topology.devices
+        if device.type == device_type
+    ]
+
+  def get_paths_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      tag: str | None,
+  ) -> MutableSequence[MutableSequence[str]]:
+    """Returns all paths of devices of the given type in the topology.
+
+    Args:
+      device_type: The device type to check.
+      tag: Optional tag to filter the device path by, will only consider paths
+        where every connection in the path has this tag.
+
+    Returns:
+      A list of paths of devices of the given type in the topology.
+    """
+    return self._paths_to_device(
+        lambda device: device.type == device_type,
+        tag,
+    )
+
   def _set_device_enabled_state_by_id(
       self,
       device_id: str,
@@ -400,11 +432,20 @@ class PassportHost:
       self, connections: MutableSequence[Any], enable: bool
   ) -> None:
     """Activates or deactivates the device with the given connection path."""
-    self._ensure_passport_connected()
     device_path = [connection.parent_id for connection in connections]
     self.log.info(
         f'{"Activating" if enable else "Deactivating"}:  path: {device_path}',
     )
+    for connection in connections:
+      device_id = connection.parent_id
+      # TODO: b/442614713 - decide if this change should be permanent or if we
+      # may eventually want to support variants with different order of
+      # operations, to catch bugs related to that.
+      if self._ip_power_clients.get(device_id):
+        self._ip_power_clients[device_id].set_ip_power_state(
+            ip_power.PowerState.from_bool(enable)
+        )
+        time.sleep(1)
     for connection in connections:
       device_id = connection.parent_id
       port_id = connection.parent_port
@@ -419,13 +460,9 @@ class PassportHost:
             'enabled' if enable else 'disabled',
         )
         if enable:
-          self._switch_client.enable_switch(device_id, port_id)
+          self.switch_client.enable_switch(device_id, port_id)
         else:
-          self._switch_client.disable_switch(device_id, port_id)
-      if self._ip_power_clients.get(device_id):
-        self._ip_power_clients[device_id].set_ip_power_state(
-            ip_power.PowerState.from_bool(enable)
-        )
+          self.switch_client.disable_switch(device_id, port_id)
 
   @property
   def address(self) -> str:
@@ -441,22 +478,29 @@ class PassportHost:
       PassportIPPowerError: If the Passport was unable to reset the IP power
         switches.
     """
-    if self._switch_client:
-      self._switch_client.reset_all_switches()
-    if self.usb_tester_client and self.usb_tester_client.is_open():
+    self.switch_client.reset_all_switches()
+    if self.usb_tester_client.is_open():
       self.usb_tester_client.replug()
     for ip_power_client in self._ip_power_clients.values():
       ip_power_client.set_ip_power_state(ip_power.PowerState.OFF)
+    if self._ip_power_clients:
+      # delay to allow time for the IP power switches to turn off and any
+      # capacitors in chargers to discharge, without this flaky behavior may
+      # occur with docks
+      time.sleep(2)
 
   def teardown(self):
     """Tears down the PassportHost."""
-    if self._switch_client:
-      self._switch_client.close()
-      self._switch_client = None
+    self.camera_client.close()
+    self.hid_client.close_channel()
 
-    if self.usb_tester_client and self.usb_tester_client.is_open():
+    self.switch_client.close()
+
+    if self.usb_tester_client.is_open():
       self.usb_tester_client.close_usb_tester()
-      self.usb_tester_client = None
+
+    if self.video_tester_client.is_open():
+      self.video_tester_client.close_video_tester()
 
   def activate_device_by_type(
       self,
@@ -536,27 +580,29 @@ class PassportHost:
     Raises:
       PassportSwitchClientError: If the Passport was unable to get the switches.
     """
-    self._ensure_passport_connected()
 
-    resp = self._switch_client.get_switches()
+    resp = self.switch_client.get_switches()
     return [switch.id for switch in resp.switches]
 
   def get_cameras(self) -> list[str]:
     """Returns the camera IDs connected to the PassportHost."""
-    self._ensure_passport_connected()
-    resp = self._camera_client.get_cameras()
+    resp = self.camera_client.get_cameras()
     return [camera.id for camera in resp.cameras]
+
+  def get_device_by_id(self, device_id: str) -> pasit_host_pb2.PasitHost.Device:
+    """Returns the device with the given device ID."""
+    return self._devices[device_id]
 
   def capture_image(
       self,
       camera_id: str,
       log_dir: str,
-      image_name_prefix: str,
+      image_name_suffix: str,
       exposure_time_us: int = 0,
   ) -> None:
     """Captures an image from the specified camera and saves it.
 
-    Image is saved to the logsdirectory with the given prefix and a timestamp.
+    Image is saved to the logsdirectory with the given suffix and a timestamp.
 
     Args:
       camera_id: The unique ID of the camera to capture an image and
@@ -564,31 +610,31 @@ class PassportHost:
         get_cameras.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.
-      image_name_prefix: The prefix of the image name to use for the image.
+      image_name_suffix: The suffix of the created image filename.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
     Returns:
       None
     """
-    # get_average_pixel will save the image if image_name_prefix is specified,
+    # get_average_pixel will save the image if image_name_suffix is specified,
     # so call that but don't use the average pixel result.
     self.get_average_pixel(
-        camera_id, log_dir, image_name_prefix, exposure_time_us
+        camera_id, log_dir, image_name_suffix, exposure_time_us
     )
 
   def capture_images_from_all_cameras(
       self,
       output_path: str,
-      image_prefix: str,
+      image_suffix: str,
       camera_exposure_time_us: int = 0,
   ):
     """Captures an image from each camera connected to the PassportHost.
 
     Args:
       output_path: The directory to save the images to.
-      image_prefix: The prefix for the image file names. The actual image name
-        will be {image_prefix}_camera{camera_id}.
+      image_suffix: The suffix for the image file names. The actual image name
+        will be {timestamp}_{image_suffix}_camera{camera_id}.
       camera_exposure_time_us: The exposure time in microseconds to use for the
         camera. If 0, the auto exposure setting will be used.
     """
@@ -596,7 +642,7 @@ class PassportHost:
       logging.debug(
           'Capturing display image from %s camera %s to directory %s with'
           ' exposure time %d us',
-          image_prefix,
+          image_suffix,
           camera,
           output_path,
           camera_exposure_time_us,
@@ -604,7 +650,7 @@ class PassportHost:
       self.capture_image(
           camera,
           output_path,
-          f'{image_prefix}_camera{camera}',
+          f'{image_suffix}_camera{camera}',
           camera_exposure_time_us,
       )
 
@@ -612,7 +658,7 @@ class PassportHost:
       self,
       camera_id: str,
       log_dir: str = '',
-      image_name_prefix: str = '',
+      image_name_suffix: str = '',
       exposure_time_us: int = 0,
   ) -> image.Color:
     """Gets the average pixel color detected by the specified camera.
@@ -622,20 +668,19 @@ class PassportHost:
         GetAveragePixel.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.  Must be specified if
-        image_name_prefix is specified.
-      image_name_prefix: The prefix of the image name to use for the image. if
-        empty no image file will be saved, if specified, the image will be saved
-        to logs directory with the given prefix and a timestamp.
+        image_name_suffix is specified.
+      image_name_suffix: The suffix of the image name to use for the image. If
+        specified, the image will be saved to logs directory with the timestamp
+        followed by the suffix.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
     Returns:
       The average pixel Color.
     """
-    self._ensure_passport_connected()
-    resp = self._camera_client.get_average_pixel(camera_id, exposure_time_us)
-    if image_name_prefix and log_dir:
-      self._save_image(resp.frame, log_dir, image_name_prefix)
+    resp = self.camera_client.get_average_pixel(camera_id, exposure_time_us)
+    if image_name_suffix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_suffix)
     return image.Color(resp.pixel.r, resp.pixel.g, resp.pixel.b, resp.pixel.a)
 
   def analyze_hsv(
@@ -643,12 +688,12 @@ class PassportHost:
       camera_id: str,
       masks: dict[str, image.HSVMask],
       log_dir: str = '',
-      image_name_prefix: str = '',
+      image_name_suffix: str = '',
       exposure_time_us: int = 0,
   ) -> dict[str, float]:
     """Captures an image from the specified camera and performs HSV analysis.
 
-    Image is saved to the logsdirectory with the given prefix and a timestamp.
+    Image is saved to the logsdirectory with the given suffix and a timestamp.
     HSV analysis is performed on the image and the percentage of pixels that
     fall within the specified HSV value range is returned for each mask.
 
@@ -658,10 +703,10 @@ class PassportHost:
       masks: A dictionary of mask names to HSVMasks to compare against.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.  Must be specified if
-        image_name_prefix is specified.
-      image_name_prefix: The prefix of the image name to use for the image. if
-        empty no image file will be saved, if specified, the image will be saved
-        to logs directory with the given prefix and a timestamp.
+        image_name_suffix is specified.
+      image_name_suffix: The suffix of the image name to use for the image. If
+        specified, the image will be saved to logs directory with the timestamp
+        followed by the suffix.
       exposure_time_us: The exposure time in microseconds to use for the camera.
         If 0, the auto exposure setting will be used.
 
@@ -670,14 +715,13 @@ class PassportHost:
       between 0 and 100 for the percentage of pixels that fall within the
       specified HSV value range.
     """
-    self._ensure_passport_connected()
-    resp = self._camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
-    if image_name_prefix and log_dir:
-      self._save_image(resp.frame, log_dir, image_name_prefix)
-    return {key: value for key, value in resp.percentage_matched.items()}
+    resp = self.camera_client.analyze_hsv(camera_id, masks, exposure_time_us)
+    if image_name_suffix and log_dir:
+      self._save_image(resp.frame, log_dir, image_name_suffix)
+    return {entry.key: entry.value for entry in resp.percentage_matched}
 
   def _save_image(
-      self, image_bytes: bytes, log_dir: str, image_name_prefix: str
+      self, image_bytes: bytes, log_dir: str, image_name_suffix: str
   ) -> None:
     """Saves the image to the logs directory."""
     if not image_bytes:
@@ -689,7 +733,53 @@ class PassportHost:
     time_str = mobly_logger.get_log_file_timestamp()
     image_path = os.path.join(
         log_dir,
-        f'{image_name_prefix.replace("/", "_")}_{time_str}.jpeg',
+        f'{time_str}_{image_name_suffix.replace("/", "_")}.jpeg',
     )
     with open(image_path, 'wb') as f:
       f.write(image_bytes)
+
+  def save_topology_diagram(self, log_dir: str) -> None:
+    try:
+      graph_content = '''{
+        node [shape=plain];
+        ranksep = 1.2;
+      '''
+      for device in self.topology.devices:
+        ports = ''
+        for connection in self.topology.connections:
+          if device.id == connection.parent_id:
+            if connection.parent_port:
+              conn_type = "" if connection.parent_port == '' else connection.parent_port
+              ports += f'<TR><TD PORT="p{connection.parent_port}"> Port {conn_type} </TD></TR>\n'
+
+        graph_content += (
+            f'"{device.id}"'
+            f''' [label=<
+                  <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                      <TR><TD>{device.id}<BR/>{pasit_host_pb2.PasitHost.Device.Type.Name(device.type)}</TD></TR>
+                      {ports}
+                  </TABLE>>];\n
+              '''
+      )
+      for connection in self.topology.connections:
+        parent_port = f':"p{connection.parent_port}"' if connection.parent_port != '' else ''
+        label = f'label="Tags: [{','.join(str(x) for x in connection.tags)}]"'
+        label = label if label != 'label="Tags: []"' else ''
+        graph_content += (
+            f'''"{connection.parent_id}"{parent_port} -> "{connection.child_id}" [
+                labeldistance="10",
+                {label}
+              ];\n
+            '''
+        )
+
+      graph_content += "}"
+
+      logging.info(graph_content)
+      topology_html = constants.HTML_GRAPH_TEMPLATE.format(content=graph_content)
+
+      with open(os.path.join(log_dir, "topology.html"), 'w') as f:
+        f.write(topology_html)
+    except Exception as e:
+      # Don't fail the test if we can't save the image.
+      self.log.exception(e)

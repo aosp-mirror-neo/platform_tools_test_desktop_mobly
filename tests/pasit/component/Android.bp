@@ -36,6 +36,7 @@ python_test_host {
         "py-pasit-display",
         "py-display-painter",
         "py-display-helper",
+        "py-desktop-utils",
     ],
     pkg_path: "pasit/component",
 }

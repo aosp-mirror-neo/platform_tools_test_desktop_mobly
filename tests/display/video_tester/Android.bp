@@ -17,6 +17,7 @@ package {
     default_team: "trendy_team_desktop_peripherals",
 }
 
+
 python_test_host {
     name: "TestBasicUcd",
     main: "test_basic.py",
@@ -78,6 +79,26 @@ python_test_host {
 }
 
 python_test_host {
+    name: "TestMstUcd",
+    main: "test_mst.py",
+    srcs: ["test_mst.py"],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+    ],
+    libs: [
+        "py-display-utils",
+    ],
+}
+
+python_test_host {
     name: "TestRGBUcd",
     main: "test_r_g_b.py",
     srcs: ["test_r_g_b.py"],
@@ -118,4 +139,6 @@ python_test_host {
     libs: [
         "py-display-utils",
     ],
+
+
 }

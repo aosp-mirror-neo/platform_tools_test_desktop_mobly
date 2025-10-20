@@ -96,45 +96,97 @@ class HSVMask:
 
 
 def check_rgb_image_matches_color(
-    image_raw: bytes, target_color: Color, threshold: float = 0.8
+    image_raw: bytes,
+    target_color: Color,
+    width: int,
+    height: int,
+    threshold: float = 0.8,
+    crop_ratio: float = 1.0,
 ) -> bool:
-  """Checks if the color in the image matches the target color using Euclidean distance.
+  """Checks if the color in the image matches the target color.
+
+  This function can check the entire image or a central cropped region.
 
   Args:
-    image_raw: The raw image data as bytes.
+    image_raw: The raw image data as bytes (RGB format).
     target_color: The target color to match against.
-    threshold: The similarity threshold (0.0 to 1.0) that determines how strict
-      the color matching is. Higher values require closer color matches: - 1.0:
-      Requires exact color matches (very strict) - 0.8: Default, allows slight
-      variations in color (recommended for most cases) - 0.5: Allows moderate
-      color differences - 0.0: Matches any color (effectively disables checking)
-      The function counts pixels that meet or exceed this threshold, and returns
-      true if enough pixels in the image match the target color.
+    width: The width of the image.
+    height: The height of the image.
+    threshold: The similarity threshold (0.0 to 1.0) for a pixel to be
+      considered a match. Higher values require closer color matches.
+    crop_ratio: The ratio of the image to analyze (from 0.0 to 1.0). A value of
+      1.0 checks the entire image. A value of 0.5 checks the central 50% of the
+      image, effectively creating a 25% margin on all sides.
 
   Returns:
-    True if the color in the image matches the target color above the threshold,
-    False otherwise.
+    True if the percentage of matching pixels in the analyzed region is at or
+    above the threshold, False otherwise.
   """
   if not (0 <= threshold <= 1):
     raise ValueError('Threshold must be between 0.0 and 1.0')
+  if not (0.0 <= crop_ratio <= 1.0):
+    raise ValueError('crop_ratio must be between 0.0 and 1.0')
+
+  if not image_raw or len(image_raw) != width * height * 3:
+    logging.warning(
+        'Invalid image data. Expected size %d, got %d.',
+        width * height * 3,
+        len(image_raw),
+    )
+    return False
 
   # Max possible distance in RGB space is the cube diagonal
   MAX_DISTANCE = math.sqrt(3) * 255
 
-  # Parse image_raw into RGB triplets (assuming 3 bytes per pixel RGB format)
-  pixels = [image_raw[i : i + 3] for i in range(0, len(image_raw), 3)]
-  total_img_pixels = len(pixels)
+  margin_x_ratio = (1.0 - crop_ratio) / 2.0
+  margin_y_ratio = (1.0 - crop_ratio) / 2.0
+
+  start_x = int(width * margin_x_ratio)
+  end_x = int(width * (1.0 - margin_x_ratio))
+  start_y = int(height * margin_y_ratio)
+  end_y = int(height * (1.0 - margin_y_ratio))
+
+  total_checked_pixels = (end_x - start_x) * (end_y - start_y)
+
+  if total_checked_pixels == 0:
+    return False
 
   similar_pixels_count = 0
+  sum_r, sum_g, sum_b = 0, 0, 0
 
-  for pixel in pixels:
-    r, g, b = pixel
-    distance = color_distance(Color(r, g, b), target_color)
-    similarity = 1 - (distance / MAX_DISTANCE)
-    similar_pixels_count += bool(similarity >= threshold)
+  for y in range(start_y, end_y):
+    for x in range(start_x, end_x):
+      pixel_index = (y * width + x) * 3
+      r, g, b = (
+          image_raw[pixel_index],
+          image_raw[pixel_index + 1],
+          image_raw[pixel_index + 2],
+      )
+      sum_r += r
+      sum_g += g
+      sum_b += b
+      distance = color_distance(Color(r, g, b), target_color)
+      similarity = 1 - (distance / MAX_DISTANCE)
+      similar_pixels_count += bool(similarity >= threshold)
 
-  match_percentage = similar_pixels_count / total_img_pixels
-  return match_percentage >= threshold
+  match_percentage = similar_pixels_count / total_checked_pixels
+  result = match_percentage >= threshold
+
+  if not result:
+    avg_r = sum_r // total_checked_pixels
+    avg_g = sum_g // total_checked_pixels
+    avg_b = sum_b // total_checked_pixels
+    avg_color = Color(avg_r, avg_g, avg_b)
+    logging.info(
+        'Color match failed. Match percentage: %.2f, Threshold: %.2f. Target'
+        ' color: %s, Average image color: %s',
+        match_percentage,
+        threshold,
+        target_color,
+        avg_color,
+    )
+
+  return result
 
 
 def is_rgb_image_not_black(image_raw: bytes) -> bool:
@@ -209,14 +261,17 @@ def is_rgb_image_not_black(image_raw: bytes) -> bool:
   return False
 
 
-def process_bmp_img_to_raw(bmp_data: bytes) -> bytes:
+def process_bmp_img_to_raw(bmp_data: bytes) -> tuple[bytes, int, int]:
   """Processes BMP image data to extract raw RGB pixels.
 
   Args:
     bmp_data: Raw BMP image data in bytes
 
   Returns:
-    Raw RGB pixel data as bytes
+    A tuple containing:
+      - Raw RGB pixel data as bytes
+      - width of the image
+      - height of the image
 
   Raises:
     ValueError: If the BMP format is invalid
@@ -242,7 +297,12 @@ def process_bmp_img_to_raw(bmp_data: bytes) -> bytes:
   pixel_offset = int.from_bytes(bmp_data[10:14], byteorder='little')
   # Get width and height
   width = int.from_bytes(bmp_data[18:22], byteorder='little')
-  height = int.from_bytes(bmp_data[22:26], byteorder='little')
+  height = int.from_bytes(bmp_data[22:26], byteorder='little', signed=True)
+
+  # A negative height indicates a top-down bitmap
+  is_top_down = height < 0
+  if is_top_down:
+    height = -height  # Use positive height for calculations
 
   # Ensure we're actually at pixel data when we think we are
   if pixel_offset >= len(bmp_data):
@@ -273,7 +333,11 @@ def process_bmp_img_to_raw(bmp_data: bytes) -> bytes:
 
   # Process pixels (BMP stores rows bottom-to-top and pixels in BGR order)
   for y in range(height):
-    row_start = pixel_offset + (height - 1 - y) * row_stride
+    if is_top_down:
+      row_start = pixel_offset + y * row_stride
+    else:  # Standard bottom-up BMP
+      row_start = pixel_offset + (height - 1 - y) * row_stride
+
     for x in range(width):
       pixel_pos = row_start + x * 3
       if pixel_pos + 2 >= len(bmp_data):
@@ -287,7 +351,7 @@ def process_bmp_img_to_raw(bmp_data: bytes) -> bytes:
       # Append RGB values to our raw data
       raw_data.extend([r, g, b])
 
-  return bytes(raw_data)
+  return bytes(raw_data), width, height
 
 
 def color_distance(color1: Color, color2: Color) -> float:
@@ -298,3 +362,24 @@ def color_distance(color1: Color, color2: Color) -> float:
       + (color1.b - color2.b) ** 2
   )
   return result
+
+
+def get_color_brightness(color: Color) -> int:
+  """Returns the average brightness of a color."""
+  return (color.r + color.g + color.b) // 3
+
+
+def get_color_hot_cold(color: Color) -> int:
+  """Returns the hotness of a color.
+
+  This is calculated as the difference between the red and blue components.
+  A positive value indicates a "hotter" color (more red), while a negative
+  value indicates a "colder" color (more blue).
+
+  Args:
+    color: The Color object to evaluate.
+
+  Returns:
+    An integer representing the red-blue difference.
+  """
+  return color.r - color.b

@@ -16,9 +16,12 @@
 
 import abc
 from collections.abc import Iterable
+import enum
 import logging
-from typing import Any
+from typing import Any, Callable
 
+from lib.pasit import test_policy
+from lib.utils import retry
 from lib.utils import servo_client
 
 
@@ -52,12 +55,21 @@ class ServoNotConfiguredError(Exception):
   """Error when Servo is not configured."""
 
 
+class PasitDeviceError(Exception):
+  """Error when performing an action on a PASIT device."""
+
+
 class BasePasitDevice(metaclass=abc.ABCMeta):
   """Represents a device being tested by PASIT.
 
   Attributes:
     controller: Mobly controller instance for the tested device.
   """
+
+  class UiApplication(enum.Enum):
+    """Represents a UI application on the device."""
+
+    SETTINGS = 'Settings'
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -149,29 +161,9 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def is_device_online(self, timeout: int) -> bool:
+  def is_device_online(self) -> bool:
     """Checks if the device is online."""
     raise NotImplementedError
-
-  def power_on_if_offline(self, timeout: int = 5) -> bool:
-    """Powers on the device if it is offline.
-
-    Args:
-      timeout: The timeout in seconds to wait for the device to be online.
-
-    Returns:
-      True if device was offline.
-    """
-    if not self.is_device_online(timeout):
-      if self._servo:
-        logging.debug('Device is offline, powering on...')
-        self.power_on()
-      return True
-    return False
-
-  def is_servo_configured(self) -> bool:
-    """Returns True if Servo is configured."""
-    return self._servo is not None
 
   @abc.abstractmethod
   def capture_screenshots(self, output_path: str, file_name_prefix: str):
@@ -194,7 +186,151 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Returns the temporary directory on the device."""
     raise NotImplementedError
 
-  def _request_power_on(self):
+  @abc.abstractmethod
+  def wait_app_open(self, app: UiApplication) -> bool:
+    """Waits for the UI application to appear.
+
+    Args:
+      app: The UI application to wait for.
+
+    Returns:
+      True if the UI application appeared, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def wait_app_close(self, app: UiApplication) -> bool:
+    """Wait for the UI application to close.
+
+    Args:
+      app: The UI application to wait for.
+
+    Returns:
+      True if the UI application closed, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def is_powered(self) -> bool:
+    """Returns True if the device is receiving power.
+
+    Returns:
+      True if the device is receiving power from an external power source or
+      power adapter.
+    """
+    raise NotImplementedError
+
+  def wait_for_device_online(self):
+    """Waits for the device to be online.
+
+    Raises:
+      PasitDeviceError: If the device is not online after the maximum number
+      of tries.
+    """
+    self.wait_for_device_state(
+        self.is_device_online,
+        'online',
+        test_policy.DeviceTestPolicy.WAIT_FOR_DEVICE_ONLINE_RETRY_POLICY,
+    )
+
+  def wait_for_device_offline(self):
+    """Waits for the device to be offline.
+
+    Raises:
+      PasitDeviceError: If the device is not offline after the maximum number
+      of tries.
+    """
+    self.wait_for_device_state(
+        self.is_device_offline,
+        'offline',
+        test_policy.DeviceTestPolicy.WAIT_FOR_DEVICE_OFFLINE_RETRY_POLICY,
+    )
+
+  def wait_for_device_state(
+      self,
+      is_desired_state_func: Callable[[], bool],
+      desired_state_name: str,
+      policy: retry.RetryPolicy,
+  ):
+    """Waits for the device to be in the desired state.
+
+    Args:
+      is_desired_state_func: The function to check if the device is in the
+        desired state.
+      desired_state_name: The name of the desired state.
+      policy: The retry policy to use for device state checks.
+
+    Raises:
+      PasitDeviceError: If the device is not in the desired state after the
+      maximum number of tries.
+    """
+    is_desired_state = retry.retry(
+        is_desired_state_func,
+        until=lambda is_desired_state: is_desired_state,
+        policy=policy,
+    )
+    if not is_desired_state:
+      raise PasitDeviceError(
+          f'Device not {desired_state_name} after  {policy.max_tries} tries'
+          f' with {policy.delay_seconds} seconds interval.'
+      )
+
+  def is_device_offline(self) -> bool:
+    """Checks if the device is offline."""
+    return not self.is_device_online()
+
+  def power_on_if_offline(self) -> bool:
+    """Performs a cold reset on the device to attempt to reconnect it.
+
+    Returns:
+      True if device was offline.
+    """
+    if self.is_device_offline():
+      if self._servo:
+        logging.debug('Device is offline, performing cold reset...')
+        self._servo.cold_reset()
+        try:
+          self.wait_for_device_online()
+        except PasitDeviceError:
+          logging.error('Device is still offline after cold reset.')
+      return True
+    return False
+
+  def is_servo_configured(self) -> bool:
+    """Returns True if Servo is configured."""
+    return self._servo is not None
+
+  def disable_servo_power(self):
+    """Requests the device to disable Servo power.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to disable Servo power.')
+    self._servo.disable_servo_power()
+    # make sure device is online after disabling servo power
+    self.wait_for_device_online()
+
+  def enable_servo_power(self):
+    """Requests the device to enable Servo power.
+
+    Raises:
+      ServoNotConfiguredError: If Servo is not configured.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to enable Servo power.')
+    self._servo.enable_servo_power()
+    # make sure device is online after enabling servo power
+    self.wait_for_device_online()
+
+  def request_power_on(self):
     """Requests the device to power on via Servo.
 
     Raises:
@@ -204,7 +340,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       raise ServoNotConfiguredError('Failed to request power on device.')
     self._servo.set_power_state(servo_client.PowerState.ON)
 
-  def _request_power_off(self):
+  def request_power_off(self):
     """Requests the device to power off via Servo.
 
     Raises:
@@ -213,3 +349,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     if not self._servo:
       raise ServoNotConfiguredError('Failed to request power off device.')
     self._servo.set_power_state(servo_client.PowerState.OFF)
+
+  def set_lid_open(self) -> None:
+    """Sets the lid open state of the device via Servo."""
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to set lid state to open.')
+    self._servo.set_lid_state(True)
+
+  def set_lid_closed(self) -> None:
+    """Sets the lid closed state of the device via Servo."""
+    if not self._servo:
+      raise ServoNotConfiguredError('Failed to set lid state to closed.')
+    self._servo.set_lid_state(False)

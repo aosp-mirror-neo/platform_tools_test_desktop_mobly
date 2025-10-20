@@ -29,3 +29,16 @@ python_test_host {
         "py-passport",
     ],
 }
+
+python_test_host {
+    name: "passport_host_topology_test",
+    srcs: [
+        "passport_host_topology_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-passport",
+    ],
+}

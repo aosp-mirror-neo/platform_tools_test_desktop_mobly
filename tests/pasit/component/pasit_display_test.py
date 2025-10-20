@@ -14,16 +14,26 @@
 
 """A test that exercises PASIT Display component tests."""
 
+import enum
 import logging
-
 from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
+from lib.utils import functools
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 
 
+class DisplayIdType(enum.StrEnum):
+  NONE = 'no_display_id'
+  INTERNAL = 'internal_display'
+  EXTERNAL = 'external_display'
+
+
+@functools.generate_tests
 class PasitDisplayTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
@@ -39,73 +49,84 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
   def setup_test(self):
     """Handle the setup for the test."""
     super().setup_test()
-    self.helper = display_helper.DisplayHelper(
-        self.passport_host,
-        self.display,
-        self.painter,
-        self.current_test_info.output_path,
-    )
+    self.helper = display_helper.DisplayHelper(self.display)
 
-  def test_get_display_count(self):
-    asserts.assert_equal(
-        self.display.get_display_count(), 1, 'Display count is not 1.'
-    )
+  def teardown_test(self):
+    """Handle the teardown for the test."""
+    self.display.save_debug_info(self.current_test_info.output_path)
+    super().teardown_test()
 
   def test_get_display_ids(self):
     display_ids = self.display.get_display_ids()
-    logging.info('Display IDs: %s', display_ids)
+    logging.info('Display IDs before external display plug in: %s', display_ids)
     asserts.assert_equal(len(display_ids), 1, 'Display IDs count is not 1.')
-
-  def test_get_internal_display_resolution(self):
-    display_resolution = self.display.get_display_resolution()
-    logging.info(
-        'Display resolution without display id: %s', display_resolution
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    EXPECTED_DISPLAY_COUNT = 2
+    display_ids = retry.retry(
+        self.display.get_display_ids,
+        until=lambda display_ids: len(display_ids) == EXPECTED_DISPLAY_COUNT,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+    )
+    logging.info('Display IDs after external display plug in: %s', display_ids)
+    asserts.assert_equal(
+        len(display_ids),
+        EXPECTED_DISPLAY_COUNT,
+        f'Display IDs count is not {EXPECTED_DISPLAY_COUNT}.',
     )
 
-    display_id = self.helper.get_internal_display_id()
-    display_resolution = self.display.get_display_resolution(display_id)
+  @functools.with_variants(
+      internal=(DisplayIdType.INTERNAL,),
+      external=(DisplayIdType.EXTERNAL,),
+      none=(DisplayIdType.NONE,),
+  )
+  def test_get_set_supported_display_resolutions(
+      self, display_id_type: DisplayIdType
+  ):
+    match display_id_type:
+      case DisplayIdType.INTERNAL:
+        display_id = self.helper.get_internal_display_id()
+      case DisplayIdType.EXTERNAL:
+        display_id = self._plug_in_external_display()
+      case DisplayIdType.NONE:
+        display_id = None
+      case _:
+        raise ValueError(f'Unsupported display ID type: {display_id_type}')
+
+    initial_display_resolution = self.display.get_display_resolution(display_id)
     logging.info(
-        'Display resolution with display id %s: %s',
+        'Initial display resolution for display id %s: %s',
         display_id,
-        display_resolution,
+        initial_display_resolution,
     )
 
-  def test_get_external_display_resolution(self):
-    external_display_id = self._plug_in_external_display()
-    display_resolution = self.display.get_display_resolution(
-        external_display_id
-    )
-    logging.info(
-        'Display resolution with display id %s: %s',
-        external_display_id,
-        display_resolution,
-    )
-
-  def test_get_supported_display_resolutions(self):
-    supported_resolutions = self.display.get_supported_display_resolutions()
-    logging.info(
-        'Supported resolutions without display id: %s', supported_resolutions
-    )
-
-    display_id = self.helper.get_internal_display_id()
     supported_resolutions = self.display.get_supported_display_resolutions(
         display_id
     )
     logging.info(
-        'Supported resolutions with display id %s: %s',
+        'Supported resolutions for display id %s: %s',
         display_id,
         supported_resolutions,
     )
 
-  def test_get_supported_display_resolutions_external_display(self):
-    external_display_id = self._plug_in_external_display()
-    supported_resolutions = self.display.get_supported_display_resolutions(
-        external_display_id
-    )
-    logging.info(
-        'Supported resolutions with display id %s: %s',
-        external_display_id,
-        supported_resolutions,
+    for display_mode_id, display_resolution in supported_resolutions.items():
+      logging.info(
+          'Setting display resolution for display id %s to %s, %s',
+          display_id,
+          display_mode_id,
+          display_resolution,
+      )
+      self.display.set_display_resolution(display_mode_id, display_id)
+      asserts.assert_equal(
+          retry.retry(
+              lambda: self.display.get_display_resolution(display_id),
+              until=lambda resolution: resolution[0] == display_mode_id,
+              policy=test_policy.DisplayTestPolicy.DISPLAY_RESOLUTION_CHANGED_RETRY_POLICY,
+          ),
+          (display_mode_id, display_resolution),
+          'Display resolution is not set correctly.',
+      )
+    self.display.set_display_resolution(
+        initial_display_resolution[0], display_id
     )
 
   def test_get_set_night_light(self):
@@ -151,11 +172,37 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
         'Night light temperature is not set correctly.',
     )
 
-  def _plug_in_external_display(self) -> str:
+  def test_get_set_mirror_mode(self):
+    external_display_id = self._plug_in_external_display()
+    logging.info('External display ID: %s', external_display_id)
+
+    mirror_mode_enabled = self.display.get_mirror_mode()
+    logging.info('Mirror mode is enabled: %s', mirror_mode_enabled)
+
+    logging.info('Setting mirror mode to %s', not mirror_mode_enabled)
+    self.display.set_mirror_mode(not mirror_mode_enabled)
+    asserts.assert_equal(
+        self.display.get_mirror_mode(),
+        not mirror_mode_enabled,
+        'Mirror mode is not set correctly.',
+    )
+
+    logging.info('Setting mirror mode to %s', mirror_mode_enabled)
+    self.display.set_mirror_mode(mirror_mode_enabled)
+    asserts.assert_equal(
+        self.display.get_mirror_mode(),
+        mirror_mode_enabled,
+        'Mirror mode is not set correctly.',
+    )
+
+  def _plug_in_external_display(self) -> pasit_display.PasitDisplay.DisplayId:
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    return self.helper.get_external_display_id(internal_display_id)
+    external_display_ids = self.helper.get_external_display_ids(
+        internal_display_id, 1
+    )
+    return external_display_ids[0]
 
 
 if __name__ == '__main__':

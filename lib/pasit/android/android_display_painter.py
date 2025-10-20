@@ -21,9 +21,21 @@ import sys
 from lib.pasit.base import base_display_painter
 from lib.utils import image
 from lib.utils import retry
-from mobly import signals
 from mobly.controllers import android_device
+from mobly.controllers.android_device_lib import adb
 from mobly.controllers.android_device_lib import apk_utils
+
+DisplayPainterError = base_display_painter.BaseDisplayPainter.Error
+
+START_COLOR_FILL_TEST_APP_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=10, delay_seconds=1
+)
+STOP_COLOR_FILL_TEST_APP_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=3, delay_seconds=1
+)
+DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=3, delay_seconds=5
+)
 
 
 class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
@@ -60,11 +72,9 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       controller: The Android device controller.
     """
     super().__init__(controller)
-    apk_utils.install(
-        self.controller,
-        self.COLOR_FILL_TEST_APP_APK_PATH,
-        params=['-t'],  # to allow installing test packages
-    )
+    # uninstall the app to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE error
+    apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
+    self._app_installed = False
 
   def cleanup(self):
     """Cleans up after testing.
@@ -72,60 +82,99 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     Uninstalls the ColorFillTestApp when the object is garbage collected.
     """
     self._force_stop_color_fill_test_app()
-    apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
+    if self._app_installed:
+      apk_utils.uninstall(
+          self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+      )
 
   def show_color_on_display(self, color: image.Color, display_id: str = ''):
+    """Shows the specified color on the Android device display.
+
+    This method launches the ColorFillTestApp to display a solid color.
+    It sets the screen brightness to maximum to ensure visibility and
+    retries the app launch multiple times if it fails initially.
+    The app can be launched on a specific display by providing `display_id`.
+    Importantly, this method supports multiple displays; if called for
+    different `display_id`s, each specified display will get the color APK
+    on that display.
+
+    Args:
+      color: The color to display on the screen.
+      display_id: The ID of the display to show the color on. If empty, the
+        color will be shown on the default display.
+    """
     # set screen brightness to max to ensure color is visible
+    if not self._app_installed:
+      apk_utils.install(
+          self.controller,
+          self.COLOR_FILL_TEST_APP_APK_PATH,
+          params=['-t'],  # to allow installing test packages
+      )
+      self._app_installed = True
     self._set_screen_brightness(255)
 
     window_count_before = self._get_color_fill_test_app_window_count()
     # starting the app may fail, retry a few times to ensure color is shown
-    window_count_after = retry.retry(
+    retry.retry(
         lambda: self._try_show_color_on_display(
             color, window_count_before + 1, display_id
         ),
-        until=lambda window_count: window_count > window_count_before,
-        max_tries=10,
-        delay_seconds=1,
+        exceptions=(DisplayPainterError,),
+        policy=START_COLOR_FILL_TEST_APP_RETRY_POLICY,
     )
-    if window_count_after <= window_count_before:
-      raise signals.TestError(
-          'Failed to show color on display. Color fill test app window count'
-          f' did not increase by 1. Before: {window_count_before}, After:'
-          f' {window_count_after}'
-      )
     # maximize the window that shows custom background color
     self._maximize_color_fill_test_app_window()
 
   def clean_color_on_display(self):
-    if not retry.retry(
+    """Cleans up the color on the display.
+
+    This function closes all instances of the ColorFillTestApp. If the app was
+    started on multiple displays (by calling `show_color_on_display` with
+    different `display_id`s), all those instances will be stopped.
+    """
+    retry.retry(
         self._try_clean_color_on_display,
-        until=lambda result: result,
-    ):
-      raise signals.TestError('Failed to clean color on display.')
+        exceptions=(DisplayPainterError,),
+        policy=STOP_COLOR_FILL_TEST_APP_RETRY_POLICY,
+    )
 
   def _try_show_color_on_display(
       self, color: image.Color, expected_window_count: int, display_id: str
-  ) -> int:
+  ):
     """Attempts to start the ColorFillTestApp.
 
-    Returns the number of windows that show custom background color.
+    Args:
+      color: The color to show on the display.
+      expected_window_count: The expected number of color fill test app windows.
+      display_id: The display ID to show the color on.
+
+    Raises:
+        DisplayPainterError: If the color fill test app window count did not
+        increase to the
+        expected number.
     """
     self._start_color_fill_test_app(color, display_id)
     # After starting the app the window may not appear immediately. So we need
     # to retry getting windowcount a few times.
-    return retry.retry(
+    window_count = retry.retry(
         lambda: self._get_color_fill_test_app_window_count(),
         until=lambda window_count: window_count >= expected_window_count,
-        delay_seconds=5,
+        policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
     )
+    if window_count < expected_window_count:
+      raise DisplayPainterError(
+          'Color fill test app window count did not increase to'
+          f' {expected_window_count}. Actual window count: {window_count}'
+      )
 
-  def _try_clean_color_on_display(self) -> bool:
+  def _try_clean_color_on_display(self):
     """Attempts to clean the color on the display.
 
     Stops the ColorFillTestApp and waits for its window to disappear.
-    Returns:
-      True if the color was successfully cleaned, False otherwise.
+
+    Raises:
+      DisplayPainterError: If the color fill test app window count did not
+      decrease to 0.
     """
     self._force_stop_color_fill_test_app()
 
@@ -139,40 +188,50 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         until=lambda _: not self.controller.ui(
             pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
         ).exists,
-        max_tries=3,
+        # The policy is defined locally because it is implementation specific.
+        # Wait to receive `gone` for every window
+        # We expect to have no more than 3 windows (with 2 external monitors),
+        # number of tries is set to 10 as a precaution.
+        policy=retry.RetryPolicy(max_tries=10, delay_seconds=1),
     ):
-      return False
+      raise DisplayPainterError('Color fill test app window still exists.')
 
     # wait for 0 windows count that show custom background color
-    if (
-        retry.retry(
-            self._get_color_fill_test_app_window_count,
-            until=lambda window_count: window_count == 0,
-        )
-        != 0
-    ):
-      return False
-
-    return True
+    window_count = retry.retry(
+        self._get_color_fill_test_app_window_count,
+        until=lambda window_count: window_count == 0,
+        policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
+    )
+    if window_count != 0:
+      raise DisplayPainterError(
+          'Color fill test app window count did not decrease to 0. Actual'
+          f' window count: {window_count}'
+      )
 
   def _start_color_fill_test_app(
       self, color: image.Color, display_id: str = ''
   ):
-    """Starts the ColorFillTestApp with the specified color and display."""
-    self.controller.adb.shell(
-        [
-            'am',
-            'start',
-            '-n',
-            self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
-            '-a',
-            'android.intent.activity.MAIN',
-            '-e',
-            'color',
-            repr(color),
-        ]
-        + (['--display', display_id] if display_id else [])
-    )
+    """Starts the ColorFillTestApp with the specified color and display.
+
+    Opens a new window filled with the specified color on the specified display.
+    """
+    try:
+      self.controller.adb.shell(
+          [
+              'am',
+              'start',
+              '-n',
+              self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
+              '-a',
+              'android.intent.activity.MAIN',
+              '-e',
+              'color',
+              repr(color),
+          ]
+          + (['--display', display_id] if display_id else [])
+      )
+    except adb.AdbError as e:
+      raise DisplayPainterError('Failed to start color fill test app') from e
 
   def _force_stop_color_fill_test_app(self):
     """Forces stop the ColorFillTestApp."""

@@ -65,7 +65,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         self._CAMERA_APP_PACKAGE_NAME,
     ])
     return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
-        timeout=datetime.timedelta(seconds=5)
+        timeout=datetime.timedelta(seconds=20)
     )
 
   def close_camera_app(self):
@@ -115,8 +115,9 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
             desc=self._switch_mode_button_description[mode],
         ).click(),
         until=lambda _: self._mode_action_button_exists(mode),
-        max_tries=3,
-        delay_seconds=0,
+        # The policy is defined locally because it is implementation specific.
+        # Retry a few times in case the button was switched to the wrong mode.
+        policy=retry.RetryPolicy(max_tries=3, delay_seconds=0),
     )
     return self._mode_action_button_exists(mode)
 

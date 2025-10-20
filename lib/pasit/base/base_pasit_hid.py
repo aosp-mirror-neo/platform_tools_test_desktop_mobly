@@ -16,6 +16,7 @@
 
 import abc
 import dataclasses
+import enum
 from typing import Any, List
 
 
@@ -25,16 +26,44 @@ class BasePasitHID(metaclass=abc.ABCMeta):
   @dataclasses.dataclass
   class DeviceInfo:
     """Represents information about an HID device."""
+
     name: str
     vendor_id: int
     product_id: int
     type: str  # e.g., "Keyboard", "Mouse", "Keyboard & Mouse"
+
+  class KeyboardShortcut(enum.Enum):
+    """Represents a keyboard shortcut."""
+
+    SCREENSHOT = 'Take Screenshot'
+    SETTINGS = 'Open Settings'
+    HOME = 'Home'
 
   def __init__(self, controller: Any):
     """Initializes the PasitHID."""
     self.controller = controller
 
   @abc.abstractmethod
+  def cleanup(self) -> None:
+    """Cleans up after testing."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def get_hid_devices(self) -> List[DeviceInfo]:
     """Returns a list of connected HID devices."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
+    """Returns the key combination for the given keyboard shortcut.
+
+    Args:
+      shortcut: The keyboard shortcut to get the key combination for.
+
+    Returns:
+      A list of key names that represent the keyboard shortcut.
+
+    Raises:
+      ValueError: If the shortcut is not found.
+    """
     raise NotImplementedError
