@@ -61,7 +61,8 @@ class HIDBaseTest(pasit_test.PasitTestClass):
   def teardown_class(self):
     """Handle the teardown for the class."""
     self.close_hid_emulator()
-    self.hid.cleanup()
+    if hasattr(self, 'hid'):
+      self.hid.cleanup()
     super().teardown_class()
 
   def teardown_test(self):
