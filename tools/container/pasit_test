@@ -340,11 +340,38 @@ run_pasit_testbed_suite() {
 }
 
 upload_logs() {
-  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json)"
   local temp_dir="$(cat /tmp/pasit_temp_dir.txt)"
   if [[ -z "${temp_dir}" ]]; then
     log_color ERROR "No temp directory found, run tests before uploading logs."
     exit 1
+  fi
+  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json 2>/dev/null)"
+  if [[ -z "${gcs_bucket}" ]]; then
+    local internal_satlab_config="$(grep -c "satlab-internal-users" /home/satlab/keys/pubsub-key-do-not-delete.json 2>/dev/null)"
+    if [[ "${internal_satlab_config}" -eq 0 ]]; then
+      log_color ERROR "Failed to find GCS bucket in satlab config."
+      exit 1
+    else
+      log_color WARN "Internal satlab config found, not able to upload logs to GCS."
+      if ! docker cp ${temp_dir} ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_test_logs; then
+        log_color ERROR "Failed to copy logs to the persistent container."
+        exit 1
+      fi
+      if ! docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} zip -r /workdir/pasit_test_logs.zip /workdir/pasit_test_logs > /dev/null 2>&1; then
+        log_color ERROR "Failed to create zip file with logs in the persistent container."
+        exit 1
+      fi
+      if ! docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_test_logs.zip ${temp_dir}/pasit_test_logs.zip; then
+        log_color ERROR "Failed to copy zip file with logs out of the persistent container."
+        exit 1
+      fi
+      docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} rm -rf /workdir/pasit_test_logs.zip /workdir/pasit_test_logs
+      log_color GOOD "Zip file with logs is created at: ${temp_dir}/pasit_test_logs.zip"
+      log_color INFO "Please upload the zip file to a bug manually."
+      log_color INFO "To copy the zip file to your workstation run the following command from your workstation:"
+      log_color INFO "scp <satlab_ip>:${temp_dir}/pasit_test_logs.zip ./"
+      exit 0
+    fi
   fi
   echo "Uploading logs to: gs://${gcs_bucket}..."
   # stop the persistent container
