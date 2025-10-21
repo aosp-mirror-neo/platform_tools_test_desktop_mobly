@@ -59,6 +59,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
   TMP_DIR = '/data/local/tmp/'
 
+  _PROCESS_NOT_RESPONDING_WATCHER = 'process_not_responding'
+  _PROCESS_NOT_RESPONDING_TEXT = "Process system isn't responding"
+  _PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT = 'Close app'
+
   def __init__(
       self,
       controller: android_device.AndroidDevice,
@@ -79,9 +83,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.snippets.uninstall_all()
     self.snippets.install_and_load_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
     self.snippets.register_uiautomator()
+    self._add_process_not_responding_watcher()
     self._bypass_login_screen()
 
   def cleanup(self):
+    self._remove_process_not_responding_watcher()
     self._stop_services()
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self.snippets.uninstall_all()
@@ -296,3 +302,49 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return self.controller.adb.shell(
         ['su', f'{user_id}'] + cmd,
     )
+
+  def _add_process_not_responding_watcher(self) -> None:
+    """Adds a watcher to close the process not responding window.
+
+    Checks if the process not responding window exists and if so closes it. Also
+    adds a watcher to close the window if it appears again during the test. This
+    is to prevent the window from obscuring the view of UI elements.
+    """
+    try:
+      if self.controller.ui(text=self._PROCESS_NOT_RESPONDING_TEXT).exists:
+        self.controller.ui(
+            text=self._PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT
+        ).click()
+        logging.warning(
+            f"'{self._PROCESS_NOT_RESPONDING_TEXT}' window detected and closed."
+        )
+
+      self.controller.ui.watcher(self._PROCESS_NOT_RESPONDING_WATCHER).when(
+          text=self._PROCESS_NOT_RESPONDING_TEXT
+      ).click(text=self._PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT)
+    except Exception as e:  # pylint: disable=broad-except
+      logging.error(
+          "Failed to add watcher for '%s' window: %s",
+          self._PROCESS_NOT_RESPONDING_TEXT,
+          e,
+      )
+
+  def _remove_process_not_responding_watcher(self) -> None:
+    """Removes the process not responding watcher.
+
+    Logs if the watcher was triggered and closed the window.
+    """
+    try:
+      if self.controller.ui.watcher(
+          self._PROCESS_NOT_RESPONDING_WATCHER
+      ).triggered:
+        logging.warning(
+            f"'{self._PROCESS_NOT_RESPONDING_TEXT}' window detected and closed."
+        )
+      self.controller.ui.watcher(self._PROCESS_NOT_RESPONDING_WATCHER).remove()
+    except Exception as e:  # pylint: disable=broad-except
+      logging.error(
+          "Failed to remove watcher for '%s' window: %s",
+          self._PROCESS_NOT_RESPONDING_TEXT,
+          e,
+      )
