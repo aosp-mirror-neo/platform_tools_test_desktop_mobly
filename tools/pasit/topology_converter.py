@@ -279,24 +279,40 @@ def generate_graph(
     print(f'Unsupported file type: {file_type}')
     return
 
-  graph_content = 'digraph Topology {\n'
+  graph_content = '''digraph Topology {
+    node [shape=plain];
+    ranksep = 1.2;
+  '''
   for device in topology.devices:
+    ports = ''
+    for connection in topology.connections:
+      if device.id == connection.parent_id:
+        if connection.parent_port:
+          conn_type = "" if connection.parent_port == '' else connection.parent_port
+          ports += f'<TR><TD PORT="p{connection.parent_port}"> Port {conn_type} </TD></TR>\n'
+
     graph_content += (
-        f'    "{device.id}"'
-        f' [label="{device.id}\n{pasit_host_pb2.PasitHost.Device.Type.Name(device.type)}"];\n'
-    )
+        f'"{device.id}"'
+        f''' [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>{device.id}<BR/>{pasit_host_pb2.PasitHost.Device.Type.Name(device.type)}</TD></TR>
+                  {ports}
+              </TABLE>>];\n
+          '''
+  )
   for connection in topology.connections:
-    port_info = ''
-    tags_info = ''
-    if connection.parent_port:
-      port_info = f'Port {connection.parent_port}: '
-    if connection.tags:
-      tags_info = f'\nTags: {", ".join(connection.tags)}'
+    parent_port = f':"p{connection.parent_port}"' if connection.parent_port != '' else ''
+    label = f'label="Tags: [{','.join(str(x) for x in connection.tags)}]"'
+    label = label if label != 'label="Tags: []"' else ''
     graph_content += (
-        f'    "{connection.parent_id}" -> "{connection  .child_id}"'
-        f' [label="{port_info}{connection.type}{tags_info}"];\n'
+        f'''"{connection.parent_id}"{parent_port} -> "{connection.child_id}" [
+            labeldistance="10",
+            {label}
+          ];\n
+        '''
     )
-  graph_content += '}'
+
+  graph_content += "}"
 
   # Use graphviz to generate the graph image to PNG
   dot_process = subprocess.Popen(
