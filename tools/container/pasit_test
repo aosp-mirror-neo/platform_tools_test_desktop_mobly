@@ -116,8 +116,30 @@ check_satlab_drone_running_tests() {
 get_dut_info() {
   local dns_info="$(satlab get dns)"
   local dut_line="$(echo "$dns_info" | grep "satlab-" | grep -v -i -E "ip.*power|192.168.231.110")"
-  DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
-  DUT_ID="$(echo "$dut_line" | awk '{print $2}')"
+  DUT_LINE_COUNT="$(echo "$dut_line" | wc -l)"
+  if [[ "${DUT_LINE_COUNT}" -eq 0 ]]; then
+    log_color ERROR "Could not find any DUT in satlab DNS config."
+    exit 1
+  elif [[ "${DUT_LINE_COUNT}" -gt 1 ]]; then
+    if [[ "${DUT_IP_OVERRIDE}" == "" ]]; then
+      log_color INFO "Found the following DUTs:"
+      echo "$dut_line"
+      log_color ERROR "Found multiple DUTs in satlab DNS config, please check"
+      log_color ERROR "the satlab config and remove any extra DUTs or set"
+      log_color ERROR "the DUT_IP_OVERRIDE environment variable to the IP"
+      log_color ERROR "address of the DUT you want to use."
+      log_color ERROR "For example: export DUT_IP_OVERRIDE=192.168.231.123"
+      exit 1
+    fi
+    DUT_IP="${DUT_IP_OVERRIDE}"
+  else
+    DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
+  fi
+  DUT_ID="$(echo "$dut_line" | awk -v ip="${DUT_IP}" '$1 == ip {print $2}')"
+  if [[ -z "${DUT_ID}" ]]; then
+    log_color ERROR "Could not find DUT ID for DUT IP ${DUT_IP} in satlab DNS config."
+    exit 1
+  fi
 
   if ! satlab get dut "${DUT_ID}" > "${DUT_INFO_FILE}"; then
     log_color ERROR"Failed to get DUT info from satlab for ${DUT_ID}"
@@ -400,6 +422,10 @@ upload_logs() {
   local upload_dir="pasit_test_$(date +%Y%m%d_%H%M%S)"
   local gcs_logs_dir="gs://${gcs_bucket}/${PASIT_SUBDIR}/${upload_dir}"
   docker cp ${temp_dir} ${PASIT_PERSISTENT_LOG_CONTAINER_NAME}:/workdir/${upload_dir}
+  # copy any images generated with the exported logs dir
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} mkdir /workdir/${upload_dir}/passport_images
+  docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} bash -c "cp /workdir/*.jpg /workdir/${upload_dir}/passport_images/"
+  # upload the logs to GCS
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} gsutil cp -r /workdir/${upload_dir} ${gcs_logs_dir}
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} rm -rf /workdir/${upload_dir}
 
@@ -454,7 +480,9 @@ elif [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
   if ! docker ps | grep "passport-dev"; then
     start_passport
   fi
-  docker run --rm -it --network=host us-docker.pkg.dev/cros-passport/passport/passport:latest /usr/bin/cros-passport ${forwarded_args}
+  docker run --rm -it --volume ${PASIT_VOLUME_NAME}:/workdir -w /workdir \
+   --network=host us-docker.pkg.dev/cros-passport/passport/passport:latest \
+   /usr/bin/cros-passport ${forwarded_args}
   exit 0
 fi
 if [[ "${QUICK_MODE}" -ne 1 ]]; then
