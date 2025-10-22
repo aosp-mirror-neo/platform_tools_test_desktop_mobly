@@ -376,25 +376,8 @@ upload_logs() {
       log_color ERROR "Failed to find GCS bucket in satlab config."
       exit 1
     else
-      log_color WARN "Internal satlab config found, not able to upload logs to GCS."
-      if ! docker cp ${temp_dir} ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_test_logs; then
-        log_color ERROR "Failed to copy logs to the persistent container."
-        exit 1
-      fi
-      if ! docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} zip -r /workdir/pasit_test_logs.zip /workdir/pasit_test_logs > /dev/null 2>&1; then
-        log_color ERROR "Failed to create zip file with logs in the persistent container."
-        exit 1
-      fi
-      if ! docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_test_logs.zip ${temp_dir}/pasit_test_logs.zip; then
-        log_color ERROR "Failed to copy zip file with logs out of the persistent container."
-        exit 1
-      fi
-      docker exec ${PASIT_PERSISTENT_CONTAINER_NAME} rm -rf /workdir/pasit_test_logs.zip /workdir/pasit_test_logs
-      log_color GOOD "Zip file with logs is created at: ${temp_dir}/pasit_test_logs.zip"
-      log_color INFO "Please upload the zip file to a bug manually."
-      log_color INFO "To copy the zip file to your workstation run the following command from your workstation:"
-      log_color INFO "scp <satlab_ip>:${temp_dir}/pasit_test_logs.zip ./"
-      exit 0
+      # use the throw away bucket for internal satlabs
+      gcs_bucket="chromeos-throw-away-bucket"
     fi
   fi
   echo "Uploading logs to: gs://${gcs_bucket}..."
