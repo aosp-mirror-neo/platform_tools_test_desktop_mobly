@@ -340,6 +340,8 @@ run_pasit_testbed_suite() {
 }
 
 upload_logs() {
+  local GCS_LOGS_URL="https://pantheon.corp.google.com/storage/browser"
+  local PASIT_SUBDIR="pasit_logs"
   local temp_dir="$(cat /tmp/pasit_temp_dir.txt)"
   if [[ -z "${temp_dir}" ]]; then
     log_color ERROR "No temp directory found, run tests before uploading logs."
@@ -396,14 +398,14 @@ upload_logs() {
   fi
   # copy the entire temp directory to the shared volume and upload it to GCS
   local upload_dir="pasit_test_$(date +%Y%m%d_%H%M%S)"
-  local gcs_logs_dir="gs://${gcs_bucket}/pasit_logs/${upload_dir}"
+  local gcs_logs_dir="gs://${gcs_bucket}/${PASIT_SUBDIR}/${upload_dir}"
   docker cp ${temp_dir} ${PASIT_PERSISTENT_LOG_CONTAINER_NAME}:/workdir/${upload_dir}
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} gsutil cp -r /workdir/${upload_dir} ${gcs_logs_dir}
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} rm -rf /workdir/${upload_dir}
 
   echo
   echo
-  echo "Logs uploaded successfully to ${gcs_logs_dir}."
+  echo "Logs uploaded successfully to ${GCS_LOGS_URL}/${gcs_bucket}/${PASIT_SUBDIR}/${upload_dir}."
   echo "File a bug at go/file-pasit-bug and include: the gcs link, dut_id, and "
   echo "satlab IP address in the bug description."
 }
