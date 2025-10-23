@@ -29,7 +29,8 @@ from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
 
 
-PasitDeviceError = base_pasit_device.PasitDeviceError
+class AndroidDeviceError(Exception):
+  """Error when trying performing an action on an Android device."""
 
 
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
@@ -178,7 +179,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       if 'closed' in str(e.stderr) or 'device offline' in str(e.stderr):
         logging.debug('Device detected as offline.')
         return False
-      raise PasitDeviceError(
+      raise AndroidDeviceError(
           'Unexpected error while checking if device is offline.'
       ) from e
     return True
@@ -203,18 +204,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f'Unsupported UI application: {app}. Supported applications:'
           f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
       )
-    try:
-      return (
-          self.controller.ui(
-              pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-          ).wait.exists(
-              timeout=datetime.timedelta(
-                  seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
-              )
-          ),
-      )
-    except Exception as e:  # pylint: disable=broad-except
-      raise PasitDeviceError(f'Failed to wait for app to open: {app}') from e
+    return (
+        self.controller.ui(
+            pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+        ).wait.exists(
+            timeout=datetime.timedelta(
+                seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
+            )
+        ),
+    )
 
   def wait_app_close(self, app: UiApplication) -> bool:
     if app not in self._UI_APPLICATION_PACKAGE_NAME:
@@ -222,18 +220,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f'Unsupported UI application: {app}. Supported applications:'
           f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
       )
-    try:
-      return (
-          self.controller.ui(
-              pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-          ).wait.gone(
-              timeout=datetime.timedelta(
-                  seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
-              )
-          ),
-      )
-    except Exception as e:  # pylint: disable=broad-except
-      raise PasitDeviceError(f'Failed to wait for app to close: {app}') from e
+    return (
+        self.controller.ui(
+            pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+        ).wait.gone(
+            timeout=datetime.timedelta(
+                seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
+            )
+        ),
+    )
 
   def is_powered(self) -> bool:
     return dumpsys_battery_parser.DumpsysBatteryParser(
@@ -246,7 +241,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           timeout=self._BOOT_COMPLETION_TIMEOUT_SECONDS
       )
     except android_device.DeviceError as e:
-      raise PasitDeviceError(
+      raise base_pasit_device.PasitDeviceError(
           'Device not online after timeout'
           f' {self._BOOT_COMPLETION_TIMEOUT_SECONDS} seconds.'
       ) from e

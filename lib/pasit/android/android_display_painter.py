@@ -182,8 +182,12 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     # use retry because there may be more than one window
     # return False if the color fill test app is still present
     if not retry.retry(
-        self._wait_for_color_fill_test_app_window_gone,
-        until=lambda _: not self._color_fill_test_app_window_exists(),
+        lambda: self.controller.ui(
+            pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+        ).wait.gone(timeout=datetime.timedelta(seconds=10)),
+        until=lambda _: not self.controller.ui(
+            pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+        ).exists,
         # The policy is defined locally because it is implementation specific.
         # Wait to receive `gone` for every window
         # We expect to have no more than 3 windows (with 2 external monitors),
@@ -244,79 +248,15 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     )
 
   def _get_color_fill_test_app_window_count(self) -> int:
-    """Returns the number of windows that show custom background color.
+    """Returns the number of windows that show custom background color."""
+    return self.controller.ui(
+        desc=(
+            f'{self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION} (Desktop windowing)'
+        )
+    ).count
 
-    Returns:
-      The number of windows that show custom background color.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window count cannot be
-      determined.
-    """
-    try:
-      return self.controller.ui(
-          desc=(
-              f'{self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION} (Desktop'
-              ' windowing)'
-          )
-      ).count
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to get color fill test app window count'
-      ) from e
-
-  def _maximize_color_fill_test_app_window(self) -> None:
-    """Maximizes the window that shows custom background color.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      maximized.
-    """
-    try:
-      self.controller.ui(
-          desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
-      ).click()
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to maximize color fill test app window'
-      ) from e
-
-  def _wait_for_color_fill_test_app_window_gone(
-      self, timeout_seconds: int = 10
-  ) -> None:
-    """Waits for the color fill test app window to disappear.
-
-    Args:
-      timeout_seconds: The timeout in seconds.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      determined.
-    """
-    try:
-      self.controller.ui(pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME).wait.gone(
-          timeout=datetime.timedelta(seconds=timeout_seconds)
-      )
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to wait for color fill test app window to disappear'
-      ) from e
-
-  def _color_fill_test_app_window_exists(self) -> bool:
-    """Checks if the color fill test app window exists.
-
-    Returns:
-      True if the color fill test app window exists, False otherwise.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      determined.
-    """
-    try:
-      return self.controller.ui(
-          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
-      ).exists
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to check if color fill test app window exists'
-      ) from e
+  def _maximize_color_fill_test_app_window(self):
+    """Maximizes the window that shows custom background color."""
+    self.controller.ui(
+        desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
+    ).click()

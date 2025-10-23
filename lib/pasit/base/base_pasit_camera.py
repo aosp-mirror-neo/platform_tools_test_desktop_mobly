@@ -23,9 +23,6 @@ from typing import Any
 class BasePasitCamera(metaclass=abc.ABCMeta):
   """Interface for camera operations for PASIT testing."""
 
-  class Error(Exception):
-    """BasePasitCamera error."""
-
   class Mode(enum.Enum):
     """The capture mode for the camera app."""
 
