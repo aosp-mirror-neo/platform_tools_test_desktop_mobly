@@ -283,20 +283,23 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
   def _wait_for_color_fill_test_app_window_gone(
       self, timeout_seconds: int = 10
-  ) -> None:
+  ) -> bool:
     """Waits for the color fill test app window to disappear.
 
     Args:
       timeout_seconds: The timeout in seconds.
+
+    Returns:
+      True if the color fill test app window is gone, False otherwise.
 
     Raises:
       DisplayPainterError: If the color fill test app window cannot be
       determined.
     """
     try:
-      self.controller.ui(pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME).wait.gone(
-          timeout=datetime.timedelta(seconds=timeout_seconds)
-      )
+      return self.controller.ui(
+          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
+      ).wait.gone(timeout=datetime.timedelta(seconds=timeout_seconds))
     except Exception as e:  # pylint: disable=broad-except
       raise DisplayPainterError(
           'Failed to wait for color fill test app window to disappear'
