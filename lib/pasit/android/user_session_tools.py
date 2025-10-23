@@ -101,7 +101,12 @@ class UserSessionTools:
 
   def _ui_active_package_is(self, expected_package: str):
     """Checks if the active package is the expected package."""
-    if not self.controller.ui(pkg=expected_package):
-      raise UnexpectedActivePackageError(
-          expected_package, self.controller.ui.package_name
-      )
+    try:
+      if not self.controller.ui(pkg=expected_package):
+        raise UnexpectedActivePackageError(
+            expected_package, self.controller.ui.package_name
+        )
+    except Exception as e:  # pylint: disable=broad-except
+      raise UserSessionError(
+          f'Failed to check if package {expected_package} is active.'
+      ) from e

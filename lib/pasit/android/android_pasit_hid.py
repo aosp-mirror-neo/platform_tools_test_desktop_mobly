@@ -23,6 +23,8 @@ from lib.pasit.base import base_pasit_hid
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import apk_utils
 
+PasitHIDError = base_pasit_hid.BasePasitHID.Error
+
 
 class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   """PasitHID for Android devices."""
@@ -54,7 +56,10 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
 
   def get_hid_devices(self) -> List[base_pasit_hid.BasePasitHID.DeviceInfo]:
     """Returns a list of connected HID devices using the Mobly snippet."""
-    devices_json = self.controller.hid.getHidDevices()
+    try:
+      devices_json = self.controller.hid.getHidDevices()
+    except Exception as e:  # pylint: disable=broad-except
+      raise PasitHIDError('Failed to get HID devices') from e
     # The snippet returns a list of dictionaries.
     # Convert each dictionary to our HidDeviceInfo dataclass.
     hid_devices = [
