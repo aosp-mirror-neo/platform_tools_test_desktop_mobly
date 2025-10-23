@@ -15,6 +15,7 @@
 """Base test class for PASIT Mobly tests."""
 
 import logging
+import time
 import types
 from typing import Any
 
@@ -151,9 +152,8 @@ class PasitTestClass(base_test.BaseTestClass):
     """Captures a bug report if configured to."""
     if not hasattr(self, 'dut'):
       return
-    collect_bugreport = (
-        self.bugreport == 'all'
-        or (self.bugreport == 'on_fail' and test_failed)
+    collect_bugreport = self.bugreport == 'all' or (
+        self.bugreport == 'on_fail' and test_failed
     )
     if not collect_bugreport:
       return
@@ -166,3 +166,41 @@ class PasitTestClass(base_test.BaseTestClass):
       )
     except Exception as e:  # pylint: disable=broad-except
       logging.warning('Failed to collect bug report: %s', e)
+
+  # Note type hints intentionally not included to match underlying Mobly code
+  # in base_test.py.
+  def exec_one_test(self, test_name, test_method, record=None):
+    """Override the Mobly exec_one_test method to allow for debugging."""
+    # Make self available to the debugger in the closure below.
+    test_instance = self
+    failure_pause_seconds = int(
+        self.user_params.get('on_fail_pause_seconds', '0')
+    )
+    failure_drop_to_interpreter = bool(
+        self.user_params.get('on_fail_drop_to_interpreter', False)
+    )
+
+    def wrapped_test_method():
+      try:
+        test_method()
+      except (signals.TestPass, signals.TestAbortSignal, signals.TestSkip):
+        raise
+      except Exception as e:
+        if failure_drop_to_interpreter:
+          logging.error('Dropping to interpreter due to test failure: %e.', e)
+          logging.info(
+              'You can access the test class from the debugger by using the'
+              ' test_instance variable: %s',
+              test_instance,
+          )
+          breakpoint()
+        elif failure_pause_seconds > 0:
+          logging.error(
+              'Pausing for %d seconds after test failure: %e.',
+              failure_pause_seconds,
+              e,
+          )
+          time.sleep(failure_pause_seconds)
+        raise e
+
+    return super().exec_one_test(test_name, wrapped_test_method, record)
