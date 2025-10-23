@@ -23,6 +23,9 @@ from typing import Any, List
 class BasePasitHID(metaclass=abc.ABCMeta):
   """Interface for HID operations for PASIT testing."""
 
+  class Error(Exception):
+    """Error when performing an action on a PASIT HID."""
+
   @dataclasses.dataclass
   class DeviceInfo:
     """Represents information about an HID device."""
