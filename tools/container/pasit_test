@@ -28,7 +28,7 @@
 # ./pasit_test -p -- <command> <subcommand> <subcommand args>...
 
 usage() {
-  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--] [args...]"
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--pause-on-fail <seconds>] [--] [args...]"
   echo
   echo "Run PASIT testbed suite on a Satlab host."
   echo
@@ -38,6 +38,7 @@ usage() {
   echo "  -h, --help          Show this help message and exit."
   echo "  -q, --quick         Quick mode. Bypasses re-running of the setup."
   echo "  -p, --passport      Run passport client commands."
+  echo "  --pause-on-fail <seconds>  Pause for <seconds> on test failure."
   echo "  -- [args...]        All arguments after '--' are passed to the test suite or passport client."
   echo
   echo "Examples:"
@@ -366,6 +367,10 @@ generate_pasit_config() {
   # passport service_host -> IP address of passport container
   sed -i "s/service_host: .*/service_host: ${PASSPORT_IP}/g" \
     ${TEMP_DIR}/pasit_config.yaml
+  if [[ -n "${PAUSE_ON_FAIL_SECONDS}" ]]; then
+    sed -i "/TestParams:/a \    on_fail_pause_seconds: ${PAUSE_ON_FAIL_SECONDS}" \
+      "${TEMP_DIR}/pasit_config.yaml"
+  fi
   docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
   set +e
   # generate png with topology_converter
@@ -500,6 +505,14 @@ while [[ $# -gt 0 ]]; do
     --upload-logs|-u)
       UPLOAD_LOGS=1
       shift;
+      ;;
+    --pause-on-fail)
+      if [[ -z "$2" || ! "$2" =~ ^[0-9]+$ ]]; then
+        log_color ERROR "--pause-on-fail requires a numeric argument for seconds."
+        exit 1
+      fi
+      PAUSE_ON_FAIL_SECONDS="$2"
+      shift 2
       ;;
     *)
       echo "Unknown option: $1"
