@@ -84,3 +84,14 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
         return ['Meta', 'H']
       case _:
         raise ValueError(f'Unsupported shortcut: {shortcut}')
+
+  def start_key_capture(self) -> None:
+    """Starts the key capture activity using the Mobly snippet."""
+    self.controller.hid.startKeyCaptureActivity()
+
+  def stop_key_capture(self) -> None:
+    """Stops the key capture activity using the Mobly snippet."""
+    self.controller.hid.stopKeyCaptureActivity()
+
+  def get_captured_keys(self) -> List[str]:
+    return self.controller.hid.getKeyLog()
