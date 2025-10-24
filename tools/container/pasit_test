@@ -99,6 +99,47 @@ log_color() {
     echo -e "${color}[$level]${NC} $message"
 }
 
+summarize_test_output() {
+  local log_file="$1"
+  local class_name=""
+  local summary_header="
+================================================================================
+                                TEST SUMMARY
+================================================================================
+"
+  local summary_content=""
+
+  while IFS= read -r line; do
+    if echo "$line" | grep -q "=> "; then
+      class_name=$(echo "$line" | sed 's/.*> \([^ ]*\) <.*/\1/')
+    elif [[ "$line" == *'[Test]'* ]]; then
+      # Extract test name and status
+      local test_info
+      test_info=$(echo "$line" | awk -F' \\[Test\\] ' '{print $2}')
+      local test_name
+      test_name=$(echo "$test_info" | awk '{print $1}')
+      local test_status
+      test_status=$(echo "$test_info" | awk '{print $2}')
+
+      if [[ -n "$test_status" ]]; then
+        local full_test_name="${class_name}.${test_name}"
+        local status_string
+        if [[ "$test_status" == "PASS" ]]; then
+          status_string="${test_status} ✅"
+        else
+          status_string="${test_status} ❌"
+        fi
+        summary_content+=$(printf "%-89.89s %10s\n" "${full_test_name}" "${status_string}\n")
+      fi
+    fi
+  done < "${log_file}"
+
+  if [[ -n "${summary_content}" ]]; then
+    echo -e "${summary_header}" | tee -a "${log_file}"
+    echo -e "${summary_content}" | tee -a "${log_file}"
+  fi
+}
+
 check_running_on_satlab() {
   if [[ ! -x /usr/local/bin/satlab ]]; then
     log_color ERROR "No satlab command found, this script must be run on a satlab host."
@@ -327,6 +368,17 @@ generate_pasit_config() {
     ${TEMP_DIR}/pasit_config.yaml
   docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
   set +e
+  # generate png with topology_converter
+  if ! docker run -it --rm\
+    -v ${PASIT_VOLUME_NAME}:/workdir \
+    --entrypoint /tools/pasit/topology_converter \
+    ${PASIT_ANDROID_IMAGE}  \
+    graph \
+    -i /workdir/pasit_config.yaml \
+    -o /workdir/pasit_config.png; then
+    log_color ERROR "Failed to generate PASIT config PNG file."
+  fi
+  docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.png ${TEMP_DIR}/pasit_config.png
   log_color GOOD "PASIT config YAML file generated: ${TEMP_DIR}/pasit_config.yaml"
 }
 
@@ -351,6 +403,8 @@ run_pasit_testbed_suite() {
       /tools/pasit/DesktopPASITTestbedTests \
       -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
   fi
+
+  summarize_test_output "${TEMP_DIR}/pasit_run_output.txt"
 
   local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
   # copy the logs to the host for easier debugging
