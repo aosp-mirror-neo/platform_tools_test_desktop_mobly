@@ -28,7 +28,7 @@
 # ./pasit_test -p -- <command> <subcommand> <subcommand args>...
 
 usage() {
-  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--] [args...]"
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--pause-on-fail <seconds>] [--] [args...]"
   echo
   echo "Run PASIT testbed suite on a Satlab host."
   echo
@@ -38,6 +38,7 @@ usage() {
   echo "  -h, --help          Show this help message and exit."
   echo "  -q, --quick         Quick mode. Bypasses re-running of the setup."
   echo "  -p, --passport      Run passport client commands."
+  echo "  --pause-on-fail <seconds>  Pause for <seconds> on test failure."
   echo "  -- [args...]        All arguments after '--' are passed to the test suite or passport client."
   echo
   echo "Examples:"
@@ -97,6 +98,47 @@ log_color() {
 
     # Print the log message with the chosen color and reset afterward
     echo -e "${color}[$level]${NC} $message"
+}
+
+summarize_test_output() {
+  local log_file="$1"
+  local class_name=""
+  local summary_header="
+================================================================================
+                                TEST SUMMARY
+================================================================================
+"
+  local summary_content=""
+
+  while IFS= read -r line; do
+    if echo "$line" | grep -q "=> "; then
+      class_name=$(echo "$line" | sed 's/.*> \([^ ]*\) <.*/\1/')
+    elif [[ "$line" == *'[Test]'* ]]; then
+      # Extract test name and status
+      local test_info
+      test_info=$(echo "$line" | awk -F' \\[Test\\] ' '{print $2}')
+      local test_name
+      test_name=$(echo "$test_info" | awk '{print $1}')
+      local test_status
+      test_status=$(echo "$test_info" | awk '{print $2}')
+
+      if [[ -n "$test_status" ]]; then
+        local full_test_name="${class_name}.${test_name}"
+        local status_string
+        if [[ "$test_status" == "PASS" ]]; then
+          status_string="${test_status} ✅"
+        else
+          status_string="${test_status} ❌"
+        fi
+        summary_content+=$(printf "%-89.89s %10s\n" "${full_test_name}" "${status_string}\n")
+      fi
+    fi
+  done < "${log_file}"
+
+  if [[ -n "${summary_content}" ]]; then
+    echo -e "${summary_header}" | tee -a "${log_file}"
+    echo -e "${summary_content}" | tee -a "${log_file}"
+  fi
 }
 
 check_running_on_satlab() {
@@ -325,8 +367,23 @@ generate_pasit_config() {
   # passport service_host -> IP address of passport container
   sed -i "s/service_host: .*/service_host: ${PASSPORT_IP}/g" \
     ${TEMP_DIR}/pasit_config.yaml
+  if [[ -n "${PAUSE_ON_FAIL_SECONDS}" ]]; then
+    sed -i "/TestParams:/a \    on_fail_pause_seconds: ${PAUSE_ON_FAIL_SECONDS}" \
+      "${TEMP_DIR}/pasit_config.yaml"
+  fi
   docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
   set +e
+  # generate png with topology_converter
+  if ! docker run -it --rm\
+    -v ${PASIT_VOLUME_NAME}:/workdir \
+    --entrypoint /tools/pasit/topology_converter \
+    ${PASIT_ANDROID_IMAGE}  \
+    graph \
+    -i /workdir/pasit_config.yaml \
+    -o /workdir/pasit_config.png; then
+    log_color ERROR "Failed to generate PASIT config PNG file."
+  fi
+  docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.png ${TEMP_DIR}/pasit_config.png
   log_color GOOD "PASIT config YAML file generated: ${TEMP_DIR}/pasit_config.yaml"
 }
 
@@ -351,6 +408,8 @@ run_pasit_testbed_suite() {
       /tools/pasit/DesktopPASITTestbedTests \
       -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
   fi
+
+  summarize_test_output "${TEMP_DIR}/pasit_run_output.txt"
 
   local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
   # copy the logs to the host for easier debugging
@@ -446,6 +505,14 @@ while [[ $# -gt 0 ]]; do
     --upload-logs|-u)
       UPLOAD_LOGS=1
       shift;
+      ;;
+    --pause-on-fail)
+      if [[ -z "$2" || ! "$2" =~ ^[0-9]+$ ]]; then
+        log_color ERROR "--pause-on-fail requires a numeric argument for seconds."
+        exit 1
+      fi
+      PAUSE_ON_FAIL_SECONDS="$2"
+      shift 2
       ;;
     *)
       echo "Unknown option: $1"
