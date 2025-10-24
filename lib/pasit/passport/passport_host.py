@@ -775,7 +775,6 @@ class PassportHost:
 
       graph_content += "}"
 
-      logging.info(graph_content)
       topology_html = constants.HTML_GRAPH_TEMPLATE.format(content=graph_content)
 
       with open(os.path.join(log_dir, "topology.html"), 'w') as f:
