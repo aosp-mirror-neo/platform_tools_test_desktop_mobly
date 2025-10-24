@@ -187,7 +187,7 @@ class PasitTestClass(base_test.BaseTestClass):
         raise
       except Exception as e:
         if failure_drop_to_interpreter:
-          logging.error('Dropping to interpreter due to test failure: %e.', e)
+          logging.error('Dropping to interpreter due to test failure: %s.', e)
           logging.info(
               'You can access the test class from the debugger by using the'
               ' test_instance variable: %s',
@@ -196,7 +196,7 @@ class PasitTestClass(base_test.BaseTestClass):
           breakpoint()
         elif failure_pause_seconds > 0:
           logging.error(
-              'Pausing for %d seconds after test failure: %e.',
+              'Pausing for %d seconds after test failure: %s.',
               failure_pause_seconds,
               e,
           )
