@@ -66,4 +66,6 @@ class DumpsysBatteryParser:
   def _is_key_value_true(self, line: str, regex: re.Pattern[str]) -> bool:
     """Returns True if the line is a key value pair."""
     match = regex.match(line)
-    return match and match.group(1) == 'true'
+    if match:
+      return match.group(1) == 'true'
+    return False

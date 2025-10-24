@@ -204,14 +204,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
       )
     try:
-      return (
-          self.controller.ui(
-              pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-          ).wait.exists(
-              timeout=datetime.timedelta(
-                  seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
-              )
-          ),
+      return self.controller.ui(
+          pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+      ).wait.exists(
+          timeout=datetime.timedelta(
+              seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
+          )
       )
     except Exception as e:  # pylint: disable=broad-except
       raise PasitDeviceError(f'Failed to wait for app to open: {app}') from e
@@ -223,14 +221,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
       )
     try:
-      return (
-          self.controller.ui(
-              pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-          ).wait.gone(
-              timeout=datetime.timedelta(
-                  seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
-              )
-          ),
+      return self.controller.ui(
+          pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
+      ).wait.gone(
+          timeout=datetime.timedelta(
+              seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
+          )
       )
     except Exception as e:  # pylint: disable=broad-except
       raise PasitDeviceError(f'Failed to wait for app to close: {app}') from e
