@@ -31,12 +31,14 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
         ":ColorFillTest",
+        ":HidDeviceSnippet",
     ],
     libs: [
         "py-pasit-display",
         "py-display-painter",
         "py-display-helper",
         "py-desktop-utils",
+        "py-pasit-hid",
     ],
     pkg_path: "pasit/component",
 }
