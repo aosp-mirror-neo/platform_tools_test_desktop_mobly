@@ -16,7 +16,9 @@
 
 package com.google.android.hiddevicesnippet;
 
+import android.app.Instrumentation;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.input.InputManager;
 import android.view.InputDevice;
 
@@ -24,6 +26,9 @@ import androidx.test.InstrumentationRegistry;
 
 import com.google.android.mobly.snippet.Snippet;
 import com.google.android.mobly.snippet.rpc.Rpc;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,9 +40,14 @@ public class HIDDeviceSnippet implements Snippet {
     private final Context mContext;
     private final InputManager mInputManager;
 
+    private final Instrumentation mInstrumentation;
+
+    public static final List<String> mKeyLog = new ArrayList<>();
+
     public HIDDeviceSnippet() {
         mContext = InstrumentationRegistry.getTargetContext();
         mInputManager = mContext.getSystemService(InputManager.class);
+        mInstrumentation = InstrumentationRegistry.getInstrumentation();
     }
 
     /**
@@ -83,6 +93,51 @@ public class HIDDeviceSnippet implements Snippet {
             }
         }
         return devices;
+    }
+
+    /** Starts the dedicated Activity that will listen for key events. */
+    @Rpc(description = "Starts the key listening activity.")
+    public void startKeyCaptureActivity() {
+        Intent intent = new Intent(mInstrumentation.getTargetContext(), KeyCaptureActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        // This launches the Activity synchronously on the main thread
+        mInstrumentation.startActivitySync(intent);
+    }
+
+    /**
+     * Returns the current list of captured key events and then clears the log.
+     *
+     * @return A List of strings, where each string is a logged key event.
+     */
+    @Rpc(description = "Returns the list of captured key events and clears the log.")
+    public List<String> getKeyLog() {
+        // Return a copy and clear the original
+        synchronized (mKeyLog) {
+            List<String> result = new ArrayList<>(mKeyLog);
+            mKeyLog.clear();
+            return result;
+        }
+    }
+
+    /**
+     * Finds and finishes the KeyCaptureActivity instance.
+     *
+     * @return true if the activity was found and finished, false otherwise.
+     */
+    @Rpc(description = "Stops the key listening activity.")
+    public boolean stopKeyCaptureActivity() {
+        if (KeyCaptureActivity.instance != null) {
+            mInstrumentation.runOnMainSync(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            KeyCaptureActivity.instance.finish();
+                        }
+                    });
+            return true;
+        }
+        return false; // Activity wasn't running
     }
 
     @Override

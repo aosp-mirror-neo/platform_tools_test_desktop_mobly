@@ -20,6 +20,7 @@ from mobly import suite_runner
 from pasit.component import hid_emulator_test
 from pasit.component import pasit_device_test
 from pasit.component import pasit_display_test
+from pasit.component import pasit_hid_test
 
 
 class PasitComponentSuite(base_suite.BaseSuite):
@@ -34,6 +35,9 @@ class PasitComponentSuite(base_suite.BaseSuite):
     )
     self.add_test_class(
         hid_emulator_test.HIDEmulatorTest,
+    )
+    self.add_test_class(
+        pasit_hid_test.PasitHIDTest,
     )
 
 
