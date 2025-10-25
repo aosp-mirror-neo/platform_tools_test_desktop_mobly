@@ -92,7 +92,7 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
     )
     diff = set(screenshots_after) - set(screenshots_before)
     logging.debug('Screenshots after: %s', screenshots_after)
-    return diff
+    return list(diff)
 
   def _get_screenshots(self) -> list[str]:
     """Returns the list of screenshots on the DUT.

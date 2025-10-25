@@ -14,6 +14,7 @@
 
 """Base test for tests that use external storage."""
 
+from collections.abc import MutableSequence
 import logging
 
 from lib.pasit import pasit_storage
@@ -92,7 +93,7 @@ class StorageBaseTest(pasit_test.PasitTestClass):
         policy=test_policy.StorageTestPolicy.EXTERNAL_STORAGE_MOUNTED_RETRY_POLICY,
     )
 
-  def _try_get_external_storage_blkdevs(self) -> list[str]:
+  def _try_get_external_storage_blkdevs(self) -> MutableSequence[str]:
     """Blocks until an external removable storage block device is found."""
     logging.info('Waiting for external storage to be detected...')
     return retry.retry(
