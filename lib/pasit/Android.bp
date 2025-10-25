@@ -125,6 +125,7 @@ python_library_host {
         "*/*hid.py",
         "*hid.py",
         "hid_emulator.py",
+        "hid_keys.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [

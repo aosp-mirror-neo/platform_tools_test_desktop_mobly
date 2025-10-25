@@ -85,3 +85,7 @@ class BasePasitHID(metaclass=abc.ABCMeta):
   def get_captured_keys(self) -> List[str]:
     """Returns the list of captured keys from the DUT."""
     raise NotImplementedError
+
+  def get_expected_key_events(self, key: str) -> List[str]:
+    """Returns the expected key events for the given key."""
+    raise NotImplementedError

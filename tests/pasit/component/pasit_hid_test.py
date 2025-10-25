@@ -14,7 +14,9 @@
 
 """A test that exercises PASIT HID functionality."""
 
+import logging
 from lib.pasit import hid_emulator
+from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
 from mobly import asserts
@@ -48,31 +50,42 @@ class PasitHIDTest(pasit_test.PasitTestClass):
     # avoid passport reset in PasitTestClass.teardown_test
     # super().teardown_test()
 
-  def test_capture_characters_keys(self) -> None:
-    self.emulator.emulate_keypress(['S'])
-    captured_keys = self.hid.get_captured_keys()
-    asserts.assert_equal(
-        captured_keys,
-        ['DOWN: KEYCODE_S', 'UP: KEYCODE_S'],
-        'Expected to capture key events from DUT.',
-    )
+  def test_capture_alphanumeric_keys(self) -> None:
+    self._verify_all_keys_captured(hid_keys.Alphanumeric)
 
-  def test_capture_top_row_keys(self) -> None:
-    self.emulator.emulate_keypress(['F1'])
-    captured_keys = self.hid.get_captured_keys()
-    asserts.assert_equal(
-        captured_keys,
-        ['DOWN: KEYCODE_F1', 'UP: KEYCODE_F1'],
-        'Expected to capture key events from DUT.',
-    )
+  def test_capture_function_keys(self) -> None:
+    self._verify_all_keys_captured(hid_keys.Function)
 
-  def test_capture_special_keys(self) -> None:
-    self.emulator.emulate_keypress(['Home'])
-    captured_keys = self.hid.get_captured_keys()
+  def test_capture_arrow_pad_keys(self) -> None:
+    self._verify_all_keys_captured(hid_keys.ArrowPad)
+
+  def test_capture_control_pad_keys(self) -> None:
+    self._verify_all_keys_captured(hid_keys.ControlPad)
+
+  def test_capture_numpad_keys(self) -> None:
+    self._verify_all_keys_captured(hid_keys.Numpad)
+
+  def _verify_all_keys_captured(self, keys: list[str]) -> None:
+    """Verifies that all keys are captured correctly.
+
+    Args:
+      keys: The list of keys to verify.
+    """
+    all_captured_keys = []
+    all_expected_keys = []
+    failed_keys = []
+    for key in keys:
+      try:
+        self.emulator.emulate_keypress([key])
+      except Exception as e:  # pylint: disable=broad-except
+        logging.exception('Failed to emulate keypress %s: %s', key, e)
+        failed_keys.append(key)
+        continue
+      all_captured_keys.append(self.hid.get_captured_keys())
+      all_expected_keys.append(self.hid.get_expected_key_events(key))
+    asserts.assert_equal(all_captured_keys, all_expected_keys)
     asserts.assert_equal(
-        captured_keys,
-        ['DOWN: KEYCODE_MOVE_HOME', 'UP: KEYCODE_MOVE_HOME'],
-        'Expected to capture key events from DUT.',
+        failed_keys, [], f'Failed to capture keys: {failed_keys}'
     )
 
 
