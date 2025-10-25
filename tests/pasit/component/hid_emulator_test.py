@@ -17,6 +17,7 @@
 import logging
 
 from lib.pasit import hid_emulator
+from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
 from mobly import asserts
@@ -59,7 +60,7 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
     )
 
     emulator.initialize()
-    emulator.emulate_keypress(['A'])
+    emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
 
     self.unplug_hid_emulator()
     asserts.assert_equal(
@@ -69,7 +70,7 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
     )
     self.plug_in_hid_emulator()
     emulator.initialize()
-    emulator.emulate_keypress(['A'])
+    emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
 
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
