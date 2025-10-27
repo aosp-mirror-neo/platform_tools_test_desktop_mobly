@@ -21,7 +21,7 @@
 # To build the image, run:
 # ./build_docker.sh
 FROM debian:stable-slim
-RUN apt update && apt install -y --no-install-recommends adb procps
+RUN apt update && apt install -y --no-install-recommends adb procps zip graphviz
 RUN mkdir /workdir
 COPY --from=suite DesktopPASITTestbedTests *.apk /tools/pasit/
 COPY --from=host_bin topology_converter /tools/pasit/

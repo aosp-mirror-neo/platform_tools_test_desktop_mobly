@@ -85,7 +85,7 @@ class PassportHost:
   _ip_power_clients: dict[str, ip_power.PassportRPM]
 
   topology: pasit_host_pb2.PasitHost
-  log: logging.Logger
+  log: logging.LoggerAdapter
 
   camera_client: passport_camera_service_client.PassportCameraServiceClient
   hid_client: hid_service_client.PassportHIDServiceClient
@@ -775,7 +775,6 @@ class PassportHost:
 
       graph_content += "}"
 
-      logging.info(graph_content)
       topology_html = constants.HTML_GRAPH_TEMPLATE.format(content=graph_content)
 
       with open(os.path.join(log_dir, "topology.html"), 'w') as f:

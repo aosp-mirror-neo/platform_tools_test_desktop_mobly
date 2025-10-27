@@ -82,12 +82,37 @@ TEST_DATA = [
           type: CHILD_TYPE_2
 """,
         'dot': b"""digraph Topology {
-    "dut_hostname" [label="dut_hostname\nDUT"];
-    "child_1" [label="child_1\nSWITCH_FIXTURE"];
-    "child_2" [label="child_2\nMONITOR"];
-    "dut_hostname" -> "child_1" [label="CHILD_TYPE_1"];
-    "child_1" -> "child_2" [label="CHILD_TYPE_2"];
-}""",
+    node [shape=plain];
+    ranksep = 1.2;
+  "dut_hostname" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>dut_hostname<BR/>DUT</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_1" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_1<BR/>SWITCH_FIXTURE</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_2" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_2<BR/>MONITOR</TD></TR>
+                  
+              </TABLE>>];
+
+          "dut_hostname" -> "child_1" [
+            labeldistance="10",
+            
+          ];
+
+        "child_1" -> "child_2" [
+            labeldistance="10",
+            
+          ];
+
+        }""",
     },
     {
         'name': 'multiple_paths',
@@ -169,15 +194,53 @@ TEST_DATA = [
           type: CHILD_TYPE_3
 """,
         'dot': b"""digraph Topology {
-    "dut_hostname" [label="dut_hostname\nDUT"];
-    "child_1" [label="child_1\nSWITCH_FIXTURE"];
-    "child_2" [label="child_2\nMONITOR"];
-    "child_3" [label="child_3\nSWITCH_FIXTURE"];
-    "dut_hostname" -> "child_1" [label="CHILD_TYPE_1"];
-    "child_1" -> "child_2" [label="CHILD_TYPE_2"];
-    "child_3" -> "child_2" [label="CHILD_TYPE_2_ALTERNATE_PATH"];
-    "dut_hostname" -> "child_3" [label="CHILD_TYPE_3"];
-}""",
+    node [shape=plain];
+    ranksep = 1.2;
+  "dut_hostname" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>dut_hostname<BR/>DUT</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_1" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_1<BR/>SWITCH_FIXTURE</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_2" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_2<BR/>MONITOR</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_3" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_3<BR/>SWITCH_FIXTURE</TD></TR>
+                  
+              </TABLE>>];
+
+          "dut_hostname" -> "child_1" [
+            labeldistance="10",
+            
+          ];
+
+        "child_1" -> "child_2" [
+            labeldistance="10",
+            
+          ];
+
+        "child_3" -> "child_2" [
+            labeldistance="10",
+            
+          ];
+
+        "dut_hostname" -> "child_3" [
+            labeldistance="10",
+            
+          ];
+
+        }""",
     },
     {
         'name': 'circular_topology',
@@ -245,13 +308,42 @@ TEST_DATA = [
           type: CHILD_TYPE_CIRCULAR_PATH
 """,
         'dot': b"""digraph Topology {
-    "dut_hostname" [label="dut_hostname\nDUT"];
-    "child_1" [label="child_1\nSWITCH_FIXTURE"];
-    "child_2" [label="child_2\nMONITOR"];
-    "dut_hostname" -> "child_1" [label="CHILD_TYPE_1"];
-    "child_1" -> "child_2" [label="CHILD_TYPE_2"];
-    "child_2" -> "dut_hostname" [label="CHILD_TYPE_CIRCULAR_PATH"];
-}""",
+    node [shape=plain];
+    ranksep = 1.2;
+  "dut_hostname" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>dut_hostname<BR/>DUT</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_1" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_1<BR/>SWITCH_FIXTURE</TD></TR>
+                  
+              </TABLE>>];
+
+          "child_2" [label=<
+              <TABLE BORDER="2" CELLBORDER="1" CELLSPACING="0">
+                  <TR><TD>child_2<BR/>MONITOR</TD></TR>
+                  
+              </TABLE>>];
+
+          "dut_hostname" -> "child_1" [
+            labeldistance="10",
+            
+          ];
+
+        "child_1" -> "child_2" [
+            labeldistance="10",
+            
+          ];
+
+        "child_2" -> "dut_hostname" [
+            labeldistance="10",
+            
+          ];
+
+        }""",
     },
 ]
 

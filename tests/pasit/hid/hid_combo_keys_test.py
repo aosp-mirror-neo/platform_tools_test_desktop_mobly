@@ -69,7 +69,7 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
   def emulate_shortcut_combination(self, shortcut: KeyboardShortcut) -> None:
     """Emulates a shortcut combination on the HID emulator."""
     keys = self.hid.get_shortcut_combination(shortcut)
-    self.emulate_keypress(keys)
+    self.emulator.emulate_keypress(keys)
 
   def _wait_for_new_screenshots(
       self, screenshots_before: list[str]
@@ -92,7 +92,7 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
     )
     diff = set(screenshots_after) - set(screenshots_before)
     logging.debug('Screenshots after: %s', screenshots_after)
-    return diff
+    return list(diff)
 
   def _get_screenshots(self) -> list[str]:
     """Returns the list of screenshots on the DUT.

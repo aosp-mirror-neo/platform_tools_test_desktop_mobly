@@ -24,7 +24,7 @@ from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
 from lib.utils import image
-from lib.utils.retry import retry
+from lib.utils import retry
 from mobly import asserts
 
 
@@ -145,10 +145,10 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         color).
     """
     for i in range(display_count):
-      retry(
-          func=lambda: self._check_single_display_screenshot(i, color),
+      retry.retry(
+          lambda: self._check_single_display_screenshot(i, color),
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
-          exceptions=(self.ColorMatchingError),
+          exceptions=(self.ColorMatchingError,),
       )
 
   def _check_single_display_screenshot(

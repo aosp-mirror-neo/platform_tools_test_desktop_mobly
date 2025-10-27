@@ -43,6 +43,7 @@ class UTCParams:
     utc.pd_init_state = self.params["pd_init_state"]
     utc.source_pdo_count = self.params["source_pdo_count"]
     utc.dpam_enabled = self.params["dpam_enabled"]
+
     try:
       utc.active_cc = self.params["active_cc"]
     except RuntimeError as e:
@@ -52,6 +53,8 @@ class UTCParams:
         ) from e
       else:
         logging.warning("failed to set active_cc to CC1, skipping as it's normal orientation")
+
+    utc.pd_enabled = self.params["pd_enabled"]
 
 
 def generate_utc_params(
@@ -86,6 +89,7 @@ def generate_utc_params(
                   "pd_init_state": usb.InitPdState.PD_DRP,
                   "source_pdo_count": usb.DEFAULT_SRC_PDO_COUNT,
                   "dpam_enabled": False,
+                  "pd_enabled": True
                   # Override params.
               }
               | overrides

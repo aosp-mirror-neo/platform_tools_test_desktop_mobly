@@ -17,19 +17,27 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
+from pasit.component import hid_emulator_test
 from pasit.component import pasit_device_test
 from pasit.component import pasit_display_test
+from pasit.component import pasit_hid_test
 
 
 class PasitComponentSuite(base_suite.BaseSuite):
   """A suite of tests that exercise PASIT component tests."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(
         pasit_device_test.PasitDeviceTest,
     )
     self.add_test_class(
         pasit_display_test.PasitDisplayTest,
+    )
+    self.add_test_class(
+        hid_emulator_test.HIDEmulatorTest,
+    )
+    self.add_test_class(
+        pasit_hid_test.PasitHIDTest,
     )
 
 

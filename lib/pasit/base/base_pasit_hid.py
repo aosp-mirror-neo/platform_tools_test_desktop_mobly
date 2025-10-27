@@ -23,6 +23,9 @@ from typing import Any, List
 class BasePasitHID(metaclass=abc.ABCMeta):
   """Interface for HID operations for PASIT testing."""
 
+  class Error(Exception):
+    """Error when performing an action on a PASIT HID."""
+
   @dataclasses.dataclass
   class DeviceInfo:
     """Represents information about an HID device."""
@@ -66,4 +69,23 @@ class BasePasitHID(metaclass=abc.ABCMeta):
     Raises:
       ValueError: If the shortcut is not found.
     """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def start_key_capture(self) -> None:
+    """Start capturing key events from the DUT."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_key_capture(self) -> None:
+    """Stops capturing key events from the DUT."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_captured_keys(self) -> List[str]:
+    """Returns the list of captured keys from the DUT."""
+    raise NotImplementedError
+
+  def get_expected_key_events(self, key: str) -> List[str]:
+    """Returns the expected key events for the given key."""
     raise NotImplementedError

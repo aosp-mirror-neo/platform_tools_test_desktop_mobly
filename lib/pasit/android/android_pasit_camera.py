@@ -21,6 +21,7 @@ from lib.pasit.base import base_pasit_camera
 from lib.utils import retry
 from mobly.controllers import android_device
 
+CameraError = base_pasit_camera.BasePasitCamera.Error
 Mode = base_pasit_camera.BasePasitCamera.Mode
 
 
@@ -64,9 +65,12 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         self._camera_app_action[mode],
         self._CAMERA_APP_PACKAGE_NAME,
     ])
-    return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
-        timeout=datetime.timedelta(seconds=20)
-    )
+    try:
+      return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
+          timeout=datetime.timedelta(seconds=20)
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to launch camera app') from e
 
   def close_camera_app(self):
     # Instruct the Activity Manager(am) to terminate all processes associated
@@ -101,19 +105,19 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     return bool(output)
 
   def switch_camera(self):
-    self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
-    ).click()
+    try:
+      self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
+      ).click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to switch camera') from e
 
   def switch_mode(self, mode: Mode) -> bool:
     # Both the photo and video mode buttons are in the same view. Clicking
     # either button toggles to the opposite mode.
     # Retry logic is used to click a button until the desired mode is active.
     retry.retry(
-        lambda: self.controller.ui(
-            pkg=self._CAMERA_APP_PACKAGE_NAME,
-            desc=self._switch_mode_button_description[mode],
-        ).click(),
+        lambda: self._click_switch_camera_button(mode),
         until=lambda _: self._mode_action_button_exists(mode),
         # The policy is defined locally because it is implementation specific.
         # Retry a few times in case the button was switched to the wrong mode.
@@ -122,22 +126,31 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     return self._mode_action_button_exists(mode)
 
   def take_photo(self):
-    self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
-        desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
-    ).click()
+    try:
+      self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
+      ).click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to take photo') from e
 
   def start_recording_video(self):
-    self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
-        desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
-    ).click()
+    try:
+      self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
+      ).click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to start recording video') from e
 
   def stop_recording_video(self):
-    self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
-        desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
-    ).click()
+    try:
+      self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
+      ).click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to stop recording video') from e
 
   def get_files_path(self) -> str:
     return self._CAMERA_APP_FILES_PATH
@@ -156,11 +169,37 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
 
     Returns:
       True if the mode action button exists, False otherwise.
+
+    Raises:
+      CameraError: If the mode action button cannot be determined.
     """
-    return self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
-        desc=self._action_button_description[mode],
-    ).wait.exists(datetime.timedelta(seconds=timeout_seconds))
+    try:
+      return self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._action_button_description[mode],
+      ).wait.exists(datetime.timedelta(seconds=timeout_seconds))
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to check if mode action button exists') from e
 
   def maximize_camera_app_window(self):
-    self.controller.ui(desc='Maximize Camera').click()
+    try:
+      self.controller.ui(desc='Maximize Camera').click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to maximize camera app window') from e
+
+  def _click_switch_camera_button(self, mode: Mode):
+    """Clicks the switch camera button.
+
+    Args:
+      mode: The capture mode to switch the camera for.
+
+    Raises:
+      CameraError: If the switch camera button cannot be clicked.
+    """
+    try:
+      self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._switch_mode_button_description[mode],
+      ).click()
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to click switch camera button') from e

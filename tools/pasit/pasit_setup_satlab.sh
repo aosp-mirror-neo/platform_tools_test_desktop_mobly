@@ -206,43 +206,20 @@ function start_passport() {
 
 function setup_servo() {
   local SERVO_CONTAINER_NAME
-  local SERVO_SERIAL
   local DUT_INFO_FILE
 
   echo -e "\n\nStarting servod container..."
-  DUT_INFO_FILE="$(mktemp)"
-  if ! shivas get dut -json "${DUT_HOSTNAME}" > "${DUT_INFO_FILE}"; then
-    echo -e "\n\nFailed to get DUT info from shivas for ${DUT_HOSTNAME}"
-    echo "Please check if the DUT is a satlab DUT and that shivas command is installed, on your path and logged in."
-    echo "You can try running the following command to validate shivas is working:"
-    echo -e "\tshivas get dut ${DUT_HOSTNAME}"
-    echo "You can login to shivas by running:"
-    echo -e "\tshivas login"
-    exit 1
-  fi
-  SERVO_SERIAL=$(jq -r '.. | .servoSerial? | select(. != null)' "${DUT_INFO_FILE}")
-  if [[ $? -ne 0 || -z "${SERVO_SERIAL}" ]]; then
-    echo -e "\n\nFailed to get servo serial for ${DUT_HOSTNAME}"
-    echo "Please check if the DUT is a satlab DUT and that shivas is installed and logged in."
-    echo "You can try running the following command to validate shivas is working:"
-    echo -e "\tshivas get dut ${DUT_HOSTNAME}"
-    exit 1
-  fi
-
-  SERVO_CONTAINER_NAME=$(jq -r '.. | .servoHostname? | select(. != null)' "${DUT_INFO_FILE}")
-  if [[ -z "${SERVO_CONTAINER_NAME}" ]]; then
-    SERVO_CONTAINER_NAME="${DUT_HOSTNAME}-docker_servod"
-  fi
-  rm "${DUT_INFO_FILE}"
+  SERVO_CONTAINER_NAME="${DUT_HOSTNAME}-docker_servod"
 
   echo "Setting up servod for ${DUT_HOSTNAME}..."
-  echo "Servo serial: ${SERVO_SERIAL}"
   echo "SERVO_CONTAINER_NAME: ${SERVO_CONTAINER_NAME}"
-  echo "BOARD: ${BOARD}"
-  echo "MODEL: ${MODEL}"
 
-  run_command_on_satlab_ignore_error satlab servod stop -host "${DUT_HOSTNAME}" > /dev/null 2>&1
-  if ! run_command_on_satlab satlab servod start -host "${DUT_HOSTNAME}" -board "${BOARD}" -model "${MODEL}" -servo-serial "${SERVO_SERIAL}" -servod-container-name "${SERVO_CONTAINER_NAME}"; then
+  run_command_on_satlab_ignore_error satlab servod stop \
+    -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json \
+    -host "${DUT_HOSTNAME}" > /dev/null 2>&1
+  if ! run_command_on_satlab satlab servod start \
+    -service-account-json /home/satlab/keys/pubsub-key-do-not-delete.json \
+    -host "${DUT_HOSTNAME}"; then
     echo -e "\n\nFailed to start servod for ${DUT_HOSTNAME}"
     exit 1
   fi
@@ -460,19 +437,6 @@ if [[ "${SKIP_LEASE}" != true || "${SKIP_SETUP_SERVO}" != true || "${PROVISION}"
   # for crosfleet and shivas commands
   crosfleet_dut_info
   echo "Setting up DUT board: ${BOARD}, model: ${MODEL}, pool: ${POOL}"
-fi
-
-echo -e "\n\nChecking if satlab ${SATLAB_IP} is logged in..."
-# check that we can ssh to the satlab and that we are logged in
-WHOAMI="$(run_command_on_satlab satlab whoami 2>&1)"
-if [[ "${WHOAMI}" =~ "Not logged in." ]]; then
-  echo -e "\n\nYou are not logged in to satlab ${SATLAB_IP} please follow steps below to login:\n\n"
-
-  echo "satlab login ${SATLAB_IP}"
-  if ! run_command_on_satlab satlab login; then
-    echo -e "\n\nFailed to login to satlab ${SATLAB_IP}"
-    exit 1
-  fi
 fi
 
 if [[ "${SKIP_LEASE}" != true ]]; then

@@ -28,7 +28,7 @@
 # ./pasit_test -p -- <command> <subcommand> <subcommand args>...
 
 usage() {
-  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--] [args...]"
+  echo "Usage: $0 [-h|--help] [-q|--quick] [-p|--passport] [-u|--upload-logs] [--pause-on-fail <seconds>] [--] [args...]"
   echo
   echo "Run PASIT testbed suite on a Satlab host."
   echo
@@ -38,6 +38,7 @@ usage() {
   echo "  -h, --help          Show this help message and exit."
   echo "  -q, --quick         Quick mode. Bypasses re-running of the setup."
   echo "  -p, --passport      Run passport client commands."
+  echo "  --pause-on-fail <seconds>  Pause for <seconds> on test failure."
   echo "  -- [args...]        All arguments after '--' are passed to the test suite or passport client."
   echo
   echo "Examples:"
@@ -99,6 +100,47 @@ log_color() {
     echo -e "${color}[$level]${NC} $message"
 }
 
+summarize_test_output() {
+  local log_file="$1"
+  local class_name=""
+  local summary_header="
+================================================================================
+                                TEST SUMMARY
+================================================================================
+"
+  local summary_content=""
+
+  while IFS= read -r line; do
+    if echo "$line" | grep -q "=> "; then
+      class_name=$(echo "$line" | sed 's/.*> \([^ ]*\) <.*/\1/')
+    elif [[ "$line" == *'[Test]'* ]]; then
+      # Extract test name and status
+      local test_info
+      test_info=$(echo "$line" | awk -F' \\[Test\\] ' '{print $2}')
+      local test_name
+      test_name=$(echo "$test_info" | awk '{print $1}')
+      local test_status
+      test_status=$(echo "$test_info" | awk '{print $2}')
+
+      if [[ -n "$test_status" ]]; then
+        local full_test_name="${class_name}.${test_name}"
+        local status_string
+        if [[ "$test_status" == "PASS" ]]; then
+          status_string="${test_status} ✅"
+        else
+          status_string="${test_status} ❌"
+        fi
+        summary_content+=$(printf "%-89.89s %10s\n" "${full_test_name}" "${status_string}\n")
+      fi
+    fi
+  done < "${log_file}"
+
+  if [[ -n "${summary_content}" ]]; then
+    echo -e "${summary_header}" | tee -a "${log_file}"
+    echo -e "${summary_content}" | tee -a "${log_file}"
+  fi
+}
+
 check_running_on_satlab() {
   if [[ ! -x /usr/local/bin/satlab ]]; then
     log_color ERROR "No satlab command found, this script must be run on a satlab host."
@@ -116,8 +158,30 @@ check_satlab_drone_running_tests() {
 get_dut_info() {
   local dns_info="$(satlab get dns)"
   local dut_line="$(echo "$dns_info" | grep "satlab-" | grep -v -i -E "ip.*power|192.168.231.110")"
-  DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
-  DUT_ID="$(echo "$dut_line" | awk '{print $2}')"
+  DUT_LINE_COUNT="$(echo "$dut_line" | wc -l)"
+  if [[ "${DUT_LINE_COUNT}" -eq 0 ]]; then
+    log_color ERROR "Could not find any DUT in satlab DNS config."
+    exit 1
+  elif [[ "${DUT_LINE_COUNT}" -gt 1 ]]; then
+    if [[ "${DUT_IP_OVERRIDE}" == "" ]]; then
+      log_color INFO "Found the following DUTs:"
+      echo "$dut_line"
+      log_color ERROR "Found multiple DUTs in satlab DNS config, please check"
+      log_color ERROR "the satlab config and remove any extra DUTs or set"
+      log_color ERROR "the DUT_IP_OVERRIDE environment variable to the IP"
+      log_color ERROR "address of the DUT you want to use."
+      log_color ERROR "For example: export DUT_IP_OVERRIDE=192.168.231.123"
+      exit 1
+    fi
+    DUT_IP="${DUT_IP_OVERRIDE}"
+  else
+    DUT_IP="$(echo "$dut_line" | awk '{print $1}')"
+  fi
+  DUT_ID="$(echo "$dut_line" | awk -v ip="${DUT_IP}" '$1 == ip {print $2}')"
+  if [[ -z "${DUT_ID}" ]]; then
+    log_color ERROR "Could not find DUT ID for DUT IP ${DUT_IP} in satlab DNS config."
+    exit 1
+  fi
 
   if ! satlab get dut "${DUT_ID}" > "${DUT_INFO_FILE}"; then
     log_color ERROR"Failed to get DUT info from satlab for ${DUT_ID}"
@@ -303,8 +367,23 @@ generate_pasit_config() {
   # passport service_host -> IP address of passport container
   sed -i "s/service_host: .*/service_host: ${PASSPORT_IP}/g" \
     ${TEMP_DIR}/pasit_config.yaml
+  if [[ -n "${PAUSE_ON_FAIL_SECONDS}" ]]; then
+    sed -i "/TestParams:/a \    on_fail_pause_seconds: ${PAUSE_ON_FAIL_SECONDS}" \
+      "${TEMP_DIR}/pasit_config.yaml"
+  fi
   docker cp ${TEMP_DIR}/pasit_config.yaml ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.yaml
   set +e
+  # generate png with topology_converter
+  if ! docker run -it --rm\
+    -v ${PASIT_VOLUME_NAME}:/workdir \
+    --entrypoint /tools/pasit/topology_converter \
+    ${PASIT_ANDROID_IMAGE}  \
+    graph \
+    -i /workdir/pasit_config.yaml \
+    -o /workdir/pasit_config.png; then
+    log_color ERROR "Failed to generate PASIT config PNG file."
+  fi
+  docker cp ${PASIT_PERSISTENT_CONTAINER_NAME}:/workdir/pasit_config.png ${TEMP_DIR}/pasit_config.png
   log_color GOOD "PASIT config YAML file generated: ${TEMP_DIR}/pasit_config.yaml"
 }
 
@@ -330,6 +409,8 @@ run_pasit_testbed_suite() {
       -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
   fi
 
+  summarize_test_output "${TEMP_DIR}/pasit_run_output.txt"
+
   local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
   # copy the logs to the host for easier debugging
   if ! docker cp ${RUN_CONTAINER_NAME}:${log_dir} ${TEMP_DIR}; then
@@ -340,11 +421,23 @@ run_pasit_testbed_suite() {
 }
 
 upload_logs() {
-  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json)"
+  local GCS_LOGS_URL="https://pantheon.corp.google.com/storage/browser"
+  local PASIT_SUBDIR="pasit_logs"
   local temp_dir="$(cat /tmp/pasit_temp_dir.txt)"
   if [[ -z "${temp_dir}" ]]; then
     log_color ERROR "No temp directory found, run tests before uploading logs."
     exit 1
+  fi
+  local gcs_bucket="$(jq -r .GCS_IMAGE_BUCKET /home/satlab/keys/satlab-config.json 2>/dev/null)"
+  if [[ -z "${gcs_bucket}" ]]; then
+    local internal_satlab_config="$(grep -c "satlab-internal-users" /home/satlab/keys/pubsub-key-do-not-delete.json 2>/dev/null)"
+    if [[ "${internal_satlab_config}" -eq 0 ]]; then
+      log_color ERROR "Failed to find GCS bucket in satlab config."
+      exit 1
+    else
+      # use the throw away bucket for internal satlabs
+      gcs_bucket="chromeos-throw-away-bucket"
+    fi
   fi
   echo "Uploading logs to: gs://${gcs_bucket}..."
   # stop the persistent container
@@ -369,14 +462,24 @@ upload_logs() {
   fi
   # copy the entire temp directory to the shared volume and upload it to GCS
   local upload_dir="pasit_test_$(date +%Y%m%d_%H%M%S)"
-  local gcs_logs_dir="gs://${gcs_bucket}/pasit_logs/${upload_dir}"
+  local gcs_logs_dir="gs://${gcs_bucket}/${PASIT_SUBDIR}/${upload_dir}"
   docker cp ${temp_dir} ${PASIT_PERSISTENT_LOG_CONTAINER_NAME}:/workdir/${upload_dir}
+  # clean up the temp directory to remove test related logs so they don't get
+  # uploaded again
+  find ${temp_dir} -type d -maxdepth 1 -mindepth 1 -exec rm -rf {} +
+  rm ${temp_dir}/pasit_run_output.txt
+  # copy any images generated by passport the exported logs dir
+  if [[ $(docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} find /workdir/ -maxdepth 1 -name *.jpg | wc -l) -gt 0 ]]; then
+    docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} mkdir /workdir/${upload_dir}/passport_images
+    docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} bash -c "mv /workdir/*.jpg /workdir/${upload_dir}/passport_images/"
+  fi
+  # upload the logs to GCS
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} gsutil cp -r /workdir/${upload_dir} ${gcs_logs_dir}
   docker exec ${PASIT_PERSISTENT_LOG_CONTAINER_NAME} rm -rf /workdir/${upload_dir}
 
   echo
   echo
-  echo "Logs uploaded successfully to ${gcs_logs_dir}."
+  echo "Logs uploaded successfully to ${GCS_LOGS_URL}/${gcs_bucket}/${PASIT_SUBDIR}/${upload_dir}."
   echo "File a bug at go/file-pasit-bug and include: the gcs link, dut_id, and "
   echo "satlab IP address in the bug description."
 }
@@ -403,6 +506,14 @@ while [[ $# -gt 0 ]]; do
       UPLOAD_LOGS=1
       shift;
       ;;
+    --pause-on-fail)
+      if [[ -z "$2" || ! "$2" =~ ^[0-9]+$ ]]; then
+        log_color ERROR "--pause-on-fail requires a numeric argument for seconds."
+        exit 1
+      fi
+      PAUSE_ON_FAIL_SECONDS="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -425,7 +536,9 @@ elif [[ "${PASSPORT_CLIENT}" -eq 1 ]]; then
   if ! docker ps | grep "passport-dev"; then
     start_passport
   fi
-  docker run --rm -it --network=host us-docker.pkg.dev/cros-passport/passport/passport:latest /usr/bin/cros-passport ${forwarded_args}
+  docker run --rm -it --volume ${PASIT_VOLUME_NAME}:/workdir -w /workdir \
+   --network=host us-docker.pkg.dev/cros-passport/passport/passport:latest \
+   /usr/bin/cros-passport ${forwarded_args}
   exit 0
 fi
 if [[ "${QUICK_MODE}" -ne 1 ]]; then
