@@ -14,7 +14,10 @@
 
 """AndroidPasitNetwork handles network status for PASIT testing on Android devices."""
 
+import logging
+
 from lib.pasit.base import base_pasit_network
+from mobly.controllers.android_device_lib import adb
 
 
 class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
@@ -27,3 +30,23 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
         ['ip', '-json', 'link', 'show']
     )
     return self.ip_link_json_to_network_infos(ip_link_json_str.decode())
+
+  def is_network_connected_to_internet(self, ifname: str) -> bool:
+    try:
+      # ping google.com 3 times with 30 seconds timeout
+      result = self.controller.adb.shell(
+          ['ping', '-c', '3', '-w', '30', '-q', '-I', ifname, 'google.com']
+      )
+      logging.debug(
+          'is_network_connected_to_internet result: %s', result.decode()
+      )
+      return True
+    except adb.AdbError as e:
+      logging.debug(
+          'Network %s is not connected to internet:\n\tstdout:'
+          ' %s\n\tstderr: %s',
+          ifname,
+          e.stdout.decode(),
+          e.stderr.decode(),
+      )
+      return False

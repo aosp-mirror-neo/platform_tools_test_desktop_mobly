@@ -79,6 +79,44 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
     )
     logging.info('Found network with lower_up True: %s', found_lower_up_iface)
 
+  def test_is_network_connected_to_internet(self) -> None:
+    networks = self.network.get_network_infos_not_down()
+    # try the connected test on the first network found that is not DOWN
+    iface = next(iter(networks.values()))
+    logging.info(
+        'Found network that is not DOWN: %s, checking if connected to internet',
+        iface.name,
+    )
+    asserts.assert_true(
+        self.network.is_network_connected_to_internet(iface.name),
+        f'Expected network {iface.name} to be connected to internet',
+    )
+
+  def test_is_network_connected_to_internet_not_connected(self) -> None:
+    self.network = self.create(pasit_network)
+    networks = self.network.get_network_infos()
+    iface = None
+    # try the connected test on the first network found that is not DOWN
+    for network in networks.values():
+      if network.state != pasit_network.NetworkState.DOWN:
+        continue
+      iface = network
+      break
+    asserts.assert_true(
+        iface, 'Expected at least one network that is DOWN to be found'
+    )
+    if iface is None:
+      return
+    logging.info(
+        'Found network that is DOWN: %s, checking if connected to internet'
+        ' fails',
+        iface.name,
+    )
+    asserts.assert_false(
+        self.network.is_network_connected_to_internet(iface.name),
+        f'Expected network {iface.name} to be not connected to internet',
+    )
+
 
 if __name__ == '__main__':
   test_runner.main()

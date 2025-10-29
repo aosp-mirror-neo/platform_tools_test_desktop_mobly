@@ -98,6 +98,17 @@ class BasePasitNetwork(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def is_network_connected_to_internet(self, ifname: str) -> bool:
+    """Checks if the network interface is connected to internet.
+
+    Args:
+      ifname: The name of the network interface.
+    Returns:
+      True if the network is connected to internet, False otherwise.
+    """
+    raise NotImplementedError
+
   def ip_link_json_to_network_infos(
       self, ip_link_json_str: str
   ) -> dict[str, NetworkInfo]:
