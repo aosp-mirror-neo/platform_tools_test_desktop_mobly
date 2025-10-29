@@ -31,6 +31,7 @@ from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_hid
+from lib.pasit import pasit_network
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
 from lib.pasit import test_policy
@@ -168,6 +169,63 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         3,
         'Expected DUT to have 3 new HID devices after activation of HID'
         ' emulator.',
+    )
+
+  def _network_test_logic(self, device_id: str):
+    """Tests that we can activate and detect a specific Ethernet device."""
+    network = self.create(pasit_network)
+    network_devices_before_activation = network.get_network_infos()
+    logging.info('Testing Ethernet device: %s', device_id)
+    self.passport_host.activate_device_by_id(device_id)
+    logging.info('Waiting for new network device to be detected...')
+    network_infos_after_activation = retry.retry(
+        network.get_network_infos,
+        until=lambda network_infos: network_infos.keys()
+        - network_devices_before_activation.keys(),
+        policy=test_policy.NetworkTestPolicy.DETECT_EXTERNAL_NETWORK_DEVICES_RETRY_POLICY,
+    )
+    new_network_infos = (
+        network_infos_after_activation.keys()
+        - network_devices_before_activation.keys()
+    )
+    asserts.assert_equal(
+        len(new_network_infos),
+        1,
+        'Expected exactly one Ethernet device after activation, got'
+        f' {new_network_infos}.',
+    )
+    iface_name = next(iter(new_network_infos))
+    logging.info(
+        'Found new network: %s checking if cable is connected', iface_name
+    )
+    # check if cable is connected
+    networks = retry.retry(
+        network.get_network_infos,
+        until=lambda networks: _is_network_cable_connected(
+            networks, iface_name
+        ),
+        policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_CABLE_CONNECTED_RETRY_POLICY,
+    )
+    asserts.assert_true(
+        _is_network_cable_connected(networks, iface_name),
+        f'Cable is not detected as connected for network {iface_name}.',
+    )
+    logging.info(
+        'Cable is connected for network %s, check if connected to internet',
+        iface_name,
+    )
+    has_internet = retry.retry(
+        lambda: network.is_network_connected_to_internet(iface_name),
+        until=lambda result: result,
+        policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_INTERNET_CONNECTED_RETRY_POLICY,
+    )
+    asserts.assert_true(
+        has_internet,
+        f'Network {iface_name} is not connected to internet.',
+    )
+    logging.info(
+        'Network %s is connected to internet, passed',
+        iface_name,
     )
 
   def _get_newly_plugged_cameras(
@@ -321,6 +379,20 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           arg_sets=hid_devices,
       )
 
+  def _generate_ethernet_tests(
+      self, topology: pasit_host_pb2.PasitHost
+  ) -> None:
+    """Generates tests for Ethernet devices."""
+    network_devices = self._get_devices_from_topology(
+        topology, self.DEVICE_TYPE_NETWORK
+    )
+    if network_devices:
+      self.generate_tests(
+          test_logic=self._network_test_logic,
+          name_func=lambda id: self._get_test_name('ethernet', id),
+          arg_sets=network_devices,
+      )
+
   def pre_run(self):
     """Generate tests for each test case based on the topology."""
     topology = self._get_topology()
@@ -328,6 +400,17 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     self._generate_camera_tests(topology)
     self._generate_display_tests(topology)
     self._generate_hid_tests(topology)
+    self._generate_ethernet_tests(topology)
+
+
+def _is_network_cable_connected(
+    networks: dict[str, pasit_network.NetworkInfo], iface_name: str
+) -> bool:
+  """Checks if the network cable is connected."""
+  default_network_info = pasit_network.NetworkInfo(
+      '', '', False, pasit_network.NetworkState.UNKNOWN, '', {}
+  )
+  return networks.get(iface_name, default_network_info).lower_up
 
 
 if __name__ == '__main__':

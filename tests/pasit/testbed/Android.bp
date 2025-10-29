@@ -38,6 +38,7 @@ python_test_host {
         "py-pasit-camera",
         "py-pasit-display",
         "py-pasit-hid",
+        "py-pasit-network",
         "py-display-painter",
         "py-display-camera-mapper",
     ],
