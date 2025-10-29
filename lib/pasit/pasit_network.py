@@ -1,0 +1,30 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""The module for PASIT Network related imports and types."""
+
+from lib.pasit.android import android_pasit_network
+from lib.pasit.base import base_pasit_network
+from mobly.controllers import android_device
+
+
+PasitNetwork = base_pasit_network.BasePasitNetwork
+NetworkInfo = base_pasit_network.NetworkInfo
+NetworkState = base_pasit_network.NetworkState
+
+# A dictionary of controller types and the corresponding PasitHID class.
+# Used in PasitTestClass.create() to get the correct PasitHID class.
+registry = {
+    android_device.AndroidDevice: android_pasit_network.AndroidPasitNetwork
+}

@@ -39,6 +39,7 @@ python_test_host {
         "py-display-helper",
         "py-desktop-utils",
         "py-pasit-hid",
+        "py-pasit-network",
     ],
     pkg_path: "pasit/component",
 }
