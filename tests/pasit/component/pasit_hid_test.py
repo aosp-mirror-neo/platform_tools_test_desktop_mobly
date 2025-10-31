@@ -51,19 +51,19 @@ class PasitHIDTest(pasit_test.PasitTestClass):
     # super().teardown_test()
 
   def test_capture_alphanumeric_keys(self) -> None:
-    self._verify_all_keys_captured(hid_keys.Alphanumeric)
+    self._verify_all_keys_captured([key for key in hid_keys.Alphanumeric])
 
   def test_capture_function_keys(self) -> None:
-    self._verify_all_keys_captured(hid_keys.Function)
+    self._verify_all_keys_captured([key for key in hid_keys.Function])
 
   def test_capture_arrow_pad_keys(self) -> None:
-    self._verify_all_keys_captured(hid_keys.ArrowPad)
+    self._verify_all_keys_captured([key for key in hid_keys.ArrowPad])
 
   def test_capture_control_pad_keys(self) -> None:
-    self._verify_all_keys_captured(hid_keys.ControlPad)
+    self._verify_all_keys_captured([key for key in hid_keys.ControlPad])
 
   def test_capture_numpad_keys(self) -> None:
-    self._verify_all_keys_captured(hid_keys.Numpad)
+    self._verify_all_keys_captured([key for key in hid_keys.Numpad])
 
   def _verify_all_keys_captured(self, keys: list[str]) -> None:
     """Verifies that all keys are captured correctly.
