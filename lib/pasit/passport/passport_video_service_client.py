@@ -315,6 +315,8 @@ class PassportVideoServiceClient:
   def run_compliance_tests(
       self,
       tests: list[video_tester_service_pb2.ComplianceTestVideoTester],
+      board: str,
+      model: str,
   ) -> tuple[
       list[video_tester_service_pb2.ComplianceTestResultVideoTester], str
   ]:
@@ -322,6 +324,8 @@ class PassportVideoServiceClient:
 
     Args:
         tests: A list of ComplianceTestVideoTester objects.
+        board: The board of the DUT (e.g., "brya", "fatcat").
+        model: The model of the DUT (e.g., "redrix", "mithrax").
 
     Returns:
         A tuple containing:
@@ -330,7 +334,7 @@ class PassportVideoServiceClient:
     """
     self._ensure_tester_open()
     request = video_tester_service_pb2.RunComplianceTestRequest(
-        id=self._tester_id, tests=tests
+        id=self._tester_id, tests=tests, platform=board, model=model
     )
     response = self._stub.RunComplianceTest(request)
     return response.results, response.results_html
