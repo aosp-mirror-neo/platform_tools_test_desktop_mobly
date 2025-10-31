@@ -22,27 +22,26 @@ EdidDatum = edid_datum.EdidDatum
 
 @dataclass
 class EdidForMaxMode:
-    """
-    Represents the EDID information for the maximum supported resolution of a display.
-    """
-    Hactive: int
-    Vactive: int
-    RefreshRate: int
-    Edid: EdidDatum
+  """Represents the EDID information for the maximum supported resolution of a display."""
+  Hactive: int
+  Vactive: int
+  RefreshRate: int
+  Edid: EdidDatum
 
-    def __str__(self):
-        """
-        Provides a user-friendly string representation of the class instance.
-        """
-        return (f"Max Resolution EDID:\n"
-                f"  Horizontal Active: {self.Hactive} pixels\n"
-                f"  Vertical Active: {self.Vactive} pixels\n"
-                f"  Refresh Rate: {self.RefreshRate} Hz\n"
-                f"  EDID Data: {self.Edid.name if self.Edid else 'Not available'}")
+  def __str__(self):
+    """Provides a user-friendly string representation of the class instance."""
+    return (
+        "Max Resolution EDID:\n"
+        f"  Horizontal Active: {self.Hactive} pixels\n"
+        f"  Vertical Active: {self.Vactive} pixels\n"
+        f"  Refresh Rate: {self.RefreshRate} Hz\n"
+        f"  EDID Data: {self.Edid.name if self.Edid else 'Not available'}"
+    )
 
-_8k_60Hz_Timings_EDID = EdidForMaxMode(
-   Hactive=7680,
+
+edid_8k_60Hz_Timings = EdidForMaxMode(
+    Hactive=7680,
     Vactive=4320,
     RefreshRate=60,
-    Edid=edids_list.GENERATED_8k_60Hz
+    Edid=edids_list.GENERATED_8k_60Hz,
 )

@@ -14,61 +14,20 @@
 
 """Define display capabilities and EDIDs for supported boards"""
 
-from enum import Enum
-import logging
-from typing import Dict, Optional
+from typing import Dict
 from display.utils import edid_for_max_supported_modes
-from lib.pasit import pasit_device
 from mobly import asserts
 
 EdidForMaxMode = edid_for_max_supported_modes.EdidForMaxMode
 
-
-# Define an Enum for the board names to ensure type safety and prevent typos.
-class BoardName(Enum):
-  FATCAT = "fatcat"
-  BRYA = "brya"
-
-
-# A map of board names to their corresponding EdidForMaxRes objects.
-boardMaxSupportedRes: Dict[BoardName, EdidForMaxMode] = {
-    BoardName.FATCAT: edid_for_max_supported_modes._8k_60Hz_Timings_EDID,
-    BoardName.BRYA: edid_for_max_supported_modes._8k_60Hz_Timings_EDID,
+boardMaxSupportedRes: Dict[str, EdidForMaxMode] = {
+    "fatcat": edid_for_max_supported_modes.edid_8k_60Hz_Timings,
+    "brya": edid_for_max_supported_modes.edid_8k_60Hz_Timings,
 }
 
 
-def get_current_board_name(dut: pasit_device.PasitDevice) -> BoardName | None:
-  """Executes the shell command 'adb shell getprop ro.product.device' and
-
-  returns the output as the current board name.
-
-  Returns:
-      BoardName enum member or None: The current board name if the command is
-      successful,
-                  otherwise None.
-  """
-  try:
-    ADB_SHELL_BOARD_NAME_CMD = "getprop ro.product.device"
-    board_name_str = (
-        dut.shell(ADB_SHELL_BOARD_NAME_CMD.split())
-        .decode("utf-8", errors="ignore")
-        .strip()
-    )
-    logging.info("Current board under test model name is : %s", board_name_str)
-    for name in BoardName:
-      if name.value == board_name_str:
-        return name
-    assert False, (
-        "Add your board name to the BoardName Enum class and add its"
-        " corresponding EDID"
-    )
-    return None
-  except Exception:
-    return None
-
-
 def get_edid_for_max_supported_res_for_board(
-    board_name: BoardName,
+    board_name: str,
 ) -> EdidForMaxMode | None:
   """Returns the EdidForMaxMode object for a given board name.
 
