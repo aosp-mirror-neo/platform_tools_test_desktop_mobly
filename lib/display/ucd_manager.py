@@ -272,8 +272,7 @@ class UcdManager(abc.ABC):
             f"Waiting for {expected_total_display_count} displays to report"
             f" stream info. Finding {valid_streams_count} instead"
         )
-        logging.debug(self._vsc.get_stream_info_for_all_streams())
-        time.sleep(2)
+        time.sleep(5)
         continue
 
       logging.info(

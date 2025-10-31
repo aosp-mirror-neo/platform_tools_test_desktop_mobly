@@ -17,7 +17,6 @@ package {
     default_team: "trendy_team_desktop_peripherals",
 }
 
-
 python_test_host {
     name: "TestBasicUcd",
     main: "test_basic.py",
@@ -139,6 +138,4 @@ python_test_host {
     libs: [
         "py-display-utils",
     ],
-
-
 }
