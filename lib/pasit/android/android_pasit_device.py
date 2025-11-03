@@ -178,6 +178,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       if 'closed' in str(e.stderr) or 'device offline' in str(e.stderr):
         logging.debug('Device detected as offline.')
         return False
+      if e.ret_code == 255:
+        # Handle return code 255 to avoid flakes.
+        logging.debug('Device is not adb detectable, device is offline.')
+        return False
       raise PasitDeviceError(
           'Unexpected error while checking if device is offline.'
       ) from e

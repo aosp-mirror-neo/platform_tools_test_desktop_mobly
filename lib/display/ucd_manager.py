@@ -272,8 +272,7 @@ class UcdManager(abc.ABC):
             f"Waiting for {expected_total_display_count} displays to report"
             f" stream info. Finding {valid_streams_count} instead"
         )
-        logging.debug(self._vsc.get_stream_info_for_all_streams())
-        time.sleep(2)
+        time.sleep(5)
         continue
 
       logging.info(
@@ -361,6 +360,8 @@ class UcdManager(abc.ABC):
 
   def run_compliance_tests(
       self,
+      board: str,
+      model: str,
       group: compliance_tests_manager.TestGroup,
       references: list[str] | None = None,
   ) -> bool:
@@ -371,6 +372,8 @@ class UcdManager(abc.ABC):
     If references is None, it runs all tests in the specified group.
 
     Args:
+      board: The board of the DUT (e.g., "brya", "fatcat").
+      model: The model of the DUT (e.g., "redrix", "mithrax").
       group: The TestGroup object containing the tests.
       references: Optional. A list of test reference strings (e.g., ["4.2.1.1",
         "4.2"]) as it can also be partial references. If None, all tests in the
@@ -391,7 +394,7 @@ class UcdManager(abc.ABC):
       logging.info("Requested to run all tests in group %s.", group.name)
       tests = group.get_all_video_tester_tests_in_group()
 
-    results, _ = self._vsc.run_compliance_tests(tests)
+    results, _ = self._vsc.run_compliance_tests(tests, board, model)
 
     status_counts = collections.defaultdict(int)
     failed_tests = []

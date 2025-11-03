@@ -47,6 +47,7 @@ class PasitTestClass(base_test.BaseTestClass):
   DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
   DEVICE_TYPE_HID = pasit_host_pb2.PasitHost.Device.Type.HID
   DEVICE_TYPE_DOCK = pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION
+  DEVICE_TYPE_NETWORK = pasit_host_pb2.PasitHost.Device.Type.NETWORK
 
   dut: pasit_device.PasitDevice
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None

@@ -17,6 +17,7 @@
 
 from display.utils import board_capabilities
 from display.utils import interface_types
+from display.utils import platform_info_helper
 from display.utils import ucd_base_test
 from mobly import asserts
 from mobly import base_suite
@@ -131,19 +132,12 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
     )
 
     # Setup UCD as a sink with required max resolution per board
-    board_name = board_capabilities.get_current_board_name(self.dut)
-    asserts.assert_not_equal(
-        board_name,
-        None,
-        f"Could not get the current board name",
-    )
+    board_name = platform_info_helper.get_current_board_name(self.dut)
     edid_for_max_mode = (
         board_capabilities.get_edid_for_max_supported_res_for_board(board_name)
     )
-
-    asserts.assert_not_equal(
+    asserts.assert_true(
         edid_for_max_mode,
-        None,
         f"No Edid for Max Resolution found for board: '{board_name}'",
     )
 

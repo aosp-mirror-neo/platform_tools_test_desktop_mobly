@@ -14,6 +14,7 @@
 
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
+    default_team: "trendy_team_desktop_peripherals",
 }
 
 python_library_host {
@@ -126,6 +127,19 @@ python_library_host {
         "*hid.py",
         "hid_emulator.py",
         "hid_keys.py",
+    ],
+    exclude_srcs: ["passport/*"],
+    libs: [
+        "mobly",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
+    name: "py-pasit-network",
+    srcs: [
+        "*/*network.py",
+        "*network.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [

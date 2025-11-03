@@ -18,6 +18,7 @@ from typing import Optional
 
 from display.utils import compliance_tests_manager
 from display.utils import interface_types
+from display.utils import platform_info_helper
 from display.utils import ucd_base_test
 from display.utils import ucd_compliance_tests_lists
 from mobly import asserts
@@ -29,11 +30,18 @@ from mobly import suite_runner
 class ComplianceTest(ucd_base_test.UcdBaseTest):
   """Test class for running VESA compliance tests."""
 
+  board: str
+  model: str
+
   def pre_run(self):
     self.setup_generated_tests()
 
   def setup_class(self):
     super().setup_class()
+
+    self.board, self.model = platform_info_helper.get_current_board_model_names(
+        self.dut
+    )
 
   def _run_compliance_test(
       self, test_list, restrict_interface_type, test_name, test_filter=None
@@ -46,7 +54,9 @@ class ComplianceTest(ucd_base_test.UcdBaseTest):
       )
 
     asserts.assert_true(
-        self._ucd_manager.run_compliance_tests(test_list, test_filter),
+        self._ucd_manager.run_compliance_tests(
+            self.board, self.model, test_list, test_filter
+        ),
         f"{test_name} Failed.",
     )
 

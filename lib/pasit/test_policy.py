@@ -63,3 +63,18 @@ class DeviceTestPolicy:
       max_tries=20,
       delay_seconds=2,
   )
+
+
+class NetworkTestPolicy:
+  DETECT_EXTERNAL_NETWORK_DEVICES_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=30,
+      delay_seconds=2,
+  )
+  DETECT_NETWORK_CABLE_CONNECTED_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=15,
+      delay_seconds=2,
+  )
+  DETECT_NETWORK_INTERNET_CONNECTED_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=10,
+      delay_seconds=2,
+  )

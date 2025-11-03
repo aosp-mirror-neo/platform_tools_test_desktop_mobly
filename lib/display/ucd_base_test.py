@@ -88,6 +88,9 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     self.internal_display_id = self.helper.get_internal_display_id()
 
   def teardown_test(self):
+    if self._ucd_manager is None:
+      return
+
     try:
       # When we finish the test, Let's check that the most basic functionalities are working.
       # If they're not, let's reset our system so we can start fresh after.
@@ -107,8 +110,9 @@ class UcdBaseTest(pasit_test.PasitTestClass):
       self._ucd_manager.unplug_and_destroy_all_displays()
 
   def teardown_class(self):
-    self._ucd_manager.reset_ucd_displays_state_to_default()
-    self._ucd_manager.disconnect_ucd()
+    if self._ucd_manager is not None:
+      self._ucd_manager.reset_ucd_displays_state_to_default()
+      self._ucd_manager.disconnect_ucd()
     self.dut.reboot()
 
   def skip_if_display_count_not_supported(self, display_count: int):
