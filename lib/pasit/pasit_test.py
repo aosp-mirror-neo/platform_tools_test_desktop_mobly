@@ -25,7 +25,6 @@ from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_test
-from mobly import records
 from mobly import signals
 
 
@@ -67,6 +66,13 @@ class PasitTestClass(base_test.BaseTestClass):
         ' not found in topology.',
     )
     self.bugreport = self.user_params.get('bugreport', '')
+    self.failure_pause_seconds = int(
+        self.user_params.get('on_fail_pause_seconds', '0')
+    )
+    self.failure_drop_to_interpreter = bool(
+        self.user_params.get('on_fail_drop_to_interpreter', False)
+    )
+
     self.dut = pasit_device.create(self)
     self.passport_host.reset()
 
@@ -92,16 +98,6 @@ class PasitTestClass(base_test.BaseTestClass):
     if hasattr(self, 'dut'):
       self.dut.cleanup()
     super().teardown_class()
-
-  def on_fail(self, record: records.TestResultRecord):
-    """Called when a test fails."""
-    self._capture_bugreport(True)
-    super().on_fail(record)
-
-  def on_pass(self, record: records.TestResultRecord):
-    """Called when a test passes."""
-    self._capture_bugreport(False)
-    super().on_pass(record)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.
@@ -168,40 +164,41 @@ class PasitTestClass(base_test.BaseTestClass):
     except Exception as e:  # pylint: disable=broad-except
       logging.warning('Failed to collect bug report: %s', e)
 
+  def _debug_on_test_failure(self, e: Exception) -> None:
+    """Pauses the test for debugging on test failure."""
+    if self.failure_drop_to_interpreter:
+      # must be assigned to a local variable to be accessible from the debugger
+      test_instance = self
+      logging.error('Dropping to interpreter due to test failure: %s.', e)
+      logging.info(
+          'You can access the test class from the debugger by using the'
+          ' test_instance variable: %s',
+          test_instance,
+      )
+      breakpoint()
+    elif self.failure_pause_seconds > 0:
+      logging.error(
+          'Pausing for %d seconds after test failure: %s.',
+          self.failure_pause_seconds,
+          e,
+      )
+      time.sleep(self.failure_pause_seconds)
+
   # Note type hints intentionally not included to match underlying Mobly code
   # in base_test.py.
   def exec_one_test(self, test_name, test_method, record=None):
     """Override the Mobly exec_one_test method to allow for debugging."""
-    # Make self available to the debugger in the closure below.
-    test_instance = self
-    failure_pause_seconds = int(
-        self.user_params.get('on_fail_pause_seconds', '0')
-    )
-    failure_drop_to_interpreter = bool(
-        self.user_params.get('on_fail_drop_to_interpreter', False)
-    )
 
     def wrapped_test_method():
       try:
         test_method()
+        self._capture_bugreport(False)
+      # pylint: disable-next=try-except-raise
       except (signals.TestPass, signals.TestAbortSignal, signals.TestSkip):
         raise
       except Exception as e:
-        if failure_drop_to_interpreter:
-          logging.error('Dropping to interpreter due to test failure: %s.', e)
-          logging.info(
-              'You can access the test class from the debugger by using the'
-              ' test_instance variable: %s',
-              test_instance,
-          )
-          breakpoint()
-        elif failure_pause_seconds > 0:
-          logging.error(
-              'Pausing for %d seconds after test failure: %s.',
-              failure_pause_seconds,
-              e,
-          )
-          time.sleep(failure_pause_seconds)
+        self._capture_bugreport(True)
+        self._debug_on_test_failure(e)
         raise e
 
     return super().exec_one_test(test_name, wrapped_test_method, record)
