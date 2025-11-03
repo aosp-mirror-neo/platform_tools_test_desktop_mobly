@@ -80,14 +80,8 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""
-
-    self.passport_host.capture_images_from_all_cameras(
-        self.current_test_info.output_path, 'on_teardown_test'
-    )
     if self.dut.power_on_if_offline():
       asserts.fail('DUT is offline after test.')
-    else:
-      self.capture_screenshots('on_teardown_test')
 
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
@@ -184,6 +178,33 @@ class PasitTestClass(base_test.BaseTestClass):
       )
       time.sleep(self.failure_pause_seconds)
 
+  def _try_create_excerpts(self) -> None:
+    """Creates excerpts for all Mobly Services."""
+    try:
+      self.dut.controller.services.create_output_excerpts_all(
+          self.current_test_info
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to create excerpts: %s', e)
+
+  def _try_capture_screenshots(self) -> None:
+    """Captures screenshots for all displays."""
+    try:
+      self.dut.capture_screenshots(
+          self.current_test_info.output_path, 'on_test_failure'
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to capture screenshots: %s', e)
+
+  def _try_capture_images_from_all_cameras(self) -> None:
+    """Captures images from all cameras."""
+    try:
+      self.passport_host.capture_images_from_all_cameras(
+          self.current_test_info.output_path, 'on_test_failure'
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to capture images from all cameras: %s', e)
+
   # Note type hints intentionally not included to match underlying Mobly code
   # in base_test.py.
   def exec_one_test(self, test_name, test_method, record=None):
@@ -198,6 +219,9 @@ class PasitTestClass(base_test.BaseTestClass):
         raise
       except Exception as e:
         self._capture_bugreport(True)
+        self._try_capture_screenshots()
+        self._try_capture_images_from_all_cameras()
+        self._try_create_excerpts()
         self._debug_on_test_failure(e)
         raise e
 
