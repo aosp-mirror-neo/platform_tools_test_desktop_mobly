@@ -65,7 +65,7 @@ class PasitTestClass(base_test.BaseTestClass):
         f'{get_device_type_name(self.requires_device_type)}'
         ' not found in topology.',
     )
-    self.bugreport = self.user_params.get('bugreport', '')
+    self.bugreport = self.user_params.get('bugreport', 'on_fail')
     self.failure_pause_seconds = int(
         self.user_params.get('on_fail_pause_seconds', '0')
     )
