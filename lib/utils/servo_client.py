@@ -116,7 +116,11 @@ class LSNexusClient(ServoBase):
 
   def _start_servod(self):
     """Calls StartServod"""
-    self._stub.StartServod(lsnexus_service_pb2.StartServodRequest())
+    self._stub.StartServod(
+        # Since each test class calls this method it is much more efficient to
+        # reuse the existing servod instance, instead of starting a new one.
+        lsnexus_service_pb2.StartServodRequest(reuse_existing=True)
+    )
 
   def verify_connected(self):
     """Verifies that the client is connected to the Servod."""
