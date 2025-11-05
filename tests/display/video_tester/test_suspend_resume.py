@@ -19,8 +19,6 @@ import logging
 import time
 
 from display.utils import ucd_base_test
-from lib.utils import image
-
 from lib.pasit import dut_state_manager
 from mobly import asserts
 from mobly import base_suite
@@ -37,214 +35,290 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
   functionality.
   """
 
-  # TODO: b/422483099 - When we gain more confidence in our max display support,
+  # TODO: b/391360720 - When we gain more confidence in our max display support,
   # replace this by self.max_tested_displays
-  _PLUGGED_DISPLAYS = 1
-  _SUSPEND_TIME_BASE = 1.5
-  _MAX_SUSPEND_TIME_EXPONENT = 13
-  _STESS_ITERATION_COUNT = 10
+  _MAX_DISPLAYS_TO_TEST = 2
+  _SUSPEND_TIME_BASE = 3.7
+  _MAX_SUSPEND_TIME_EXPONENT = 4
+  _STRESS_ITERATION_COUNT = 2
 
   class PlugInStage(enum.Enum):
     """Enum for the different phases of the suspend/resume test."""
+
     BEFORE_SUSPEND = 1
     DURING_SUSPEND = 2
     AFTER_SUSPEND = 3
 
   def pre_run(self):
-    # Generate tests for suspend and resume with different stages of displays
-    # plugging and different suspend times.
-    self.generate_tests(
-        test_logic=self.suspend_resume_with_plug,
-        name_func=self.generate_test_name_suspend_resume_with_plugs,
-        arg_sets=[(i, self.PlugInStage.BEFORE_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
-    self.generate_tests(
-        test_logic=self.suspend_resume_with_plug,
-        name_func=self.generate_test_name_suspend_resume_with_plugs,
-        arg_sets=[(i, self.PlugInStage.DURING_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
-    self.generate_tests(
-        test_logic=self.suspend_resume_with_plug,
-        name_func=self.generate_test_name_suspend_resume_with_plugs,
-        arg_sets=[(i, self.PlugInStage.AFTER_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
+    for display_count in range(1, self._MAX_DISPLAYS_TO_TEST + 1):
 
-    # Generate tests for suspend and resume stress test.
-    self.generate_tests(
-        test_logic=self.suspend_resume_stress,
-        name_func=self.generate_test_name_suspend_resume_stress,
-        arg_sets=[(i, self.PlugInStage.BEFORE_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
-    self.generate_tests(
-        test_logic=self.suspend_resume_stress,
-        name_func=self.generate_test_name_suspend_resume_stress,
-        arg_sets=[(i, self.PlugInStage.DURING_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
-    self.generate_tests(
-        test_logic=self.suspend_resume_stress,
-        name_func=self.generate_test_name_suspend_resume_stress,
-        arg_sets=[(i, self.PlugInStage.AFTER_SUSPEND)
-                  for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
+      for stage in self.PlugInStage:
+        self.generate_tests(
+            test_logic=self.suspend_resume_with_plug,
+            name_func=self.generate_test_name_suspend_resume_with_plugs,
+            arg_sets=[
+                (i + 1, stage, display_count)
+                for i in range(self._MAX_SUSPEND_TIME_EXPONENT)
+            ],
+        )
 
-    # Generate tests for stress on plug.
-    self.generate_tests(
-        test_logic=self.stress_on_forever_plug,
-        name_func=self.generate_test_name_stress_on_forever_plug,
-        arg_sets=[(i,) for i in range(self._MAX_SUSPEND_TIME_EXPONENT)],
-    )
+      for stage in self.PlugInStage:
+        self.generate_tests(
+            test_logic=self.suspend_resume_with_plug_stress,
+            name_func=self.generate_test_name_suspend_resume_with_plugs_stress,
+            arg_sets=[
+                (i + 1, stage, display_count)
+                for i in range(self._MAX_SUSPEND_TIME_EXPONENT)
+            ],
+        )
+
+      self.generate_tests(
+          test_logic=self.suspend_resume_n_times_while_plugged,
+          name_func=self.generate_test_name_suspend_resume_n_times_while_plugged,
+          arg_sets=[
+              (i + 1, display_count)
+              for i in range(self._MAX_SUSPEND_TIME_EXPONENT)
+          ],
+      )
+
+      self.generate_tests(
+          test_logic=self.suspend_resume_with_unplug_during_suspend,
+          name_func=self.generate_test_name_suspend_resume_with_unplug_during_suspend,
+          arg_sets=[
+              (i + 1, display_count)
+              for i in range(self._MAX_SUSPEND_TIME_EXPONENT)
+          ],
+      )
+
+      self.generate_tests(
+          test_logic=self.suspend_resume_in_mirror_mode,
+          name_func=self.generate_test_name_suspend_resume_in_mirror_mode,
+          arg_sets=[(display_count,)],
+      )
+
+      self.generate_tests(
+          test_logic=self.suspend_resume_in_clamshell_mode,
+          name_func=self.generate_test_name_suspend_resume_in_clamshell_mode,
+          arg_sets=[(display_count,)],
+      )
 
   def setup_class(self):
     super().setup_class(require_servo=True)
 
-  def generate_test_name_suspend_resume_with_plugs(self, exp: int,
-                                                   stage: PlugInStage):
+  def teardown_test(self):
+    self.display.set_mirror_mode(False)
+    self.dut.set_lid_open()
+    super().teardown_test()
+
+  def generate_test_name_suspend_resume_with_plugs(
+      self, exp: int, stage: PlugInStage, display_count: int
+  ):
     """Generates the test name for suspend and resume with different stages of displays plugging."""
-    prefix = "plug_then_" if stage == self.PlugInStage.BEFORE_SUSPEND else ""
-    infix = "then_plug_" if stage == self.PlugInStage.DURING_SUSPEND else ""
-    suffix = "_then_plug" if stage == self.PlugInStage.AFTER_SUSPEND else ""
+    suspend_time = self._generate_suspend_time(exp)
+    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
+    match stage:
+      case self.PlugInStage.BEFORE_SUSPEND:
+        return (
+            f'test_plug_{display_str}_then_suspend_{suspend_time}s_then_resume'
+        )
+      case self.PlugInStage.DURING_SUSPEND:
+        return (
+            f'test_suspend_{suspend_time}s_then_plug_{display_str}_then_resume'
+        )
+      case self.PlugInStage.AFTER_SUSPEND:
+        return (
+            f'test_suspend_{suspend_time}s_then_resume_then_plug_{display_str}'
+        )
+      case _:
+        raise ValueError(f'Unsupported stage: {stage}')
+
+  def generate_test_name_suspend_resume_with_plugs_stress(
+      self, exp: int, stage: PlugInStage, display_count: int
+  ):
+    """Generates the test name for suspend and resume with different stages of displays plugging, repeated multiple times."""
+    test_name = self.generate_test_name_suspend_resume_with_plugs(
+        exp, stage, display_count
+    )
+    return f'{test_name}_{self._STRESS_ITERATION_COUNT}_times'
+
+  def generate_test_name_suspend_resume_n_times_while_plugged(
+      self, exp: int, display_count: int
+  ):
+    """Generates the test name for suspend/resume with displays constantly connected, repeated multiple times."""
+    suspend_time = self._generate_suspend_time(exp)
+    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
     return (
-        f"test_{prefix}suspend_for_{self._generate_suspend_time(exp)}_"
-        f"{infix}then_resume{suffix}"
+        f'test_suspend_{suspend_time}s_resume_{self._STRESS_ITERATION_COUNT}_times_with_'
+        f'{display_str}_plugged'
     )
 
-  def generate_test_name_suspend_resume_stress(self, exp: int,
-                                               stage: PlugInStage):
-    """Generates the test name for suspend and resume stress test."""
-    prefix = "plug_then_" if stage == self.PlugInStage.BEFORE_SUSPEND else ""
-    infix = "then_plug_" if stage == self.PlugInStage.DURING_SUSPEND else ""
-    suffix = "_then_plug" if stage == self.PlugInStage.AFTER_SUSPEND else ""
-    return (
-        f"test_{prefix}suspend_stress_for_{self._generate_suspend_time(exp)}_"
-        f"{infix}then_resume{suffix}"
-    )
+  def generate_test_name_suspend_resume_with_unplug_during_suspend(
+      self, exp: int, display_count: int
+  ):
+    """Generates the test name for suspend/resume with displays unplugging during suspend."""
+    suspend_time = self._generate_suspend_time(exp)
+    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
+    return f'test_plug_{display_str}_then_suspend_{suspend_time}s_then_unplug_then_resume'
 
-  def generate_test_name_stress_on_forever_plug(self, exp: int):
-    """Generates the test name for stress on plug test."""
-    return f"test_stress_on_forever_plug_for_{self._generate_suspend_time(exp)}"
+  def generate_test_name_suspend_resume_in_mirror_mode(
+      self, display_count: int
+  ):
+    """Generates the test name for suspend/resume in mirror mode."""
+    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
+    return f'test_suspend_resume_in_mirror_mode_with_{display_str}'
 
-  def suspend_resume_with_plug(self, exp: int, stage: PlugInStage):
-    """Tests the suspend and resume functionality.
+  def generate_test_name_suspend_resume_in_clamshell_mode(
+      self, display_count: int
+  ):
+    """Generates the test name for suspend/resume in clamshell mode."""
+    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
+    return f'test_suspend_resume_in_clamshell_mode_with_{display_str}'
 
-    This test verifies that the device can suspend and resume correctly with
-    variable suspend times, and that it can handle the plugging and unplugging
-    of displays during different stages of the suspend/resume process.
-
-    The test is parameterized by:
-      - exp: An integer that determines the duration of the suspend period.
-        The suspend time is calculated as {_SUSPEND_TIME_BASE} raised to the
-        power of exp.
-        This allows to test different suspend times in each test iteration.
-      - stage: An enum that determines when the displays will be plugged.
-        - BEFORE_SUSPEND: Displays are plugged before the device is suspended.
-        - DURING_SUSPEND: Displays are plugged while the device is suspended.
-        - AFTER_SUSPEND: Displays are plugged after the device is resumed.
-        This allows to test different plug stages in each test iteration.
-
-    The test performs the following steps:
-      1.  If the stage is BEFORE_SUSPEND, it plugs new displays.
-      2.  It suspends the device.
-      3.  If the stage is DURING_SUSPEND, it plugs new displays.
-      4.  It waits for a duration determined by the exp parameter.
-      5.  It resumes the device.
-      6.  If the stage is AFTER_SUSPEND, it plugs new displays.
-      7.  It asserts that the device is online after resuming.
-
-    This test is designed to test the suspend/resume functionality with
-    different suspend times and plug stages in each test iteration.
-    """
+  def suspend_resume_with_plug(
+      self, exp: int, stage: PlugInStage, display_count: int
+  ):
+    """Tests suspend and resume with displays plugged at various stages."""
+    suspend_time = self._generate_suspend_time(exp)
     if stage == self.PlugInStage.BEFORE_SUSPEND:
-      self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
-      logging.debug("Plugging in external displays before suspend.")
+      self._ucd_manager.set_total_displays_count(display_count)
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, dut_state_manager.PowerState.SUSPEND
     ):
       if stage == self.PlugInStage.DURING_SUSPEND:
-        self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
-        logging.debug("Plugging in external displays during suspend.")
-      logging.debug("Waiting for %f seconds before resuming.",
-                    self._generate_suspend_time(exp))
-      time.sleep(self._generate_suspend_time(exp))
+        self._ucd_manager.set_total_displays_count(display_count)
+        logging.debug('Plugging in external displays during suspend.')
+      time.sleep(suspend_time)
 
-    logging.debug("Resumed device.")
     if stage == self.PlugInStage.AFTER_SUSPEND:
-      logging.debug("Plugging in external displays after resume.")
-      self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
+      self._ucd_manager.set_total_displays_count(display_count)
 
-    self._check_for_displays_on(self._PLUGGED_DISPLAYS,
-                                self._generate_suspend_time(exp))
+    self._check_for_displays_on(display_count, suspend_time)
 
-  def suspend_resume_stress(self, exp: int, stage: PlugInStage):
-    """Tests the suspend and resume functionality with stress.
+  def suspend_resume_with_plug_stress(
+      self, exp: int, stage: PlugInStage, display_count: int
+  ):
+    """Stress tests suspend and resume by repeating the test multiple times."""
+    for i in range(self._STRESS_ITERATION_COUNT):
+      logging.debug(
+          'Stress test iteration %d/%d.', i + 1, self._STRESS_ITERATION_COUNT
+      )
+      self.suspend_resume_with_plug(exp, stage, display_count)
+      self._ucd_manager.unplug_and_destroy_all_displays()
 
-    This test repeats the suspend_resume_with_plug test multiple times
-    to stress the suspend and resume functionality of the device.
-    This helps to identify potential issues that may not be apparent
-    in a single iteration of the test.
+  def suspend_resume_n_times_while_plugged(self, exp: int, display_count: int):
+    """Stress tests suspend/resume with displays constantly connected."""
+    suspend_time = self._generate_suspend_time(exp)
+    self._ucd_manager.set_total_displays_count(display_count)
 
-    The test is parameterized by:
-      - exp: An integer that determines the duration of the suspend period.
-      - stage: An enum that determines when the displays will be plugged.
-
-    The test performs the following steps:
-      1.  It repeats the suspend_resume_with_plug test for a number of times
-          defined by _STESS_ITERATION_COUNT.
-    """
-
-    for _ in range(self._STESS_ITERATION_COUNT):
-      self.suspend_resume_with_plug(exp, stage)
-
-  def stress_on_forever_plug(self, exp):
-    """Tests the stress on plug functionality.
-
-    This test repeats the plug and unplug functionality multiple times
-    to stress the display plug and unplug functionality of the device.
-    This helps to identify potential issues that may not be apparent
-    in a single iteration of the test.
-
-    The test is parameterized by:
-      - exp: An integer that determines the duration of the suspend period.
-
-    The test performs the following steps:
-      1.  It plugs the displays.
-      2.  It repeats the suspend and resume for a number of times
-          defined by _STESS_ITERATION_COUNT.
-      3.  It asserts that the device is online and the displays are on.
-    """
-    self._ucd_manager.set_total_displays_count(self._PLUGGED_DISPLAYS)
-
-    for _ in range(self._STESS_ITERATION_COUNT):
+    for i in range(self._STRESS_ITERATION_COUNT):
+      logging.debug(
+          'Iteration %d/%d: Suspending device.',
+          i + 1,
+          self._STRESS_ITERATION_COUNT,
+      )
       with dut_state_manager.EnterStateAndReturnToPowerOn(
           self.dut, dut_state_manager.PowerState.SUSPEND
       ):
-        time.sleep(self._generate_suspend_time(exp))
+        time.sleep(suspend_time)
+      logging.debug(
+          'Iteration %d/%d: Resumed device.',
+          i + 1,
+          self._STRESS_ITERATION_COUNT,
+      )
 
-      self._check_for_displays_on(self._PLUGGED_DISPLAYS,
-                                  self._generate_suspend_time(exp))
+      self._check_for_displays_on(display_count, suspend_time)
+
+  def suspend_resume_with_unplug_during_suspend(
+      self, exp: int, display_count: int
+  ):
+    """Tests unplugging displays during suspend."""
+
+    self._plug_in_and_verify_displays(display_count)
+
+    with dut_state_manager.EnterStateAndReturnToPowerOn(
+        self.dut, dut_state_manager.PowerState.SUSPEND
+    ):
+      logging.info('Unplugging displays during suspend.')
+      self._ucd_manager.unplug_and_destroy_all_displays()
+      suspend_time = self._generate_suspend_time(exp)
+      time.sleep(suspend_time)
+
+    logging.info('Resumed device. Verifying displays are off.')
+    asserts.assert_true(
+        self._ucd_manager.are_displays_reporting_stream_info(0),
+        'Displays should be inactive after unplugging during suspend.',
+    )
+
+    self._plug_in_and_verify_displays(display_count)
+
+  def suspend_resume_in_mirror_mode(self, display_count: int):
+    """Tests suspend and resume with displays in mirror mode."""
+    self._plug_in_and_verify_displays(display_count)
+
+    logging.info('Enabling mirror mode.')
+    self.display.set_mirror_mode(True)
+    time.sleep(5)  # Give time for the mode to switch
+
+    logging.info('Suspending device in mirror mode.')
+    with dut_state_manager.EnterStateAndReturnToPowerOn(
+        self.dut, dut_state_manager.PowerState.SUSPEND
+    ):
+      time.sleep(10)
+
+    logging.info(
+        'Resumed device. Verifying displays are active in mirror mode.'
+    )
+    self._check_for_displays_on(display_count, 0)
+    asserts.assert_true(
+        self.display.get_mirror_mode(), 'Device did not resume in mirror mode.'
+    )
+
+  def suspend_resume_in_clamshell_mode(self, display_count: int):
+    """Tests suspend and resume with the DUT in clamshell mode."""
+
+    self._plug_in_and_verify_displays(display_count)
+
+    logging.info('Entering clamshell mode (closing lid).')
+    self.dut.set_lid_closed()
+    time.sleep(5)
+
+    self._check_for_displays_on(display_count, 0)
+
+    logging.info('Suspending device in clamshell mode.')
+    with dut_state_manager.EnterStateAndReturnToPowerOn(
+        self.dut, dut_state_manager.PowerState.SUSPEND
+    ):
+      time.sleep(10)
+
+    logging.info(
+        'Resumed device. Verifying external displays are still active.'
+    )
+    self._check_for_displays_on(display_count, 0)
 
   def _generate_suspend_time(self, exp: int):
     """Generates the suspend time for the test."""
-    return round(self._SUSPEND_TIME_BASE ** exp, 1)
+    return round(self._SUSPEND_TIME_BASE**exp, 1)
+
+  def _plug_in_and_verify_displays(self, display_count: int):
+    self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
+    self._check_for_displays_on(display_count, 0)
 
   def _check_for_displays_on(self, display_count: int, suspend_time: float):
+    logging.info('Verifying %d displays are on.', display_count)
     asserts.assert_true(
         self._ucd_manager.are_displays_reporting_stream_info(display_count),
-        f"External displays are not active for {display_count} displays.",
+        f'External displays are not active for {display_count} displays.',
     )
     asserts.assert_true(
         self.dut.is_device_online(),
         (
-            "Device is not reporting online after suspending for "
-            f"{suspend_time} seconds."
+            'Device is not reporting online after suspending for '
+            f'{suspend_time} seconds.'
         ),
     )
 
+    logging.info('Verifying screenshots for all %d displays.', display_count)
     self.check_all_screenshots_for_displays(display_count)
 
 
@@ -258,5 +332,5 @@ class SuspendResumeTestSuite(base_suite.BaseSuite):
 def main() -> None:
   suite_runner.run_suite_class()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   main()
