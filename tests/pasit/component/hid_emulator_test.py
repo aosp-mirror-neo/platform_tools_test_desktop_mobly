@@ -45,7 +45,7 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
   def test_emulate_keypress_before_initialize_raises_error(self) -> None:
     emulator = hid_emulator.HIDEmulator(self.passport_host)
     with asserts.assert_raises(hid_emulator.HIDEmulator.Error):
-      emulator.emulate_keypress(['A'])
+      emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
 
   def test_emulate_keypress_after_initialize_and_unplug_hid_emulator(
       self,

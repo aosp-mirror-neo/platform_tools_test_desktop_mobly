@@ -14,6 +14,7 @@
 
 """AndroidPasitHID handles HID operations for PASIT testing on Android devices."""
 
+import datetime
 import logging
 import os
 import sys
@@ -104,6 +105,8 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def __init__(self, controller: android_device.AndroidDevice):
     """Initializes the AndroidPasitHID."""
     super().__init__(controller)
+    # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
+    apk_utils.uninstall(self.controller, self._HID_SNIPPET_PACKAGE_NAME)
     apk_utils.install(
         self.controller,
         self._HID_SNIPPET_APK_PATH,
@@ -152,10 +155,16 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def start_key_capture(self) -> None:
     """Starts the key capture activity using the Mobly snippet."""
     self.controller.hid.startKeyCaptureActivity()
+    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.exists(
+        timeout=datetime.timedelta(seconds=5)
+    )
 
   def stop_key_capture(self) -> None:
     """Stops the key capture activity using the Mobly snippet."""
     self.controller.hid.stopKeyCaptureActivity()
+    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.gone(
+        timeout=datetime.timedelta(seconds=5)
+    )
 
   def get_captured_keys(self) -> List[str]:
     return self.controller.hid.getKeyLog()
