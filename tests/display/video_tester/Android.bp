@@ -78,6 +78,29 @@ python_test_host {
 }
 
 python_test_host {
+    name: "TestHotplugsUcd",
+    main: "test_hotplugs.py",
+    srcs: ["test_hotplugs.py"],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+        ":ColorFillTest",
+    ],
+    libs: [
+        "py-display-utils",
+        "py-pasit-display",
+        "py-display-painter",
+    ],
+}
+
+python_test_host {
     name: "TestMstUcd",
     main: "test_mst.py",
     srcs: ["test_mst.py"],

@@ -249,6 +249,10 @@ class UcdManager(abc.ABC):
       print_typec_status(self._dut)
       raise UcdManagerError("External displays are not active.")
 
+  def send_hpd_pulse(self) -> bool:
+    """Sends an HPD pulse to the DUT."""
+    return self._vsc.send_hpd_pulse()
+
   def are_displays_reporting_stream_info(
       self, expected_total_display_count: int
   ) -> bool:
