@@ -49,11 +49,8 @@ _OVERRIDE_CAPTURED_KEY_EVENTS_MAP = {
     hid_keys.Alphanumeric.ALT_RIGHT: ['KEYCODE_ALT_RIGHT'],
     hid_keys.Alphanumeric.CONTROL_LEFT: ['KEYCODE_CTRL_LEFT'],
     hid_keys.Alphanumeric.CONTROL_RIGHT: ['KEYCODE_CTRL_RIGHT'],
-    hid_keys.Alphanumeric.META_LEFT: [],
-    hid_keys.Alphanumeric.META_RIGHT: [],
     hid_keys.Alphanumeric.SHIFT_LEFT: ['KEYCODE_SHIFT_LEFT'],
     hid_keys.Alphanumeric.SHIFT_RIGHT: ['KEYCODE_SHIFT_RIGHT'],
-    hid_keys.Alphanumeric.META: [],
     # Function
     hid_keys.Function.ESCAPE: ['KEYCODE_ESCAPE'],
     hid_keys.Function.PRINT_SCREEN: ['KEYCODE_SYSRQ'],
@@ -144,11 +141,11 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
     match shortcut:
       case self.KeyboardShortcut.SCREENSHOT:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_S]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_S]
       case self.KeyboardShortcut.SETTINGS:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_I]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_I]
       case self.KeyboardShortcut.HOME:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_H]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_H]
       case _:
         raise ValueError(f'Unsupported shortcut: {shortcut}')
 

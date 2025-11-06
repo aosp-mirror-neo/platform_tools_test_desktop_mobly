@@ -81,14 +81,22 @@ class Alphanumeric(enum.StrEnum):
   CONTROL_LEFT = 'LControl'
   CONTROL_RIGHT = 'RControl'
   ENTER = 'Enter'
-  META_LEFT = 'LMeta'
-  META_RIGHT = 'RMeta'
   SHIFT_LEFT = 'LShift'
   SHIFT_RIGHT = 'RShift'
   SPACE = 'Space'
   TAB = 'Tab'
-  # Additional keys.
+
+
+class Special(enum.StrEnum):
+  """Represents a special key.
+
+  These keys are reserved for special purposes, such as system-level shortcuts.
+  They are not interceptable by the key event handler.
+  """
+
   META = 'Meta'
+  META_LEFT = 'LMeta'
+  META_RIGHT = 'RMeta'
 
 
 class Function(enum.StrEnum):
