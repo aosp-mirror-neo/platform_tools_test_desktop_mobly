@@ -18,6 +18,7 @@ import abc
 import logging
 from typing import Any
 
+from lib.pasit import pasit_display
 from lib.utils import image
 
 
@@ -40,7 +41,11 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def show_color_on_display(self, color: image.Color, display_id: str = ''):
+  def show_color_on_display(
+      self,
+      color: image.Color,
+      display_id: pasit_display.PasitDisplay.DisplayId | None = None,
+  ):
     """Shows the given color on the display.
 
     Usage:
