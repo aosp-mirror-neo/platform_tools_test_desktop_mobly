@@ -83,9 +83,9 @@ class PasitHIDTest(pasit_test.PasitTestClass):
         continue
       all_captured_keys.append(self.hid.get_captured_keys())
       all_expected_keys.append(self.hid.get_expected_key_events(key))
-    asserts.assert_equal(all_captured_keys, all_expected_keys)
+    asserts.assert_equal(all_expected_keys, all_captured_keys)
     asserts.assert_equal(
-        failed_keys, [], f'Failed to capture keys: {failed_keys}'
+        [], failed_keys, f'Failed to capture keys: {failed_keys}'
     )
 
 

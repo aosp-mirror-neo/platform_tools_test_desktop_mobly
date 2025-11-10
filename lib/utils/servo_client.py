@@ -71,10 +71,20 @@ class ServoBase(abc.ABC):
   def disable_servo_power(self):
     """Disables the Servo power to the DUT."""
     self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SINK)
+    # Wait for the servo to disable power:
+    # the pd_role change can cause the DUT to go offline for a brief moment,
+    # the sleep allows for that to happen so that waiting for the DUT to
+    # come back online doesn't return before the DUT goes offline.
+    time.sleep(2)
 
   def enable_servo_power(self):
     """Enables the Servo power to the DUT."""
     self._set_servod_value(SERVO_PD_ROLE, PD_ROLE_SOURCE)
+    # Wait for the servo to enable power:
+    # the pd_role change can cause the DUT to go offline for a brief moment,
+    # the sleep allows for that to happen so that waiting for the DUT to
+    # come back online doesn't return before the DUT goes offline.
+    time.sleep(2)
 
   def set_servo_usbkey_power(self, usbkey_power: bool):
     """Sets the power state of the USB-key via Servod."""
@@ -116,7 +126,11 @@ class LSNexusClient(ServoBase):
 
   def _start_servod(self):
     """Calls StartServod"""
-    self._stub.StartServod(lsnexus_service_pb2.StartServodRequest())
+    self._stub.StartServod(
+        # Since each test class calls this method it is much more efficient to
+        # reuse the existing servod instance, instead of starting a new one.
+        lsnexus_service_pb2.StartServodRequest(reuse_existing=True)
+    )
 
   def verify_connected(self):
     """Verifies that the client is connected to the Servod."""

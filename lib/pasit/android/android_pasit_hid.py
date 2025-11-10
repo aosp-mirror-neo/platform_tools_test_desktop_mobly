@@ -14,6 +14,7 @@
 
 """AndroidPasitHID handles HID operations for PASIT testing on Android devices."""
 
+import datetime
 import logging
 import os
 import sys
@@ -48,11 +49,8 @@ _OVERRIDE_CAPTURED_KEY_EVENTS_MAP = {
     hid_keys.Alphanumeric.ALT_RIGHT: ['KEYCODE_ALT_RIGHT'],
     hid_keys.Alphanumeric.CONTROL_LEFT: ['KEYCODE_CTRL_LEFT'],
     hid_keys.Alphanumeric.CONTROL_RIGHT: ['KEYCODE_CTRL_RIGHT'],
-    hid_keys.Alphanumeric.META_LEFT: [],
-    hid_keys.Alphanumeric.META_RIGHT: [],
     hid_keys.Alphanumeric.SHIFT_LEFT: ['KEYCODE_SHIFT_LEFT'],
     hid_keys.Alphanumeric.SHIFT_RIGHT: ['KEYCODE_SHIFT_RIGHT'],
-    hid_keys.Alphanumeric.META: [],
     # Function
     hid_keys.Function.ESCAPE: ['KEYCODE_ESCAPE'],
     hid_keys.Function.PRINT_SCREEN: ['KEYCODE_SYSRQ'],
@@ -104,6 +102,8 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def __init__(self, controller: android_device.AndroidDevice):
     """Initializes the AndroidPasitHID."""
     super().__init__(controller)
+    # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
+    apk_utils.uninstall(self.controller, self._HID_SNIPPET_PACKAGE_NAME)
     apk_utils.install(
         self.controller,
         self._HID_SNIPPET_APK_PATH,
@@ -141,21 +141,27 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
     match shortcut:
       case self.KeyboardShortcut.SCREENSHOT:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_S]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_S]
       case self.KeyboardShortcut.SETTINGS:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_I]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_I]
       case self.KeyboardShortcut.HOME:
-        return [hid_keys.Alphanumeric.META, hid_keys.Alphanumeric.KEY_H]
+        return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_H]
       case _:
         raise ValueError(f'Unsupported shortcut: {shortcut}')
 
   def start_key_capture(self) -> None:
     """Starts the key capture activity using the Mobly snippet."""
     self.controller.hid.startKeyCaptureActivity()
+    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.exists(
+        timeout=datetime.timedelta(seconds=5)
+    )
 
   def stop_key_capture(self) -> None:
     """Stops the key capture activity using the Mobly snippet."""
     self.controller.hid.stopKeyCaptureActivity()
+    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.gone(
+        timeout=datetime.timedelta(seconds=5)
+    )
 
   def get_captured_keys(self) -> List[str]:
     return self.controller.hid.getKeyLog()

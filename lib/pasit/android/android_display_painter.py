@@ -15,9 +15,12 @@
 """AndroidDisplayPainter shows colors on Android device displays for testing."""
 
 import datetime
+import logging
 import os
 import sys
 
+from lib.pasit import pasit_display
+from lib.pasit.android import dumpsys_display_parser
 from lib.pasit.base import base_display_painter
 from lib.utils import image
 from lib.utils import retry
@@ -87,7 +90,11 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
       )
 
-  def show_color_on_display(self, color: image.Color, display_id: str = ''):
+  def show_color_on_display(
+      self,
+      color: image.Color,
+      display_id: pasit_display.PasitDisplay.DisplayId | None = None,
+  ):
     """Shows the specified color on the Android device display.
 
     This method launches the ColorFillTestApp to display a solid color.
@@ -139,7 +146,10 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     )
 
   def _try_show_color_on_display(
-      self, color: image.Color, expected_window_count: int, display_id: str
+      self,
+      color: image.Color,
+      expected_window_count: int,
+      display_id: pasit_display.PasitDisplay.DisplayId | None,
   ):
     """Attempts to start the ColorFillTestApp.
 
@@ -205,7 +215,9 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       )
 
   def _start_color_fill_test_app(
-      self, color: image.Color, display_id: str = ''
+      self,
+      color: image.Color,
+      display_id: pasit_display.PasitDisplay.DisplayId | None,
   ):
     """Starts the ColorFillTestApp with the specified color and display.
 
@@ -227,6 +239,19 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           + (['--display', display_id] if display_id else [])
       )
     except adb.AdbError as e:
+      if 'Permission Denial' in str(e):
+        # frequent failure is due to trying to start the app on a disconnected
+        # or invalid display_id, so handle this error separately and provide
+        # more useful error message.
+        connected_display_ids = dumpsys_display_parser.DumpsysDisplayParser(
+            self.controller
+        ).get_display_ids()
+        logging.debug('Currently connected displays: %s', connected_display_ids)
+        if display_id not in connected_display_ids:
+          raise DisplayPainterError(
+              f'Failed to start color fill test app on display ID {display_id},'
+              ' display is not connected.'
+          ) from e
       raise DisplayPainterError('Failed to start color fill test app') from e
 
   def _force_stop_color_fill_test_app(self):
