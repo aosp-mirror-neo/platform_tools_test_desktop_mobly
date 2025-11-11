@@ -30,6 +30,7 @@ class DisplayTestPolicy:
       max_tries=3,
       delay_seconds=5,
   )
+  WAIT_FOR_IDS_TO_STABILIZE_DELAY_SECONDS = 5
 
 
 class StorageTestPolicy:
@@ -78,3 +79,4 @@ class NetworkTestPolicy:
       max_tries=10,
       delay_seconds=2,
   )
+
