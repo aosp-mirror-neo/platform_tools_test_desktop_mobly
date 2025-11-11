@@ -59,7 +59,7 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Suspending device...')
     self.dut.suspend()
     logging.info('Resuming device...')
-    self.dut.power_on()
+    self.dut.wakeup()
 
   def test_disable_enable_servo_power(self):
     asserts.skip_if(
