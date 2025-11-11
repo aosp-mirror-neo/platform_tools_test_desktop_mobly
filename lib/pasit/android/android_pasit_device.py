@@ -24,6 +24,7 @@ from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
+from lib.utils import retry
 from lib.utils import servo_client
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
@@ -134,11 +135,28 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._stop_services()
     self._suspend()
 
+  def _wakeup_attempt(self):
+    # This is just one way we could acomplish the retries to deal with ADB
+    # flakes after wakeup.  Retrying the wait_for_boot_completion is not
+    # strictly necessary, but retrying it will not cause any harm or take a long
+    # time either.
+    self._wait_for_boot_completion()
+    # ensure that the device is online with 3 consecutive attempts to reduce
+    # flakiness, where the DUT goes offline shortly after wakeup.
+    for _ in range(3):
+      online = self.is_device_online()
+      time.sleep(2)
+      if not online:
+        logging.warning('Device is not online after boot completion.')
+        raise PasitDeviceError('Device is not online after wakeup.')
+
   def wakeup(self):
     self.request_power_on()
-    # TODO: b/414995167 - better way to reduce falkiness
-    time.sleep(2)
-    self._wait_for_boot_completion()
+    retry.retry(
+        self._wakeup_attempt,
+        policy=retry.RetryPolicy(max_tries=3, delay_seconds=2),
+        exceptions=(PasitDeviceError,),
+    )
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
