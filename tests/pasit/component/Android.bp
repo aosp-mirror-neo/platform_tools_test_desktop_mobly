@@ -20,6 +20,7 @@ python_test_host {
     name: "DesktopPASITComponentTests",
     main: "pasit_component_suite.py",
     srcs: ["*.py"],
+    exclude_srcs: ["pasit_component_import_test.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,
@@ -42,4 +43,17 @@ python_test_host {
         "py-pasit-network",
     ],
     pkg_path: "pasit/component",
+}
+
+python_test_host {
+    name: "pasit_component_import_test",
+    srcs: [
+        "pasit_component_import_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "DesktopPASITComponentTests",
+    ],
 }

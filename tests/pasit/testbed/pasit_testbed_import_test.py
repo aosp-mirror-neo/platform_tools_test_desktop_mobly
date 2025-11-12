@@ -20,27 +20,6 @@ import unittest
 
 class PASITSuiteImportTest(unittest.TestCase):
 
-  def setUp(self):
-    super().setUp()
-
-  def tearDown(self):
-    super().tearDown()
-
-  def test_import_pasit_camera_suite(self):
-    from pasit.camera import pasit_camera_suite
-
-  def test_import_pasit_component_suite(self):
-    from pasit.component import pasit_component_suite
-
-  def test_import_pasit_display_suite(self):
-    from pasit.display import pasit_display_suite
-
-  def test_import_pasit_hid_suite(self):
-    from pasit.hid import pasit_hid_suite
-
-  def test_import_pasit_storage_suite(self):
-    from pasit.storage import pasit_storage_suite
-
   def test_import_pasit_testbed_suite(self):
     from pasit.testbed import pasit_testbed_suite
 
