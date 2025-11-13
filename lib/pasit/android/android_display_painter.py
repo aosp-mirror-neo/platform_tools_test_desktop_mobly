@@ -77,7 +77,6 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     super().__init__(controller)
     # uninstall the app to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE error
     apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
-    self._app_installed = False
 
   def cleanup(self):
     """Cleans up after testing.
@@ -85,7 +84,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     Uninstalls the ColorFillTestApp when the object is garbage collected.
     """
     self._force_stop_color_fill_test_app()
-    if self._app_installed:
+    if self._is_color_fill_test_app_installed():
       apk_utils.uninstall(
           self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
       )
@@ -111,13 +110,12 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         color will be shown on the default display.
     """
     # set screen brightness to max to ensure color is visible
-    if not self._app_installed:
+    if not self._is_color_fill_test_app_installed():
       apk_utils.install(
           self.controller,
           self.COLOR_FILL_TEST_APP_APK_PATH,
           params=['-t'],  # to allow installing test packages
       )
-      self._app_installed = True
     self._set_screen_brightness(255)
 
     window_count_before = self._get_color_fill_test_app_window_count()
@@ -261,6 +259,13 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         'force-stop',
         self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
     ])
+
+  def _is_color_fill_test_app_installed(self) -> bool:
+    """Checks if the ColorFillTestApp is installed."""
+    output = self.controller.adb.shell(
+        ['pm', 'list', 'packages', self.COLOR_FILL_TEST_APP_PACKAGE_NAME]
+    )
+    return self.COLOR_FILL_TEST_APP_PACKAGE_NAME in output.decode('utf-8')
 
   def _set_screen_brightness(self, brightness: int):
     """Sets the screen brightness. Max brightness is 255."""
