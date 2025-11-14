@@ -51,10 +51,6 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
 
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.internal_display_id: str | None = None
-
   def setup_class(self, require_servo: bool = False):
     super().setup_class()
     # Servo is required for DUT power cycle through servo.
@@ -88,32 +84,17 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     self.internal_display_id = self.helper.get_internal_display_id()
 
   def teardown_test(self):
-    if self._ucd_manager is None:
-      return
-
-    try:
-      # When we finish the test, Let's check that the most basic functionalities are working.
-      # If they're not, let's reset our system so we can start fresh after.
-      self._perform_sanity_check()
-      logging.debug("Sanity check passed.")
-    except ucd_manager.UcdManagerError:
-      logging.info("Sanity check failed.")
-      # If we fail, either the DUT or the UCD are having trouble.
-      # Let's reconnect the UCD and reboot the DUT.
-      self._ucd_manager.disconnect_ucd()
-      self.dut.reboot()
-      self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
-          self.passport_host.video_tester_client,
-          self.dut,
-      )
-      # After a reboot, unplug everything (unplugging might have failed earlier).
-      self._ucd_manager.unplug_and_destroy_all_displays()
+    # Clear UCD and DUT state after each test.
+    # This is to make sure that the displays are in a consistent state.
+    self._ucd_manager.unplug_and_destroy_all_displays()
+    self.dut.reboot()
+    super().teardown_test()
 
   def teardown_class(self):
-    if self._ucd_manager is not None:
-      self._ucd_manager.reset_ucd_displays_state_to_default()
-      self._ucd_manager.disconnect_ucd()
+    self._ucd_manager.reset_ucd_displays_state_to_default()
+    self._ucd_manager.disconnect_ucd()
     self.dut.reboot()
+    super().teardown_class()
 
   def skip_if_display_count_not_supported(self, display_count: int):
     """Skips the test if the display count to test is greater than the maximum supported displays."""
