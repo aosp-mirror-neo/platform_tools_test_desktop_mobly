@@ -91,12 +91,10 @@ python_test_host {
         // test APK module
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
-        ":ColorFillTest",
     ],
     libs: [
         "py-display-utils",
         "py-pasit-display",
-        "py-display-painter",
     ],
 }
 
