@@ -142,14 +142,15 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _capture_bugreport(self, test_failed: bool) -> None:
     """Captures a bug report if configured to."""
-    if not hasattr(self, 'dut'):
-      return
     collect_bugreport = self.bugreport == 'all' or (
         self.bugreport == 'on_fail' and test_failed
     )
     if not collect_bugreport:
       return
     logging.info('Collecting bug report for test.')
+    if self.dut.is_device_offline():
+      logging.warning('DUT is offline, cannot collect bug report.')
+      return
     try:
       self.dut.controller.take_bug_report(
           test_name=self.current_test_info.name,
@@ -190,6 +191,9 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _try_capture_screenshots(self) -> None:
     """Captures screenshots for all displays."""
+    if self.dut.is_device_offline():
+      logging.warning('DUT is offline, cannot capture screenshots.')
+      return
     try:
       self.dut.capture_screenshots(
           self.current_test_info.output_path, 'on_test_failure'
