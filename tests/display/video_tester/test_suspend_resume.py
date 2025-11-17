@@ -40,7 +40,7 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
   _MAX_DISPLAYS_TO_TEST = 2
   _SUSPEND_TIME_BASE = 3.7
   _MAX_SUSPEND_TIME_EXPONENT = 4
-  _STRESS_ITERATION_COUNT = 2
+  _STRESS_ITERATION_COUNT = 77
 
   class PlugInStage(enum.Enum):
     """Enum for the different phases of the suspend/resume test."""

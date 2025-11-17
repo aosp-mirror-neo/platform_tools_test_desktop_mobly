@@ -20,7 +20,10 @@ python_test_host {
     name: "DesktopPASITDisplayTests",
     main: "pasit_display_suite.py",
     srcs: ["*.py"],
-    exclude_srcs: ["display_base_test_test.py"],
+    exclude_srcs: [
+        "display_base_test_test.py",
+        "pasit_display_import_test.py",
+    ],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,
@@ -67,4 +70,17 @@ python_test_host {
     test_options: {
         unit_test: true,
     },
+}
+
+python_test_host {
+    name: "pasit_display_import_test",
+    srcs: [
+        "pasit_display_import_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "DesktopPASITDisplayTests",
+    ],
 }

@@ -20,6 +20,7 @@ python_test_host {
     name: "DesktopPASITTestbedTests",
     main: "pasit_testbed_suite.py",
     srcs: ["*.py"],
+    exclude_srcs: ["pasit_testbed_import_test.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,
@@ -39,8 +40,22 @@ python_test_host {
         "py-pasit-display",
         "py-pasit-hid",
         "py-pasit-network",
+        "py-display-helper",
         "py-display-painter",
         "py-display-camera-mapper",
     ],
     pkg_path: "pasit/testbed",
+}
+
+python_test_host {
+    name: "pasit_testbed_import_test",
+    srcs: [
+        "pasit_testbed_import_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "DesktopPASITTestbedTests",
+    ],
 }

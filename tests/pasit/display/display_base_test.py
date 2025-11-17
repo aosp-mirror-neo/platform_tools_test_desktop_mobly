@@ -212,7 +212,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """Verifies that the display count is equal to the expected count."""
     asserts.assert_equal(
         retry.retry(
-            lambda: len(self.display.get_display_ids()),
+            lambda: len(self.helper.get_stable_display_ids()),
             until=lambda ids_count: ids_count == expected_count,
             policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
         ),

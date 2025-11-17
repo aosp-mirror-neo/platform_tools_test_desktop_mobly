@@ -27,6 +27,7 @@ import logging
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
 from lib.pasit import display_camera_mapper
+from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
@@ -116,6 +117,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         'Display device is not present in the topology.',
     )
     self.display = self.create(pasit_display)
+    self.helper = display_helper.DisplayHelper(self.display)
     logging.info(
         'Testing display device: %s with %s path',
         device_id,
@@ -128,7 +130,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 external display in daisy chain mode.
       expected_display_count = 3
     display_count = retry.retry(
-        lambda: len(self.display.get_display_ids()),
+        lambda: len(self.helper.get_stable_display_ids()),
         until=lambda ids_count: ids_count == expected_display_count,
         policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )

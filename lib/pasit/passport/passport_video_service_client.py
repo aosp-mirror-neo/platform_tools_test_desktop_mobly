@@ -29,8 +29,8 @@ class PassportVideoServiceClient:
     self._channel = grpc.insecure_channel(
         server_address,
         options=[
-            ("grpc.max_send_message_length", 64 * 1024 * 1024),  # 64MB
-            ("grpc.max_receive_message_length", 64 * 1024 * 1024),  # 64MB
+            ("grpc.max_send_message_length", 256 * 1024 * 1024),  # 256MB
+            ("grpc.max_receive_message_length", 256 * 1024 * 1024),  # 256MB
         ],
     )
     self._stub = video_tester_service_pb2_grpc.VideoTesterServiceStub(

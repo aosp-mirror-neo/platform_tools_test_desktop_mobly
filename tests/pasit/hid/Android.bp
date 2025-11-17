@@ -20,6 +20,7 @@ python_test_host {
     name: "DesktopPASITHIDTests",
     main: "pasit_hid_suite.py",
     srcs: ["*.py"],
+    exclude_srcs: ["pasit_hid_import_test.py"],
     defaults: ["PASIT-defaults"],
     test_options: {
         unit_test: false,
@@ -37,4 +38,17 @@ python_test_host {
         "py-pasit-hid",
     ],
     pkg_path: "pasit/hid",
+}
+
+python_test_host {
+    name: "pasit_hid_import_test",
+    srcs: [
+        "pasit_hid_import_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "DesktopPASITHIDTests",
+    ],
 }

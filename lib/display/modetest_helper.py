@@ -14,6 +14,10 @@
 
 """Helper functions for modetest."""
 
+import re
+import subprocess
+from typing import Any
+
 from lib.pasit import pasit_device
 
 
@@ -50,5 +54,119 @@ def get_crtcs_count(dut: pasit_device.PasitDevice) -> int:
         if parts and len(parts) == 4 and parts[0].isdigit():
           crtc_count += 1
     return crtc_count
-  except Exception:
+  except subprocess.CalledProcessError:
     return -1
+
+
+def get_all_connectors_props(
+    dut: pasit_device.PasitDevice,
+) -> tuple[str, dict[int, dict[str, Any]]]:
+  """Gets all connectors and their properties from 'modetest -c'.
+
+  Args:
+    dut: The DUT that accesses the shell.
+
+  Returns:
+    A tuple containing the raw modetest output and a dictionary mapping
+    connector IDs to their properties. Each property dictionary includes a
+    'name' and a 'connected' boolean. Returns an empty string and dict if the
+    command fails.
+    Example connector dictionary:
+    {
+      709: {
+        'name': 'eDP-1',
+        'connected': True,
+        'props': {
+          'EDID': '00ffff...',
+          'DPMS': '0',
+        }
+      },
+      719: {
+        'name': 'HDMI-A-1',
+        'connected': False,
+        'props': { ... }
+      }
+    }
+  """
+  try:
+    output = dut.shell(["modetest", "-c"]).decode("utf-8", errors="ignore")
+    return output, _parse_modetest_output(output)
+  except subprocess.CalledProcessError:
+    return "", {}
+
+
+def _parse_modetest_output(output: str) -> dict[int, dict[str, Any]]:
+  """Parses the output of 'modetest -c' to extract connector properties."""
+  lines = output.splitlines()
+  connectors = {}
+  current_connector_id = None
+  in_props_section = False
+  # A prop line looks like: `  3  PATH:`
+  prop_line_regex = r"\s+\d+\s+(.*):$"
+
+  in_connectors_section = False
+  for line_index, line in enumerate(lines):
+    line_stripped = line.strip()
+    if not in_connectors_section:
+      if line_stripped == "Connectors:":
+        in_connectors_section = True
+      continue
+
+    parts = line.split()
+    # A connector line looks like:
+    # 709     708     connected       eDP-1        280x190         2       708
+    if (
+        parts
+        and parts[0].isdigit()
+        and len(parts) >= 4
+        and parts[2] in ["connected", "disconnected", "unknown"]
+    ):
+      current_connector_id = int(parts[0])
+      connectors[current_connector_id] = {
+          "name": parts[3],
+          "connected": parts[2] == "connected",
+          "props": {},
+      }
+      in_props_section = False
+      continue
+
+    if current_connector_id is None:
+      continue
+
+    if line_stripped == "props:":
+      in_props_section = True
+      continue
+
+    if not in_props_section:
+      continue
+
+    match = re.match(prop_line_regex, line)
+    if match:
+      prop_name = match.group(1).strip()
+      prop_value = ""
+      for value_line_index in range(line_index + 1, len(lines)):
+        value_line = lines[value_line_index]
+        value_line_stripped = value_line.strip()
+        if value_line_stripped.startswith("value:"):
+          prop_value = value_line_stripped.split(":", 1)[1].strip()
+          if not prop_value and value_line_index + 1 < len(lines):
+            # check indentation to see if it's a multi-line value
+            if len(lines[value_line_index + 1]) > len(value_line) - len(
+                value_line.lstrip()
+            ):
+              prop_value = lines[value_line_index + 1].strip()
+          break
+        elif re.match(prop_line_regex, value_line):  # next prop
+          break
+        else:  # Stop if we see what looks like a new connector
+          next_parts = value_line.split()
+          if (
+              next_parts
+              and next_parts[0].isdigit()
+              and len(next_parts) >= 3
+              and next_parts[2] in ["connected", "disconnected", "unknown"]
+          ):
+            break
+      connectors[current_connector_id]["props"][prop_name] = prop_value
+
+  return connectors

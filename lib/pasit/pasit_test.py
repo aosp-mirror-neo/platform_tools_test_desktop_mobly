@@ -72,6 +72,7 @@ class PasitTestClass(base_test.BaseTestClass):
     self.failure_drop_to_interpreter = bool(
         self.user_params.get('on_fail_drop_to_interpreter', False)
     )
+    self._apply_retry_and_repeat_to_all_tests()
 
     self.dut = pasit_device.create(self)
     self.passport_host.reset()
@@ -141,14 +142,15 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _capture_bugreport(self, test_failed: bool) -> None:
     """Captures a bug report if configured to."""
-    if not hasattr(self, 'dut'):
-      return
     collect_bugreport = self.bugreport == 'all' or (
         self.bugreport == 'on_fail' and test_failed
     )
     if not collect_bugreport:
       return
     logging.info('Collecting bug report for test.')
+    if self.dut.is_device_offline():
+      logging.warning('DUT is offline, cannot collect bug report.')
+      return
     try:
       self.dut.controller.take_bug_report(
           test_name=self.current_test_info.name,
@@ -189,6 +191,9 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _try_capture_screenshots(self) -> None:
     """Captures screenshots for all displays."""
+    if self.dut.is_device_offline():
+      logging.warning('DUT is offline, cannot capture screenshots.')
+      return
     try:
       self.dut.capture_screenshots(
           self.current_test_info.output_path, 'on_test_failure'
@@ -204,6 +209,55 @@ class PasitTestClass(base_test.BaseTestClass):
       )
     except Exception as e:  # pylint: disable=broad-except
       logging.warning('Failed to capture images from all cameras: %s', e)
+
+  def _apply_retry_and_repeat_to_all_tests(self):
+    """Applies retry and repeat decorators to all tests if retry_count is set.
+
+    This allows for mimicking the repeat and retry decorators for all tests
+    without having to explicitly decorate each test with the retry and repeat
+    decorators.  Mostly useful for testing and recreating failures/flakes in
+    the lab.
+    """
+    retry_count = int(self.user_params.get('retry_count', 0))
+    repeat_count = int(self.user_params.get('repeat_count', 0))
+    max_consecutive_error = int(
+        self.user_params.get('max_consecutive_error', 0)
+    )
+    if not retry_count and not repeat_count:
+      return
+    if retry_count and retry_count <= 1:
+      raise signals.TestError(
+          f'The retry_count must be larger than 1, got {retry_count}.'
+      )
+    if repeat_count and repeat_count <= 1:
+      raise signals.TestError(
+          f'The `repeat_count` must be larger than 1, got "{repeat_count}".'
+      )
+    if max_consecutive_error and not repeat_count:
+      raise signals.TestError(
+          '`max_consecutive_error` can only be set when `repeat_count` is set'
+      )
+
+    for test_name in self.get_existing_test_names():
+      if test_name in self._generated_test_table:
+        test_method = self._generated_test_table[test_name]
+      else:
+        test_method = getattr(type(self), test_name)
+
+      # Do not override if already set by a decorator on a specific test.
+      if not hasattr(test_method, base_test.ATTR_MAX_RETRY_CNT) and retry_count:
+        setattr(test_method, base_test.ATTR_MAX_RETRY_CNT, retry_count)
+      if not hasattr(test_method, base_test.ATTR_REPEAT_CNT) and repeat_count:
+        setattr(test_method, base_test.ATTR_REPEAT_CNT, repeat_count)
+      if (
+          not hasattr(test_method, base_test.ATTR_MAX_CONSEC_ERROR)
+          and max_consecutive_error
+      ):
+        setattr(
+            test_method,
+            base_test.ATTR_MAX_CONSEC_ERROR,
+            max_consecutive_error,
+        )
 
   # Note type hints intentionally not included to match underlying Mobly code
   # in base_test.py.
