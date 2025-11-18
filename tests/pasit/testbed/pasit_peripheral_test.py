@@ -335,6 +335,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           device.id,
           [item.value for item in display_camera_mapper.DisplayPaths],
       )
+      if utils.is_edid(topology, device.id):
+        # EDID devices do not work properly with DUTs, so skip them.
+        continue
       for tag in tags:
         if (
             tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
@@ -343,13 +346,14 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
           # for daisy chain, we only test the full chain, so skip all the
           # intermediate displays and only test the leaf node.
           continue
-        if (
-            not utils.is_edid(topology, device.id)
-            and tag != display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
-        ):
-          # generate display tests for dock and dockless only, ignoring
-          # EDID devices and daisy chain
-          display_count_test_devices.append((device.id, tag))
+        display_count_test_devices.append((device.id, tag))
+        if tag != display_camera_mapper.DisplayPaths.DAISY_CHAIN.value:
+          # Generate display mapping tests for dock and dockless only, ignoring
+          # daisy chain.  We want to minimize the tests in this suite to only
+          # cover the basic cases and rely on the real PASIT tests to cover the
+          # rest.  Dock/dockless single display tests should be able to cover
+          # the camera alignment and mapping we don't need to test the daisy
+          # chain functionality in this suite.
           display_mapping_devices.append((device.id, tag))
 
     if display_count_test_devices:
