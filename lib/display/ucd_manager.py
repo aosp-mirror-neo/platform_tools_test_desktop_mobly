@@ -63,6 +63,20 @@ class UcdManager(abc.ABC):
     self._vsc = vsc
     self._dut = dut
 
+  def set_dp_video_spec(
+      self,
+      video_spec: video_tester_service_pb2.VideoSpecification,
+      dsc: bool | None = None,
+  ):
+    """Sets the DP video spec. This is a no-op for non-DP testers."""
+    pass
+
+  def get_dp_video_spec(
+      self,
+  ) -> tuple[video_tester_service_pb2.VideoSpecification | None, bool | None]:
+    """Gets the DP video spec. Returns (None, None) for non-DP testers."""
+    return None, None
+
   @property
   @abc.abstractmethod
   def interface_type(self) -> interface_types.InterfaceType:
@@ -487,6 +501,36 @@ class UcdManager(abc.ABC):
 class Ucd500Manager(UcdManager):
   """UCD 500 is the DP Tester Device."""
 
+  def __init__(
+      self,
+      vsc: passport_video_service_client.PassportVideoServiceClient,
+      dut: pasit_device.PasitDevice,
+  ):
+    super().__init__(vsc, dut)
+    # Default settings for DP 1.4.
+    self._video_spec = (
+        video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_1_4
+    )
+    self._dsc = True
+
+  def set_dp_video_spec(
+      self,
+      video_spec: video_tester_service_pb2.VideoSpecification,
+      dsc: bool | None = None,
+  ):
+    logging.debug(
+        "Setting DP video spec to %s, dsc: %s",
+        video_tester_service_pb2.VideoSpecification.Name(video_spec),
+        dsc,
+    )
+    self._video_spec = video_spec
+    self._dsc = dsc
+
+  def get_dp_video_spec(
+      self,
+  ) -> tuple[video_tester_service_pb2.VideoSpecification | None, bool | None]:
+    return self._video_spec, self._dsc
+
   @property
   def interface_type(self) -> interface_types.InterfaceType:
     return interface_types.InterfaceType.DP
@@ -513,14 +557,19 @@ class Ucd500Manager(UcdManager):
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
     logging.debug(
-        "Setting DP link capabilities with is_mst: %s, displays_to_set: %d",
+        "Setting DP link capabilities with is_mst: %s, displays_to_set: %d,"
+        " video_spec: %s, dsc: %s",
         is_mst,
         displays_to_set,
+        video_tester_service_pb2.VideoSpecification.Name(self._video_spec),
+        self._dsc,
     )
     if not self._vsc.set_dp_link_capabilities(
         mst=is_mst,
         ss_sbm=is_mst if displays_to_set else None,
         mst_sink_count=displays_to_set,
+        video_spec=self._video_spec,
+        dsc=self._dsc,
     ):
       raise UcdManagerError("Failed to set DP link capabilities.")
 
