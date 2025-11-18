@@ -14,36 +14,30 @@
 
 """Testing the most basic operation of a DUT with UCD: Sanity Check."""
 
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class BasicTest(ucd_base_test.UcdBaseTest):
+class BasicTest(ucd_test_base.UcdTestBase):
   """Add a letter prefix to the test name to make them run in order."""
 
   def test_a_plug_single_display(self):
     """Tests the system's ability to plug in a single display."""
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=1, force_mst=False
-    )
+    self._ucd_manager.replug_displays(display_count=1, wait_for_active=True)
 
   def test_b_plug_and_unplug_display(self):
     """Tests the system's ability to plug in and unplug a display."""
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=1, force_mst=False
-    )
-    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.replug_displays(display_count=1, wait_for_active=True)
+    self._ucd_manager.unplug_all_displays(wait_for_active=True)
 
   def test_c_screenshot_single_display(self):
     """Tests the system's ability to take a screenshot of a single display."""
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=1, force_mst=False
-    )
+    self._ucd_manager.replug_displays(display_count=1, wait_for_active=True)
     self.check_all_screenshots_for_displays(1)
 
 

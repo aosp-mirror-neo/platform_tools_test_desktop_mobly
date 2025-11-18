@@ -19,15 +19,15 @@ from typing import Optional
 from display.utils import compliance_tests_manager
 from display.utils import interface_types
 from display.utils import platform_info_helper
-from display.utils import ucd_base_test
 from display.utils import ucd_compliance_tests_lists
+from display.utils import ucd_test_base
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class ComplianceTest(ucd_base_test.UcdBaseTest):
+class ComplianceTest(ucd_test_base.UcdTestBase):
   """Test class for running VESA compliance tests."""
 
   board: str
