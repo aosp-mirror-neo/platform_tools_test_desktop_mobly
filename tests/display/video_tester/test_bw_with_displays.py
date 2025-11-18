@@ -18,14 +18,14 @@
 from display.utils import board_capabilities
 from display.utils import interface_types
 from display.utils import platform_info_helper
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
+class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
   """Test class for testing the system bandwidth with multiple displays."""
 
   def test_connected_display_max_bw(self):
@@ -45,10 +45,12 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         f"No Edid for Max Resolution found for board: '{board_name}'",
     )
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=1, displays_edids=[edid_for_max_mode.Edid]
+    self._ucd_manager.replug_displays(
+        display_count=1,
+        wait_for_active=True,
+        displays_edids=[edid_for_max_mode],
     )
-    streams = self._ucd_manager.get_valid_streams()
+    streams = self._ucd_manager.get_active_displays()
     asserts.assert_equal(
         len(streams),
         1,

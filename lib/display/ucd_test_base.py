@@ -28,7 +28,7 @@ from lib.utils import retry
 from mobly import asserts
 
 
-class UcdBaseTest(pasit_test.PasitTestClass):
+class UcdTestBase(pasit_test.PasitTestClass):
   """Base class for UCD tests.
 
   This class sets up and resets the displays state between tests.
@@ -63,7 +63,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         self.passport_host.video_tester_client,
         self.dut,
     )
-    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.unplug_all_displays(wait_for_active=True)
     # Set the max number of displays that can be tested.
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
     theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
@@ -71,7 +71,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         self._ucd_manager.max_supported_displays,
         theoritical_max_connected_displays,
     )
-    logging.info(f"max_tested_displays: {self.max_tested_displays}")
+    logging.info("max_tested_displays: %d", self.max_tested_displays)
     asserts.assert_greater(
         self.max_tested_displays,
         0,
@@ -86,14 +86,14 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   def teardown_test(self):
     # Clear UCD and DUT state after each test.
     # This is to make sure that the displays are in a consistent state.
-    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.unplug_all_displays(wait_for_active=False)
+    # TODO(b/461514028): Make reboot more reliable.
     self.dut.reboot()
     super().teardown_test()
 
   def teardown_class(self):
     self._ucd_manager.reset_ucd_displays_state_to_default()
     self._ucd_manager.disconnect_ucd()
-    self.dut.reboot()
     super().teardown_class()
 
   def skip_if_display_count_not_supported(self, display_count: int):
@@ -131,7 +131,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     """
     for i in range(display_count):
       retry.retry(
-          lambda: self._check_single_display_screenshot(i, color),
+          lambda i=i: self._check_single_display_screenshot(i, color),
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(self.ColorMatchingError,),
       )
@@ -156,7 +156,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         or is black.
     """
     logging.debug("Checking screenshot for display %d", display_index)
-    screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
+    screenshot_bmp = self._ucd_manager.get_display_screenshot(display_index)
     screenshot_raw, width, height = image.process_bmp_img_to_raw(screenshot_bmp)
 
     timestamp = int(time.time())
@@ -200,14 +200,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         filename: The name of the file to create
     """
     filepath = os.path.join(self.log_path, filename)
-    logging.info(f"Saving screenshot to {filepath}")
+    logging.info("Saving screenshot to %s", filepath)
 
     with open(filepath, "wb") as f:
       f.write(data)
-
-  def _perform_sanity_check(self):
-    """Performs a sanity check on the DUT and UCD."""
-    logging.debug("performing sanity check..")
-    self._ucd_manager.unplug_and_destroy_all_displays()
-    self._ucd_manager.plug_additional_displays_to_active_displays(1)
-    self._ucd_manager.unplug_and_destroy_all_displays()

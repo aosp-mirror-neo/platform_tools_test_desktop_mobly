@@ -18,7 +18,7 @@ import enum
 import logging
 import time
 
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from lib.pasit import dut_state_manager
 from mobly import asserts
 from mobly import base_suite
@@ -26,7 +26,7 @@ from mobly import config_parser
 from mobly import suite_runner
 
 
-class SuspendResumeTest(ucd_base_test.UcdBaseTest):
+class SuspendResumeTest(ucd_test_base.UcdTestBase):
   """Test class for testing the suspend and resume functionality.
 
   This class includes tests for suspending and resuming the device with
@@ -180,18 +180,24 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
     """Tests suspend and resume with displays plugged at various stages."""
     suspend_time = self._generate_suspend_time(exp)
     if stage == self.PlugInStage.BEFORE_SUSPEND:
-      self._ucd_manager.set_total_displays_count(display_count)
+      self._ucd_manager.replug_displays(
+          display_count=display_count, wait_for_active=False
+      )
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, dut_state_manager.PowerState.SUSPEND
     ):
       if stage == self.PlugInStage.DURING_SUSPEND:
-        self._ucd_manager.set_total_displays_count(display_count)
+        self._ucd_manager.replug_displays(
+            display_count=display_count, wait_for_active=False
+        )
         logging.debug('Plugging in external displays during suspend.')
       time.sleep(suspend_time)
 
     if stage == self.PlugInStage.AFTER_SUSPEND:
-      self._ucd_manager.set_total_displays_count(display_count)
+      self._ucd_manager.replug_displays(
+          display_count=display_count, wait_for_active=True
+      )
 
     self._check_for_displays_on(display_count, suspend_time)
 
@@ -204,12 +210,14 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
           'Stress test iteration %d/%d.', i + 1, self._STRESS_ITERATION_COUNT
       )
       self.suspend_resume_with_plug(exp, stage, display_count)
-      self._ucd_manager.unplug_and_destroy_all_displays()
+      self._ucd_manager.unplug_all_displays(wait_for_active=False)
 
   def suspend_resume_n_times_while_plugged(self, exp: int, display_count: int):
     """Stress tests suspend/resume with displays constantly connected."""
     suspend_time = self._generate_suspend_time(exp)
-    self._ucd_manager.set_total_displays_count(display_count)
+    self._ucd_manager.replug_displays(
+        display_count=display_count, wait_for_active=False
+    )
 
     for i in range(self._STRESS_ITERATION_COUNT):
       logging.debug(
@@ -240,13 +248,13 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
         self.dut, dut_state_manager.PowerState.SUSPEND
     ):
       logging.info('Unplugging displays during suspend.')
-      self._ucd_manager.unplug_and_destroy_all_displays()
+      self._ucd_manager.unplug_all_displays(wait_for_active=False)
       suspend_time = self._generate_suspend_time(exp)
       time.sleep(suspend_time)
 
     logging.info('Resumed device. Verifying displays are off.')
     asserts.assert_true(
-        self._ucd_manager.are_displays_reporting_stream_info(0),
+        self._ucd_manager.wait_for_display_count(0),
         'Displays should be inactive after unplugging during suspend.',
     )
 
@@ -301,14 +309,16 @@ class SuspendResumeTest(ucd_base_test.UcdBaseTest):
     return round(self._SUSPEND_TIME_BASE**exp, 1)
 
   def _plug_in_and_verify_displays(self, display_count: int):
-    self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
+    self._ucd_manager.replug_displays(
+        display_count=display_count, wait_for_active=True
+    )
     self._check_for_displays_on(display_count, 0)
 
   def _check_for_displays_on(self, display_count: int, suspend_time: float):
     logging.info('Verifying %d displays are on.', display_count)
     asserts.assert_true(
-        self._ucd_manager.are_displays_reporting_stream_info(display_count),
-        f'External displays are not active for {display_count} displays.',
+        self._ucd_manager.wait_for_display_count(display_count),
+        f'Expected {display_count} displays to be active.',
     )
     asserts.assert_true(
         self.dut.is_device_online(),

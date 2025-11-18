@@ -19,7 +19,7 @@ import time
 
 from display.utils import interface_types
 from display.utils import modetest_helper
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from lib.pasit.passport import errors
 from mobly import asserts
 from mobly import base_suite
@@ -29,7 +29,7 @@ from mobly import suite_runner
 PassportBaseError = errors.PassportBaseError
 
 
-class MstTest(ucd_base_test.UcdBaseTest):
+class MstTest(ucd_test_base.UcdTestBase):
   """Test class for testing low level MST features."""
 
   cached_modetest_output: str | None = None
@@ -97,8 +97,9 @@ class MstTest(ucd_base_test.UcdBaseTest):
     )
     edp_connector_id = list(active_connectors_before.keys())[0]
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=display_count,
+    self._ucd_manager.replug_displays(
+        display_count=display_count,
+        wait_for_active=True,
         force_mst=True,
     )
 
@@ -247,7 +248,7 @@ class MstTest(ucd_base_test.UcdBaseTest):
   def toggle_mst_and_sbm(self, is_mst: bool, is_sbm: bool):
     """Tests the system's ability to toggle MST and SBM."""
 
-    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.unplug_all_displays(wait_for_active=True)
 
     if not self.passport_host.video_tester_client.set_dp_link_capabilities(
         mst=is_mst,
@@ -263,7 +264,7 @@ class MstTest(ucd_base_test.UcdBaseTest):
     time.sleep(5)
 
     asserts.assert_true(
-        self._ucd_manager.are_displays_reporting_stream_info(1),
+        self._ucd_manager.wait_for_display_count(1),
         f"External displays is not active with MST={is_mst} and SBM={is_sbm}.",
     )
     self.check_all_screenshots_for_displays(1)
