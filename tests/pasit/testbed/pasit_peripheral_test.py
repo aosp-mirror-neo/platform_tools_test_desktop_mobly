@@ -133,6 +133,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         lambda: len(self.helper.get_stable_display_ids()),
         until=lambda ids_count: ids_count == expected_display_count,
         policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+        exceptions=(display_helper.DisplayIDsNotStableError,),
     )
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(

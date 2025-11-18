@@ -215,6 +215,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
             lambda: len(self.helper.get_stable_display_ids()),
             until=lambda ids_count: ids_count == expected_count,
             policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+            exceptions=(display_helper.DisplayIDsNotStableError,),
         ),
         expected_count,
         f'Display IDs count is not {expected_count} {event_to_log}.',
