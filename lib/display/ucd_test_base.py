@@ -23,6 +23,7 @@ from display.utils import ucd_manager
 from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit.base import base_pasit_device
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
@@ -87,8 +88,7 @@ class UcdTestBase(pasit_test.PasitTestClass):
     # Clear UCD and DUT state after each test.
     # This is to make sure that the displays are in a consistent state.
     self._ucd_manager.unplug_all_displays(wait_for_active=False)
-    # TODO(b/461514028): Make reboot more reliable.
-    self.dut.reboot()
+    self.super_reboot()
     super().teardown_test()
 
   def teardown_class(self):
@@ -135,6 +135,36 @@ class UcdTestBase(pasit_test.PasitTestClass):
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(self.ColorMatchingError,),
       )
+
+  def super_reboot(self):
+    """Reboots the device, with retries and cold resets if needed."""
+    self.dut.reboot()
+
+    is_online = retry.retry(
+        self.dut.is_device_online,
+        until=lambda result: result,
+        policy=retry.RetryPolicy(max_tries=6, delay_seconds=5),  # 30 seconds
+    )
+
+    if is_online:
+      logging.debug("Device rebooted successfully.")
+      return
+
+    logging.info(
+        "Device did not come back online after reboot, attempting cold resets."
+    )
+
+    for i in range(3):
+      logging.debug("Cold reset attempt %d/3", i + 1)
+      self.dut.power_on_if_offline()
+      if self.dut.is_device_online():
+        logging.debug("Device is online after cold reset.")
+        return
+      logging.warning("Device still offline after cold reset attempt.")
+
+    raise base_pasit_device.PasitDeviceError(
+        "Device failed to come online after reboot and 3 cold resets."
+    )
 
   def _check_single_display_screenshot(
       self, display_index: int, color: image.Color | None

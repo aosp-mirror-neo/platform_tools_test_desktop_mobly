@@ -193,7 +193,7 @@ class HotplugsTest(ucd_test_base.UcdTestBase):
     self._check_for_displays_on(display_count)
 
     logging.info("Rebooting DUT.")
-    self.dut.reboot()
+    self.super_reboot()
 
     logging.info("DUT rebooted. Verifying displays are active.")
     self._check_for_displays_on(display_count)
