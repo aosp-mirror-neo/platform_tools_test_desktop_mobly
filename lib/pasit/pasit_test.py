@@ -83,6 +83,8 @@ class PasitTestClass(base_test.BaseTestClass):
     """Teardown steps after each test is executed."""
     if self.dut.power_on_if_offline():
       asserts.fail('DUT is offline after test.')
+    elif self.dut.unexpected_reboots():
+      asserts.fail('DUT unexpectedly rebooted during test.')
 
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()

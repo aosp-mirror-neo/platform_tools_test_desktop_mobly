@@ -217,6 +217,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def unexpected_reboots(self) -> bool:
+    """Checks if the device has rebooted unexpectedly.
+
+    Returns:
+      True if the device has rebooted unexpectedly, False otherwise.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def is_powered(self) -> bool:
     """Returns True if the device is receiving power.
 
