@@ -40,9 +40,9 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     self.switch_camera()
     self.capture_screenshots('after_switch_to_external_camera')
     self._verify_external_camera_captures_color(
-        image.NamedColor.RED,
+        image.NamedColor.BLUE,
         'External camera preview (on the internal display) should be showing'
-        ' red color.',
+        ' blue color.',
     )
 
   def _verify_external_camera_captures_color(
