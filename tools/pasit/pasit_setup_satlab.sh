@@ -42,6 +42,12 @@ IP_POWER_SWITCH_IP="192.168.231.110"
 PASSPORT_DOCKER_REGISTRY="us-docker.pkg.dev/cros-passport"
 PASSPORT_DOCKER_IMAGE="${PASSPORT_DOCKER_REGISTRY}/passport/passport:latest"
 PASSPORT_CONTAINER="passport-dev"
+# use multiplexing to keep the tunnels alive for 90 seconds, this allows for
+# faster reconnection after disconnection, this cuts down on runtime from > 60s
+# to < 20s.
+SOCKET="/tmp/pasit_setup_satlab.sh.sock"
+SSH_OPTS="-o ControlMaster=auto -o ControlPath=$SOCKET -o ControlPersist=90"
+
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -68,7 +74,8 @@ function usage() {
 
 function check_ssh_access() {
   echo -e "\n\nChecking SSH access to ${SATLAB_IP}..."
-  if ! ssh -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
+  # shellcheck disable=SC2086
+  if ! ssh ${SSH_OPTS} -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
     echo -e "\n\nERROR: Failed to establish SSH connection to ${SATLAB_IP}."
     echo "Please ensure you have passwordless SSH access configured for this Satlab and that the host key is accepted."
     echo "See go/write-pasit-test#enter-satlab-dut for more details."
@@ -113,7 +120,8 @@ function run_command_on_satlab_ignore_error() {
   # and path as if we were running command from interactive shell
   # this assumes that no variable expanision is needed on the remote
   # ssh shell
-  ssh "${SATLAB_IP}" -t "bash -l -c '$*'"
+  # shellcheck disable=SC2086
+  ssh ${SSH_OPTS} "${SATLAB_IP}" -t "bash -l -c '$*'"
 }
 
 function run_command_on_satlab() {
@@ -149,6 +157,7 @@ function setup_tunnel() {
     "${DUT_TUNNEL}" \
     -L "${PASSPORT_TUNNEL_PORT}:${PASSPORT_IP}:8300" \
     -L "${IP_POWER_SWITCH_TUNNEL_PORT}:${IP_POWER_SWITCH_IP}:80" \
+    ${SSH_OPTS} \
     ${SERVO_TUNNEL} \
     "${SATLAB_IP}"
   if [[ $? -ne 0 ]]; then
@@ -162,29 +171,35 @@ function start_passport() {
   echo -e "\n\nStarting passport container..."
   # don't use the run_command_on_satlab function in this function because
   # there is too much quoting going on and it will mess up the command parsing
-  local DOCKER_CMD="$(ssh "${SATLAB_IP}" which docker)"
+  local DOCKER_CMD
+  # shellcheck disable=SC2086
+  DOCKER_CMD="$(ssh ${SSH_OPTS} "${SATLAB_IP}" which docker)"
   if [[ -z "${DOCKER_CMD}" ]]; then
     DOCKER_CMD="/usr/local/bin/docker"
     echo -e "defaulting to satlab docker path ${DOCKER_CMD}"
   fi
   # stop any existing passport container
-  ssh "${SATLAB_IP}" "${DOCKER_CMD}" rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
+  # shellcheck disable=SC2086
+  ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
   # login to docker registry
-  if ! ssh "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
+  # shellcheck disable=SC2086
+  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
       'cat /home/satlab/keys/pubsub-key-do-not-delete.json \
       | /usr/local/bin/docker login -u _json_key --password-stdin\
        ${PASSPORT_DOCKER_REGISTRY}'"; then
     echo "ERROR: failed to login to docker registry, are you running this script on a satlab?"
     exit 1
   fi
-  if ! ssh "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
+  # shellcheck disable=SC2086
+  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
       \"/usr/local/bin/docker pull ${PASSPORT_DOCKER_IMAGE}\""; then
     echo "ERROR: failed to pull latest passport docker image"
     exit 1
   fi
   # start container
   echo -e "\n\nStarting passport container ${PASSPORT_DOCKER_IMAGE}..."
-  if ! ssh "${SATLAB_IP}" "${DOCKER_CMD}" run \
+  # shellcheck disable=SC2086
+  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" run \
     -d \
     --rm \
     --name ${PASSPORT_CONTAINER} \
@@ -195,7 +210,8 @@ function start_passport() {
     exit 1
   fi
 
-  PASSPORT_IP="$(ssh "${SATLAB_IP}" "${DOCKER_CMD}" inspect -f \
+  # shellcheck disable=SC2086
+  PASSPORT_IP="$(ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" inspect -f \
     '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
     "${PASSPORT_CONTAINER}")"
   if [[ $? -ne 0 || -z "${PASSPORT_IP}" ]]; then
@@ -224,7 +240,8 @@ function setup_servo() {
     exit 1
   fi
 
-  SERVO_IP="$(ssh "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
+  # shellcheck disable=SC2086
+  SERVO_IP="$(ssh ${SSH_OPTS} "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
   if [[ $? -ne 0 || -z "${SERVO_IP}" ]]; then
     echo -e "\n\nERROR: Failed to get Servod container IP."
     exit 1
@@ -264,12 +281,16 @@ function adb_connect_and_dut_info() {
     echo -e "\n\nFailed to connect to DUT ${DUT_HOSTNAME} via ADB"
     exit 1
   fi
-  sleep 2
-  adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint
-  if [[ $? -ne 0 ]]; then
-    echo -e "\n\nERROR: Failed to get DUT info via ADB. DUT may not be connected. or may not be running Android."
-    exit 1
-  fi
+  for i in $(seq 1 5); do
+    sleep 2
+    echo -e "Getting fingerprint for ${DUT_HOSTNAME}..."
+    if adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint; then
+      return 0
+    fi
+  done
+  echo "Failed to get fingerprint for ${DUT_HOSTNAME} after 5 attempts."
+  echo "DUT may be offline or not running Android."
+  exit 1
 }
 
 function generate_config() {
