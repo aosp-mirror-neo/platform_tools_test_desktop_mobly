@@ -14,6 +14,7 @@
 
 """Passport Video service client."""
 
+from __future__ import annotations
 import logging
 import time
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
