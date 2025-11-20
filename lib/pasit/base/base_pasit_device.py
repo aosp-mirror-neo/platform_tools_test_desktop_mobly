@@ -235,6 +235,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def start_screen_recording(self):
+    """Starts screen recording on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_screen_recording(self, output_path: str):
+    """Stops screen recording on the device."""
+    raise NotImplementedError
+
   def wait_for_device_online(self):
     """Waits for the device to be online.
 

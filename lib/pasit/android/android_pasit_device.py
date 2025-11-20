@@ -21,6 +21,7 @@ import threading
 import time
 
 from lib.pasit.android import dumpsys_battery_parser
+from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
@@ -71,6 +72,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     super().__init__(controller, servo)
     self.snippets = snippet_tools.SnippetTools(self.controller)
     self.user_session = user_session_tools.UserSessionTools(self.controller)
+    self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
@@ -284,6 +286,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       self._boot_id = current_boot_id
       return True
     return False
+
+  def start_screen_recording(self):
+    self._screen_recorder.start()
+
+  def stop_screen_recording(self, output_path: str):
+    self._screen_recorder.stop(output_path)
 
   def _wait_for_boot_completion(self):
     try:

@@ -79,12 +79,19 @@ class PasitTestClass(base_test.BaseTestClass):
 
     self.passport_host.save_topology_diagram(self.log_path)
 
+  def setup_test(self):
+    """Setup steps before each test is executed."""
+    super().setup_test()
+    self.dut.start_screen_recording()
+
   def teardown_test(self):
     """Teardown steps after each test is executed."""
     if self.dut.power_on_if_offline():
       asserts.fail('DUT is offline after test.')
     elif self.dut.unexpected_reboots():
       asserts.fail('DUT unexpectedly rebooted during test.')
+
+    self.dut.stop_screen_recording(self.current_test_info.output_path)
 
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
@@ -93,6 +100,8 @@ class PasitTestClass(base_test.BaseTestClass):
   def teardown_class(self):
     """Teardown steps after all tests are executed."""
     if hasattr(self, 'dut'):
+      # stop the screen recording here in case teardown_test was not executed
+      self.dut.stop_screen_recording(self.root_output_path)
       self.dut.cleanup()
     super().teardown_class()
 
