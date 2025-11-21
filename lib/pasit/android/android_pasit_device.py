@@ -109,6 +109,9 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       ) from e
 
   def reboot(self):
+    # ensure that boot ID is cleared before reboot to avoid false positives
+    # if the device fails to boot completely after a reboot.
+    self._boot_id = None
     self.controller.reboot()
     self._update_boot_id()
     self._bypass_login_screen()
