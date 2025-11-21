@@ -88,7 +88,11 @@ class UcdTestBase(pasit_test.PasitTestClass):
     # Clear UCD and DUT state after each test.
     # This is to make sure that the displays are in a consistent state.
     self._ucd_manager.unplug_all_displays(wait_for_active=False)
-    self.super_reboot()
+    try:
+      self.super_reboot()
+    except Exception:  # pylint: disable=broad-except
+      # I don't want to fail the test if the reboot fails.
+      pass
     super().teardown_test()
 
   def teardown_class(self):
@@ -138,21 +142,24 @@ class UcdTestBase(pasit_test.PasitTestClass):
 
   def super_reboot(self):
     """Reboots the device, with retries and cold resets if needed."""
-    self.dut.reboot()
-
-    is_online = retry.retry(
-        self.dut.is_device_online,
-        until=lambda result: result,
-        policy=retry.RetryPolicy(max_tries=6, delay_seconds=5),  # 30 seconds
-    )
-
-    if is_online:
-      logging.debug("Device rebooted successfully.")
-      return
-
-    logging.info(
-        "Device did not come back online after reboot, attempting cold resets."
-    )
+    try:
+      self.dut.reboot()
+    except Exception:  # pylint: disable=broad-except
+      logging.info("Reboot command failed. Will attempt cold reset.")
+    else:
+      is_online = retry.retry(
+          self.dut.is_device_online,
+          until=lambda result: result,
+          policy=retry.RetryPolicy(max_tries=6, delay_seconds=5),  # 30 seconds
+      )
+      if is_online:
+        logging.debug("Device rebooted successfully.")
+        return
+      else:
+        logging.info(
+            "Device did not come back online after reboot. Will attempt cold"
+            " resets."
+        )
 
     for i in range(3):
       logging.debug("Cold reset attempt %d/3", i + 1)
