@@ -268,10 +268,10 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     # instead of from the passport host.
     host_cfg = self.controller_configs.get('PassportHost')
     if not host_cfg:
-      raise signals.TestError(
-          'No PassportHost found for controller config, this test requires a'
-          ' Passport Configuration.'
-      )
+      # Return an empty topology if there is no passport host to allow for
+      # list tests to not crash, this means empty test list will be returned
+      # for this module but will not cause any issues other than UX.
+      return pasit_host_pb2.PasitHost()
     topology_cfg = host_cfg[0].get('host_topology')
     if not topology_cfg:
       raise signals.TestError(
