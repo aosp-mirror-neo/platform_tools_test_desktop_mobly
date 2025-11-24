@@ -15,17 +15,18 @@
 """Testing the System Bandwidth in supporting displays."""
 
 
+from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from display.utils import board_capabilities
 from display.utils import interface_types
 from display.utils import platform_info_helper
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
+class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
   """Test class for testing the system bandwidth with multiple displays."""
 
   def test_connected_display_max_bw(self):
@@ -35,40 +36,65 @@ class BwWithDisplaysTest(ucd_base_test.UcdBaseTest):
         "This test is only applicable to DP displays.",
     )
 
-    # Setup UCD as a sink with required max resolution per board
-    board_name = platform_info_helper.get_current_board_name(self.dut)
-    edid_for_max_mode = (
-        board_capabilities.get_edid_for_max_supported_res_for_board(board_name)
-    )
-    asserts.assert_true(
-        edid_for_max_mode,
-        f"No Edid for Max Resolution found for board: '{board_name}'",
-    )
+    original_spec, original_dsc = self._ucd_manager.get_dp_video_spec()
+    try:
+      self._ucd_manager.set_dp_video_spec(
+          video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_2_1,
+          dsc=True,
+      )
+      # Setup UCD as a sink with required max resolution per board
+      board_name = platform_info_helper.get_current_board_name(self.dut)
+      edid_for_max_mode = (
+          board_capabilities.get_edid_for_max_supported_res_for_board(
+              board_name
+          )
+      )
+      asserts.assert_true(
+          edid_for_max_mode,
+          f"No Edid for Max Resolution found for board: '{board_name}'",
+      )
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=1, displays_edids=[edid_for_max_mode.Edid]
-    )
-    streams = self._ucd_manager.get_valid_streams()
-    asserts.assert_equal(
-        len(streams),
-        1,
-        f"Number of valid streams do not match the number of ext displays"
-        f" connected: 1",
-    )
+      self._ucd_manager.replug_displays(
+          display_count=1,
+          wait_for_active=True,
+          displays_edids=[edid_for_max_mode.Edid],
+      )
+      streams = self._ucd_manager.get_active_displays()
+      asserts.assert_equal(
+          len(streams),
+          1,
+          "Number of valid streams do not match the number of ext displays"
+          " connected: 1",
+      )
 
-    requested_hactive = edid_for_max_mode.Hactive
-    requested_vactive = edid_for_max_mode.Vactive
-    requested_frame_rate = edid_for_max_mode.RefreshRate
+      requested_hactive = edid_for_max_mode.Hactive
+      requested_vactive = edid_for_max_mode.Vactive
+      requested_frame_rate_mhz = edid_for_max_mode.RefreshRate * 1000
+      refresh_rate_tolerance_mhz = (
+          edid_for_max_mode.refresh_rate_tolerance_hz * 1000
+      )
 
-    asserts.assert_true(
-        streams[0].hactive == requested_hactive
-        and streams[0].vactive == requested_vactive
-        and streams[0].frame_rate == requested_frame_rate,
-        f"""External display is not active with requested Hactive = {requested_hactive} or
-      requested Vactive = {requested_vactive} or requested Frame Rate = {requested_frame_rate}
-      Current timings are: Hactive = {streams[0].hactive} Vactive = {streams[0].vactive}
-      Frame Rate = {streams[0].frame_rate}""",
-    )
+      frame_rate_in_range = (
+          abs(streams[0].frame_rate - requested_frame_rate_mhz)
+          <= refresh_rate_tolerance_mhz
+      )
+
+      asserts.assert_true(
+          streams[0].hactive == requested_hactive
+          and streams[0].vactive == requested_vactive
+          and frame_rate_in_range,
+          "External display is not active with requested timings.\n"
+          f"Requested: Hactive={requested_hactive},"
+          f" Vactive={requested_vactive}, Refresh Rate"
+          f" ~{edid_for_max_mode.RefreshRate}Hz"
+          f" (+/- {edid_for_max_mode.refresh_rate_tolerance_hz}Hz)\n"
+          f"Actual: Hactive={streams[0].hactive},"
+          f" Vactive={streams[0].vactive}, Refresh Rate="
+          f"{streams[0].frame_rate / 1000.0:.2f}Hz"
+          f" ({streams[0].frame_rate}mHz)",
+      )
+    finally:
+      self._ucd_manager.set_dp_video_spec(original_spec, original_dsc)
 
 
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):

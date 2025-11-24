@@ -15,7 +15,7 @@
 import logging
 import time
 
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.utils import image
@@ -24,7 +24,7 @@ from mobly import config_parser
 from mobly import suite_runner
 
 
-class RGBTest(ucd_base_test.UcdBaseTest):
+class RGBTest(ucd_test_base.UcdTestBase):
   """Test class for testing the system bandwidth with multiple displays.
 
   This class includes tests to verify the system's ability to handle an
@@ -71,7 +71,9 @@ class RGBTest(ucd_base_test.UcdBaseTest):
     """Display a color on all displays connected to the DUT."""
     self.skip_if_display_count_not_supported(display_count)
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
+    self._ucd_manager.replug_displays(
+        display_count=display_count, wait_for_active=True
+    )
     external_display_ids = self.helper.get_external_display_ids(
         self.internal_display_id, display_count
     )

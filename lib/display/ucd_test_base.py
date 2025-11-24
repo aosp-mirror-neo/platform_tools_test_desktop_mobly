@@ -23,12 +23,13 @@ from display.utils import ucd_manager
 from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit.base import base_pasit_device
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
 
 
-class UcdBaseTest(pasit_test.PasitTestClass):
+class UcdTestBase(pasit_test.PasitTestClass):
   """Base class for UCD tests.
 
   This class sets up and resets the displays state between tests.
@@ -63,7 +64,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         self.passport_host.video_tester_client,
         self.dut,
     )
-    self._ucd_manager.unplug_and_destroy_all_displays()
+    self._ucd_manager.unplug_all_displays(wait_for_active=True)
     # Set the max number of displays that can be tested.
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
     theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
@@ -71,7 +72,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         self._ucd_manager.max_supported_displays,
         theoritical_max_connected_displays,
     )
-    logging.info(f"max_tested_displays: {self.max_tested_displays}")
+    logging.info("max_tested_displays: %d", self.max_tested_displays)
     asserts.assert_greater(
         self.max_tested_displays,
         0,
@@ -86,14 +87,17 @@ class UcdBaseTest(pasit_test.PasitTestClass):
   def teardown_test(self):
     # Clear UCD and DUT state after each test.
     # This is to make sure that the displays are in a consistent state.
-    self._ucd_manager.unplug_and_destroy_all_displays()
-    self.dut.reboot()
+    self._ucd_manager.unplug_all_displays(wait_for_active=False)
+    try:
+      self.super_reboot()
+    except Exception:  # pylint: disable=broad-except
+      # I don't want to fail the test if the reboot fails.
+      pass
     super().teardown_test()
 
   def teardown_class(self):
     self._ucd_manager.reset_ucd_displays_state_to_default()
     self._ucd_manager.disconnect_ucd()
-    self.dut.reboot()
     super().teardown_class()
 
   def skip_if_display_count_not_supported(self, display_count: int):
@@ -131,10 +135,43 @@ class UcdBaseTest(pasit_test.PasitTestClass):
     """
     for i in range(display_count):
       retry.retry(
-          lambda: self._check_single_display_screenshot(i, color),
+          lambda i=i: self._check_single_display_screenshot(i, color),
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(self.ColorMatchingError,),
       )
+
+  def super_reboot(self):
+    """Reboots the device, with retries and cold resets if needed."""
+    try:
+      self.dut.reboot()
+    except Exception:  # pylint: disable=broad-except
+      logging.info("Reboot command failed. Will attempt cold reset.")
+    else:
+      is_online = retry.retry(
+          self.dut.is_device_online,
+          until=lambda result: result,
+          policy=retry.RetryPolicy(max_tries=6, delay_seconds=5),  # 30 seconds
+      )
+      if is_online:
+        logging.debug("Device rebooted successfully.")
+        return
+      else:
+        logging.info(
+            "Device did not come back online after reboot. Will attempt cold"
+            " resets."
+        )
+
+    for i in range(3):
+      logging.debug("Cold reset attempt %d/3", i + 1)
+      self.dut.power_on_if_offline()
+      if self.dut.is_device_online():
+        logging.debug("Device is online after cold reset.")
+        return
+      logging.warning("Device still offline after cold reset attempt.")
+
+    raise base_pasit_device.PasitDeviceError(
+        "Device failed to come online after reboot and 3 cold resets."
+    )
 
   def _check_single_display_screenshot(
       self, display_index: int, color: image.Color | None
@@ -156,7 +193,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         or is black.
     """
     logging.debug("Checking screenshot for display %d", display_index)
-    screenshot_bmp = self._ucd_manager.get_screenshot_display(display_index)
+    screenshot_bmp = self._ucd_manager.get_display_screenshot(display_index)
     screenshot_raw, width, height = image.process_bmp_img_to_raw(screenshot_bmp)
 
     timestamp = int(time.time())
@@ -200,14 +237,7 @@ class UcdBaseTest(pasit_test.PasitTestClass):
         filename: The name of the file to create
     """
     filepath = os.path.join(self.log_path, filename)
-    logging.info(f"Saving screenshot to {filepath}")
+    logging.info("Saving screenshot to %s", filepath)
 
     with open(filepath, "wb") as f:
       f.write(data)
-
-  def _perform_sanity_check(self):
-    """Performs a sanity check on the DUT and UCD."""
-    logging.debug("performing sanity check..")
-    self._ucd_manager.unplug_and_destroy_all_displays()
-    self._ucd_manager.plug_additional_displays_to_active_displays(1)
-    self._ucd_manager.unplug_and_destroy_all_displays()

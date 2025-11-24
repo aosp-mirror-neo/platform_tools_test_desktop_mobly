@@ -14,6 +14,7 @@
 
 """Passport Video service client."""
 
+from __future__ import annotations
 import logging
 import time
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
@@ -214,6 +215,8 @@ class PassportVideoServiceClient:
       mst_sink_count: int | None = None,
       scrambler_seed: int | None = None,
       max_lane: int | None = None,
+      video_spec: video_tester_service_pb2.VideoSpecification | None = None,
+      dsc: bool | None = None,
   ) -> bool:
     """Sets the DP link parameters for the open video tester.
 
@@ -223,6 +226,8 @@ class PassportVideoServiceClient:
         mst_sink_count: Number of MST sinks.
         scrambler_seed: Scrambler seed value.
         max_lane: Maximum lane count.
+        video_spec: The video specification to apply.
+        dsc: Enable or disable Display Stream Compression.
 
     Returns:
         True if the link parameters were set successfully.
@@ -240,6 +245,10 @@ class PassportVideoServiceClient:
       request.scrambler_seed = scrambler_seed
     if max_lane is not None:
       request.max_lane = max_lane
+    if video_spec is not None:
+      request.video_spec = video_spec
+    if dsc is not None:
+      request.dsc = dsc
 
     try:
       self._stub.SetLinkVideoTester(request)

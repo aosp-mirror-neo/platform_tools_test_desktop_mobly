@@ -26,6 +26,7 @@ from display.utils import edids_list
 from display.utils import interface_types
 from lib.pasit import pasit_device
 from lib.pasit.passport import passport_video_service_client
+from lib.utils import retry
 
 ComplianceTestStatus = video_tester_service_pb2.ComplianceTestStatus
 
@@ -61,6 +62,20 @@ class UcdManager(abc.ABC):
   ):
     self._vsc = vsc
     self._dut = dut
+
+  def set_dp_video_spec(
+      self,
+      video_spec: video_tester_service_pb2.VideoSpecification,
+      dsc: bool | None = None,
+  ):
+    """Sets the DP video spec. This is a no-op for non-DP testers."""
+    pass
+
+  def get_dp_video_spec(
+      self,
+  ) -> tuple[video_tester_service_pb2.VideoSpecification | None, bool | None]:
+    """Gets the DP video spec. Returns (None, None) for non-DP testers."""
+    return None, None
 
   @property
   @abc.abstractmethod
@@ -125,19 +140,26 @@ class UcdManager(abc.ABC):
 
     return manager
 
-  def set_total_displays_count(
+  def replug_displays(
       self,
-      total_display_count: int,
+      display_count: int,
+      wait_for_active: bool,
+      force_mst: bool = False,
       displays_edids: list[edid_datum.EdidDatum] | None = None,
   ):
-    """Sets the total number of displays to be simulated by the UCD and plugs them into the DUT.
+    """Plugs displays, ensuring a specific configuration.
 
-    This function configures the UCD to simulate a specific number of displays
-    and plugs them into the DUT. It does not wait for the displays to be
-    detected or turned on.
+    This function first unplugs any active displays, then configures the UCD
+    to simulate a new set of displays and plugs them into the DUT. This is
+    useful for setting a known, clean display state.
 
     Args:
-      total_display_count: The total number of displays to simulate.
+      display_count: The total number of displays to simulate.
+      wait_for_active: If True, the function will wait for the displays to be
+        detected and turned on.
+      force_mst: If True, forces MST mode. Relevant when a single display is
+        plugged in. Otherwise, MST is only enabled if more than one display is
+        plugged in.
       displays_edids: A list of EDIDs for each display.
 
     Raises:
@@ -145,59 +167,57 @@ class UcdManager(abc.ABC):
       displays, or if the number of requested displays is greater than the
       maximum supported.
     """
+    logging.debug("Detaching.")
     self._vsc.perform_attach_operation(False)
-
-    if total_display_count > self.max_supported_displays:
+    if display_count > self.max_supported_displays:
       raise UcdManagerError(
-          f"The number of requested displays {total_display_count} is greater "
+          f"The number of requested displays {display_count} is greater "
           f"than the maximum supported {self.max_supported_displays}."
       )
 
-    if not displays_edids:
-      displays_edids = self._get_default_edids()
+    if displays_edids:
+      if len(displays_edids) < display_count:
+        raise UcdManagerError(
+            f"The number of provided EDIDs {len(displays_edids)} is less than "
+            f"the number of requested displays {display_count}."
+        )
+      for i in range(display_count):
+        self._set_edid(displays_edids[i], i)
 
-    if len(displays_edids) < total_display_count:
-      raise UcdManagerError(
-          f"The number of provided EDIDs {len(displays_edids)} is less than "
-          f"the number of requested displays {total_display_count}."
-      )
+    enable_mst = force_mst or bool(display_count > 1)
+    self._set_display_caps(enable_mst, display_count)
 
-    enable_mst = bool(total_display_count > 1)
-    self._set_display_caps(enable_mst, total_display_count)
-
-    for i in range(total_display_count):
-      self._set_edid(displays_edids[i], i)
-
+    logging.debug("Attaching.")
     if not self._vsc.perform_attach_operation(True):
       raise UcdManagerError("Failed to attach to the DUT.")
 
-  def plug_additional_displays_to_active_displays(
+    if wait_for_active:
+      if not self.wait_for_display_count(display_count):
+        print_typec_status(self._dut)
+        raise UcdManagerError("External displays are not active.")
+
+  def add_hotplug_displays(
       self,
       additional_display_count: int,
-      force_mst: bool = False,
+      wait_for_active: bool,
       displays_edids: list[edid_datum.EdidDatum] | None = None,
   ):
-    """Configures new displays simulated through UCD, then plugs them into the DUT by sending an HPD pulse.
+    """Adds one or more displays to the current configuration via hot-plug.
 
-    This function adds a specified number of displays to the existing
-    configuration, which means that it appends new displays to the current
-    active displays. It then plugs them into the DUT and waits for them to be
-    detected and turned on.
-
-    If `displays_edids` is provided, it will be used to configure the new
-    displays. Otherwise, the default EDIDs will be used.
-    `additional_display_count` is still needed to know how many displays to
-    add, even if `displays_edids` is provided, to validate the number of
-    provided EDIDs.
+    This method simulates adding displays to a live system, always enabling MST.
+    It adds displays to the existing number of connected displays. It performs
+    an attach if no displays are currently connected, otherwise it sends an HPD
+    pulse to the DUT.
 
     Args:
       additional_display_count: The number of displays to add.
-      displays_edids: A list of EDIDs for each display.
+      wait_for_active: If True, wait for the displays to become active.
+      displays_edids: A list of EDIDs for the new displays.
 
     Raises:
       UcdManagerError: If the number of EDIDs does not match the number of
-      displays, or if the number of requested displays is greater than the
-      maximum supported.
+      displays, or if the total number of displays exceeds the maximum
+      supported.
     """
     if (
         displays_edids is not None
@@ -207,7 +227,7 @@ class UcdManager(abc.ABC):
           "The number of EDIDs does not match the number of displays."
       )
 
-    current_connected_displays_count = len(self.get_valid_streams())
+    current_connected_displays_count = len(self.get_active_displays())
     total_expected_display_count = (
         current_connected_displays_count + additional_display_count
     )
@@ -218,140 +238,182 @@ class UcdManager(abc.ABC):
           f"{self.max_supported_displays}."
       )
 
-    enable_mst = force_mst or bool(total_expected_display_count > 1)
-    self._set_display_caps(enable_mst, total_expected_display_count)
-
-    if displays_edids is not None:
+    if displays_edids:
       for i in range(additional_display_count):
         target_stream_id = current_connected_displays_count + i
         self._set_edid(displays_edids[i], target_stream_id)
 
+    self._set_display_caps(
+        is_mst=True, displays_to_set=total_expected_display_count
+    )
+
     if current_connected_displays_count > 0:
       # if it's already plugged in, an HPD is all we need.
       logging.info(
-          f"Sending HPD pulse for {total_expected_display_count} displays with"
-          f" MST={enable_mst}."
+          f"Sending HPD pulse for {total_expected_display_count} displays."
       )
-      if not self._vsc.send_hpd_pulse():
+      if not self.send_hpd_pulse():
         raise UcdManagerError("Failed to send HPD pulse.")
       time.sleep(5)
     else:
       logging.info(
-          f"Attaching {total_expected_display_count} displays to the DUT with"
-          f" MST={enable_mst}."
+          f"Attaching {total_expected_display_count} displays to the DUT."
       )
+      logging.debug("Attaching.")
       if not self._vsc.perform_attach_operation(True):
         raise UcdManagerError("Failed to attach to the DUT.")
 
-    if not self.are_displays_reporting_stream_info(
-        total_expected_display_count
-    ):
-      print_typec_status(self._dut)
-      raise UcdManagerError("External displays are not active.")
+    if wait_for_active:
+      if not self.wait_for_display_count(total_expected_display_count):
+        print_typec_status(self._dut)
+        raise UcdManagerError("External displays are not active.")
 
-  def send_hpd_pulse(self) -> bool:
-    """Sends an HPD pulse to the DUT."""
-    return self._vsc.send_hpd_pulse()
-
-  def are_displays_reporting_stream_info(
-      self, expected_total_display_count: int
-  ) -> bool:
-    """Waits for the exact number of expected displays to turn on, checking the aux channel info.
+  def unplug_last_display(self, wait_for_active: bool, force_mst: bool = False):
+    """Decrements the number of connected displays by one.
 
     Args:
-      expected_total_display_count: The exact number of displays to wait for.
+      wait_for_active: If True, wait for the display count to update.
+      force_mst: If True, forces MST mode.
+
+    Raises:
+      UcdManagerError: If the operation fails or if no displays are currently
+      active.
+    """
+    active_displays_count = len(self.get_active_displays())
+    if active_displays_count == 0:
+      raise UcdManagerError("No displays are currently active.")
+
+    remaining_display_count = active_displays_count - 1
+    enable_mst = force_mst or bool(remaining_display_count > 1)
+    self._set_display_caps(enable_mst, remaining_display_count)
+
+    if remaining_display_count > 0:
+      if not self.send_hpd_pulse():
+        raise UcdManagerError(
+            "Failed to send HPD pulse on unplug_last_display."
+        )
+    else:
+      logging.debug("Detaching.")
+      if not self._vsc.perform_attach_operation(False):
+        raise UcdManagerError("Failed to detach from the DUT.")
+
+    if wait_for_active:
+      if not self.wait_for_display_count(remaining_display_count):
+        raise UcdManagerError(
+            "Failed to remove the last display. "
+            f"Expected {remaining_display_count} displays to be active."
+        )
+
+  def unplug_all_displays(self, wait_for_active: bool):
+    """Unplugs all displays and destroys their configuration."""
+    self._set_display_caps(is_mst=False, displays_to_set=0)
+    logging.debug("Detaching.")
+    if not self._vsc.perform_attach_operation(False):
+      raise UcdManagerError("Failed to detach from the DUT.")
+
+    if wait_for_active:
+      if not self.wait_for_display_count(0):
+        print_typec_status(self._dut)
+        raise UcdManagerError("Monitors are not deactivating.")
+
+  def send_hpd_pulse(self) -> bool:
+    """Sends a HotPlug-Detect (HPD) pulse to the DUT.
+
+    This simulates unplugging and quickly replugging the display cable,
+    triggering the DUT to re-detect the connected displays.
 
     Returns:
-      True if the exact number of displays turned on before the timeout.
-      The information is retrieved from the aux channel.
+      True if the HPD pulse was sent successfully.
     """
-    timeout_sec = 20
+    logging.debug("Sending HPD pulse.")
+    return self._vsc.send_hpd_pulse()
+
+  def wait_for_display_count(
+      self, expected_display_count: int, timeout_sec: int = 20
+  ) -> bool:
+    """Waits for a specific number of displays to become active.
+
+    This method repeatedly checks the number of active displays until it
+    matches the expected count or a timeout is reached.
+
+    Args:
+      expected_display_count: The exact number of active displays to wait for.
+      timeout_sec: The timeout in seconds.
+
+    Returns:
+      True if the expected number of displays became active within the timeout,
+      False otherwise.
+    """
+
+    class _DisplayCountError(Exception):
+      """Raised when the display count does not match."""
+
+    delay_sec = 5
+    max_tries = timeout_sec // delay_sec
     start_time = time.time()
+    last_active_displays_count = 0
 
-    valid_streams_count = 0
-    while time.time() - start_time < timeout_sec:
-      valid_streams_count = len(self.get_valid_streams())
-      if valid_streams_count != expected_total_display_count:
+    def _check_display_count():
+      nonlocal last_active_displays_count
+      active_displays_count = len(self.get_active_displays())
+      last_active_displays_count = active_displays_count
+      if active_displays_count != expected_display_count:
         logging.debug(
-            f"Waiting for {expected_total_display_count} displays to report"
-            f" stream info. Finding {valid_streams_count} instead"
+            "Waiting for %d active displays, found %d.",
+            expected_display_count,
+            active_displays_count,
         )
-        time.sleep(5)
-        continue
+        raise _DisplayCountError(
+            f"Expected {expected_display_count}, found {active_displays_count}"
+        )
 
+    try:
+      retry.retry(
+          _check_display_count,
+          policy=retry.RetryPolicy(
+              max_tries=max_tries, delay_seconds=delay_sec
+          ),
+          exceptions=(_DisplayCountError,),
+      )
       logging.info(
-          f"{expected_total_display_count} displays are reported after ~"
-          f"{time.time() - start_time:.1f}s."
+          "%d displays are active after ~%.1fs.",
+          expected_display_count,
+          time.time() - start_time,
       )
       return True
+    except _DisplayCountError:
+      logging.error(
+          "Timeout waiting for %d active displays, found %d.",
+          expected_display_count,
+          last_active_displays_count,
+      )
+      return False
 
-    logging.info(
-        f"Timeout waiting for {expected_total_display_count} displays to report"
-        f" stream info. Finding {valid_streams_count} instead"
-    )
-    return False
-
-  def get_valid_streams(
+  def get_active_displays(
       self,
   ) -> list[
       passport_video_service_client.video_tester_service_pb2.StreamInfoVideoTester
   ]:
-    """Returns all the valid streams from the stream info list."""
+    """Returns a list of all active display streams."""
     streams = self._vsc.get_stream_info_for_all_streams()
-    valid_streams = []
+    active_displays = []
     for stream in streams:
-      does_have_size = stream.hactive > 0 and stream.vactive > 1
-      does_have_crc = any(crc != 0 for crc in stream.crc)
-      if does_have_size or does_have_crc:
-        valid_streams.append(stream)
-    return valid_streams
+      has_video = stream.hactive > 0 and stream.vactive > 1
+      has_crc = any(crc != 0 for crc in stream.crc)
+      if has_video or has_crc:
+        active_displays.append(stream)
+    return active_displays
 
-  def get_screenshot_display(self, display_idx: int) -> bytes:
-    """Captures a screenshot from a stream of the open video tester."""
-    return self._vsc.get_screenshot_at_stream(display_idx)
+  def get_display_screenshot(self, display_idx: int) -> bytes:
+    """Captures a screenshot from a specific display.
 
-  def destroy_the_most_recently_attached_display(self, force_mst: bool = False):
-    """Destroys the most recently attached display.
+    Args:
+      display_idx: The 0-based index of the display to capture.
 
-    Raises:
-      UcdManagerError: If the operation fails or if no displays are currently
-      configured.
+    Returns:
+      The screenshot as a byte string.
     """
-    configured_displays_count = len(self._vsc.get_stream_info_for_all_streams())
-    if configured_displays_count == 0:
-      raise UcdManagerError("No displays are currently configured.")
-
-    total_expected_display_count = configured_displays_count - 1
-    enable_mst = force_mst or bool(total_expected_display_count > 1)
-    self._set_display_caps(enable_mst, total_expected_display_count)
-
-    if total_expected_display_count > 0:
-      if not self._vsc.send_hpd_pulse():
-        raise UcdManagerError(
-            "Failed to send HPD pulse on"
-            " destroy_the_most_recently_attached_display."
-        )
-    else:
-      if not self._vsc.perform_attach_operation(False):
-        raise UcdManagerError("Failed to detach from the DUT.")
-
-    if not self.are_displays_reporting_stream_info(
-        total_expected_display_count
-    ):
-      raise UcdManagerError(
-          "Failed to destroy the most recently attached display. "
-          f"Expected {total_expected_display_count} displays to be active."
-      )
-
-  def unplug_and_destroy_all_displays(self):
-    """Unplug all the displays and destroy them."""
-    self._set_display_caps(is_mst=False, displays_to_set=0)
-    logging.debug("Detaching...")
-    if not self._vsc.perform_attach_operation(False):
-      raise UcdManagerError("Failed to detach from the DUT.")
-    if not self.are_displays_reporting_stream_info(0):
-      print_typec_status(self._dut)
-      raise UcdManagerError("Monitors are not deactivating.")
+    return self._vsc.get_screenshot_at_stream(display_idx)
 
   def reset_ucd_displays_state_to_default(self):
     """Resets the displays state."""
@@ -360,7 +422,7 @@ class UcdManager(abc.ABC):
     for i in range(self.max_supported_displays):
       self._set_edid(self._get_default_edids()[i], i)
 
-    self.unplug_and_destroy_all_displays()
+    self.unplug_all_displays(wait_for_active=True)
 
   def run_compliance_tests(
       self,
@@ -439,6 +501,36 @@ class UcdManager(abc.ABC):
 class Ucd500Manager(UcdManager):
   """UCD 500 is the DP Tester Device."""
 
+  def __init__(
+      self,
+      vsc: passport_video_service_client.PassportVideoServiceClient,
+      dut: pasit_device.PasitDevice,
+  ):
+    super().__init__(vsc, dut)
+    # Default settings for DP 1.4.
+    self._video_spec = (
+        video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_1_4
+    )
+    self._dsc = True
+
+  def set_dp_video_spec(
+      self,
+      video_spec: video_tester_service_pb2.VideoSpecification,
+      dsc: bool | None = None,
+  ):
+    logging.debug(
+        "Setting DP video spec to %s, dsc: %s",
+        video_tester_service_pb2.VideoSpecification.Name(video_spec),
+        dsc,
+    )
+    self._video_spec = video_spec
+    self._dsc = dsc
+
+  def get_dp_video_spec(
+      self,
+  ) -> tuple[video_tester_service_pb2.VideoSpecification | None, bool | None]:
+    return self._video_spec, self._dsc
+
   @property
   def interface_type(self) -> interface_types.InterfaceType:
     return interface_types.InterfaceType.DP
@@ -464,11 +556,20 @@ class Ucd500Manager(UcdManager):
     ]
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
-    logging.debug(f"is_mst: {is_mst}, displays_to_set: {displays_to_set}")
+    logging.debug(
+        "Setting DP link capabilities with is_mst: %s, displays_to_set: %d,"
+        " video_spec: %s, dsc: %s",
+        is_mst,
+        displays_to_set,
+        video_tester_service_pb2.VideoSpecification.Name(self._video_spec),
+        self._dsc,
+    )
     if not self._vsc.set_dp_link_capabilities(
         mst=is_mst,
         ss_sbm=is_mst if displays_to_set else None,
         mst_sink_count=displays_to_set,
+        video_spec=self._video_spec,
+        dsc=self._dsc,
     ):
       raise UcdManagerError("Failed to set DP link capabilities.")
 

@@ -95,9 +95,10 @@ class IP9850(ip_power.PassportRPM):
               power_state,
           )
         logging.info(
-            'Successfully set IP power state to %s for %s',
-            power_state,
+            'Set IP power state to %s for %s outlet: %s',
+            power_state.name,
             self.power_unit_endpoint,
+            self.power_unit_outlet,
         )
     except (
         urllib.error.URLError,

@@ -55,20 +55,14 @@ class DisplayHelper:
   ) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Returns a list of stable display IDs.
 
-    Stable display IDs are display IDs that have been observed to be stable for
-    a short period of time. This function waits for a short period of time and
-    returns the display IDs if they are stable.
+    This function polls for the display IDs until they have been stable for a
+    configured duration.
 
     Raises:
-      DisplayIDsNotStableError: If the display IDs are not stable after a short
-      delay.
+      DisplayIDsNotStableError: If the display IDs do not stabilize within the
+      configured timeout.
     """
-    display_ids = retry.retry(
-        self._get_stable_ids,
-        exceptions=(DisplayIDsNotStableError),
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-    )
-    return display_ids
+    return self._get_stable_ids()
 
   def get_internal_display_id(self) -> pasit_display.PasitDisplay.DisplayId:
     """Returns the internal display ID.
@@ -143,26 +137,54 @@ class DisplayHelper:
 
   def _get_stable_ids(self) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Returns display IDs if stable, otherwise Raises DisplayIDsNotStableError."""
-    initial_display_ids = self.display.get_display_ids()
-    time.sleep(
-        test_policy.DisplayTestPolicy.WAIT_FOR_IDS_TO_STABILIZE_DELAY_SECONDS
-    )
-    final_display_ids = self.display.get_display_ids()
-    logging.debug('Initial display ids: %s', initial_display_ids)
-    logging.debug('Final display ids: %s', final_display_ids)
-    if set(initial_display_ids) == set(final_display_ids):
-      return final_display_ids
-    if len(initial_display_ids) == len(final_display_ids):
-      # Even though we have a workaround for this, it is still a DUT bug and we
-      # should be sure to surface the error and not hide it as a DEBUG only
-      # message.  We will however only log the error if the count is the same
-      # so as not to catch waiting for displays to connect/disconnect.
-      logging.error(
-          'Display IDs changed during stability check. Initial: %s, Final: %s',
-          initial_display_ids,
-          final_display_ids,
+    start_time = time.time()
+    last_display_ids = self.display.get_display_ids()
+    stable_start_time = start_time
+    logging.debug('Waiting for display IDs to stabilize...')
+
+    while (
+        time.time() - start_time
+        < test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS
+    ):
+      time.sleep(
+          test_policy.DisplayTestPolicy.STABLE_ID_POLLING_INTERVAL_SECONDS
       )
+      current_display_ids = self.display.get_display_ids()
+      logging.debug(
+          'Polling for stable display IDs. Current: %s, Last: %s',
+          current_display_ids,
+          last_display_ids,
+      )
+
+      if set(current_display_ids) == set(last_display_ids):
+        if (
+            time.time() - stable_start_time
+            >= test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS
+        ):
+          logging.debug(
+              'Display IDs have been stable for %ds: %s',
+              test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS,
+              current_display_ids,
+          )
+          return current_display_ids
+      else:
+        if len(last_display_ids) == len(current_display_ids):
+          # Even though we have a workaround for this, it is still a DUT bug and
+          # we should be sure to surface the error and not hide it as a DEBUG
+          # only message.  We will however only log the error if the count is
+          # the same so as not to catch waiting for displays to
+          # connect/disconnect.
+          logging.error(
+              'Display IDs changed during stability check. Last: %s,'
+              ' Current: %s',
+              last_display_ids,
+              current_display_ids,
+          )
+        last_display_ids = current_display_ids
+        stable_start_time = time.time()
+
     raise DisplayIDsNotStableError(
-        'Display IDs changed during stability check. Initial:'
-        f' {initial_display_ids}, Final: {final_display_ids}'
+        'Display IDs did not stabilize within'
+        f' {test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS}s. Last'
+        f' seen IDs: {last_display_ids}'
     )

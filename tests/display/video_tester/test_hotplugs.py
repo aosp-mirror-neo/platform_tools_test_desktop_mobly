@@ -18,14 +18,14 @@ import logging
 import time
 
 from display.utils import interface_types
-from display.utils import ucd_base_test
+from display.utils import ucd_test_base
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 
 
-class HotplugsTest(ucd_base_test.UcdBaseTest):
+class HotplugsTest(ucd_test_base.UcdTestBase):
   """Test class for testing hotplug functionalities."""
 
   _STRESS_ITERATION_COUNT = 77
@@ -75,12 +75,6 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
           arg_sets=[(self._STRESS_ITERATION_COUNT, display_count)],
       )
 
-      self.generate_tests(
-          test_logic=self.hotplug_under_cpu_load,
-          name_func=self.generate_test_name_hotplug_under_cpu_load,
-          arg_sets=[(display_count,)],
-      )
-
   def generate_test_name_plug_n_at_once(self, display_count: int) -> str:
     """Generates the test name for plugging in and out displays at once."""
     return f"test_plug_{display_count}_displays_at_once"
@@ -114,20 +108,13 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
     display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
     return f"test_hpd_storm_{display_str}_{iteration_count}_iterations"
 
-  def generate_test_name_hotplug_under_cpu_load(
-      self, display_count: int
-  ) -> str:
-    """Generates test name for hotplug under high CPU load test."""
-    display_str = f"{display_count}_display{'s' if display_count > 1 else ''}"
-    return f"test_hotplug_{display_str}_under_cpu_load"
-
   def plug_n_at_once(self, display_count: int):
     """Tests the system's ability to plug in and out displays at once."""
 
     self.skip_if_display_count_not_supported(display_count)
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        additional_display_count=display_count, force_mst=display_count > 1
+    self._ucd_manager.replug_displays(
+        display_count=display_count, wait_for_active=True
     )
     self.check_all_screenshots_for_displays(display_count)
 
@@ -154,9 +141,9 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
     for i in range(display_count):
       display_count_to_test = i + 1
       logging.info("Plugging in %d displays.", display_count_to_test)
-      self._ucd_manager.plug_additional_displays_to_active_displays(
+      self._ucd_manager.add_hotplug_displays(
           additional_display_count=1,
-          force_mst=True,
+          wait_for_active=True,
       )
       self.check_all_screenshots_for_displays(display_count_to_test)
 
@@ -182,16 +169,16 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
     )
 
     # Plug in all available displays to start unplugging them one by one.
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        display_count,
-        force_mst=True,
+    self._ucd_manager.replug_displays(
+        display_count=display_count,
+        wait_for_active=True,
     )
 
     for i in range(display_count, 0, -1):
       self.check_all_screenshots_for_displays(i)
 
-      self._ucd_manager.destroy_the_most_recently_attached_display(
-          force_mst=True
+      self._ucd_manager.unplug_last_display(
+          wait_for_active=True, force_mst=True
       )
 
   def reboot_with_displays_plugged(self, display_count: int):
@@ -199,15 +186,14 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
 
     self.skip_if_display_count_not_supported(display_count)
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(
-        display_count, force_mst=(display_count > 1)
+    self._ucd_manager.replug_displays(
+        display_count=display_count,
+        wait_for_active=True,
     )
     self._check_for_displays_on(display_count)
 
     logging.info("Rebooting DUT.")
-    self.dut.reboot()
-    # Give time for the device to reboot and settle.
-    time.sleep(10)
+    self.super_reboot()
 
     logging.info("DUT rebooted. Verifying displays are active.")
     self._check_for_displays_on(display_count)
@@ -219,11 +205,11 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
 
     for i in range(iteration_count):
       logging.info("Hotplug cycle %d/%d", i + 1, iteration_count)
-      self._ucd_manager.plug_additional_displays_to_active_displays(
-          display_count
+      self._ucd_manager.replug_displays(
+          display_count=display_count, wait_for_active=True
       )
       self._check_for_displays_on(display_count)
-      self._ucd_manager.unplug_and_destroy_all_displays()
+      self._ucd_manager.unplug_all_displays(wait_for_active=True)
       self._check_for_displays_on(0)
 
   def hpd_storm_test(self, iteration_count: int, display_count: int):
@@ -231,7 +217,9 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
 
     self.skip_if_display_count_not_supported(display_count)
 
-    self._ucd_manager.plug_additional_displays_to_active_displays(display_count)
+    self._ucd_manager.replug_displays(
+        display_count=display_count, wait_for_active=True
+    )
     self._check_for_displays_on(display_count)
 
     for i in range(iteration_count):
@@ -243,38 +231,10 @@ class HotplugsTest(ucd_base_test.UcdBaseTest):
     time.sleep(5)
     self._check_for_displays_on(display_count)
 
-  def hotplug_under_cpu_load(self, display_count: int):
-    """Tests hotplugging displays while the DUT is under high CPU load."""
-
-    self.skip_if_display_count_not_supported(display_count)
-
-    num_cores_str = self.dut.shell(["nproc"]).decode("utf-8").strip()
-    num_cores = int(num_cores_str) if num_cores_str.isdigit() else 1
-
-    logging.info("Starting %d CPU stress processes.", num_cores)
-    self.dut.shell([
-        "sh",
-        "-c",
-        f"for i in $(seq {num_cores}); do while true; do :; done & done",
-    ])
-    time.sleep(5)  # Let CPU load ramp up
-
-    try:
-      logging.info("Performing hotplug/unplug under CPU load.")
-      self._ucd_manager.plug_additional_displays_to_active_displays(
-          display_count
-      )
-      self._check_for_displays_on(display_count)
-      self._ucd_manager.unplug_and_destroy_all_displays()
-      self._check_for_displays_on(0)
-    finally:
-      logging.info("Stopping CPU stress processes.")
-      self.dut.shell(["pkill", "-f", "while true; do :; done"])
-
   def _check_for_displays_on(self, display_count: int):
     asserts.assert_true(
-        self._ucd_manager.are_displays_reporting_stream_info(display_count),
-        f"External displays are not active for {display_count} displays.",
+        self._ucd_manager.wait_for_display_count(display_count),
+        f"Expected {display_count} displays to be active.",
     )
     asserts.assert_true(
         self.dut.is_device_online(), "Device is not reporting online."

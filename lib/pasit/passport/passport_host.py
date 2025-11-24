@@ -432,12 +432,18 @@ class PassportHost:
       self, connections: MutableSequence[Any], enable: bool
   ) -> None:
     """Activates or deactivates the device with the given connection path."""
+    if not connections:
+      self.log.warning(
+          'No connections found, skipping setting enabled state.'
+      )
+      return
     device_path = [connection.parent_id for connection in connections]
+    device_path.append(connections[-1].child_id)
     self.log.info(
         f'{"Activating" if enable else "Deactivating"}:  path: {device_path}',
     )
-    for connection in connections:
-      device_id = connection.parent_id
+    ip_power_set = False
+    for device_id in device_path:
       # TODO: b/442614713 - decide if this change should be permanent or if we
       # may eventually want to support variants with different order of
       # operations, to catch bugs related to that.
@@ -445,7 +451,9 @@ class PassportHost:
         self._ip_power_clients[device_id].set_ip_power_state(
             ip_power.PowerState.from_bool(enable)
         )
-        time.sleep(1)
+        ip_power_set = True
+    if ip_power_set:
+      time.sleep(1)
     for connection in connections:
       device_id = connection.parent_id
       port_id = connection.parent_port

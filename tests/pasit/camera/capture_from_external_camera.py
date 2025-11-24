@@ -86,7 +86,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
 
   def _capture_photo(self, external_display_id: str):
     self.painter.show_color_on_display(
-        image.NamedColor.RED.value, external_display_id
+        image.NamedColor.BLUE.value, external_display_id
     )
     logging.info('Take photo')
     self.camera.take_photo()

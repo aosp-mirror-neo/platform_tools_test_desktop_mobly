@@ -217,6 +217,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def unexpected_reboots(self) -> bool:
+    """Checks if the device has rebooted unexpectedly.
+
+    Returns:
+      True if the device has rebooted unexpectedly, False otherwise.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def is_powered(self) -> bool:
     """Returns True if the device is receiving power.
 
@@ -224,6 +233,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       True if the device is receiving power from an external power source or
       power adapter.
     """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def start_screen_recording(self):
+    """Starts screen recording on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_screen_recording(self, output_path: str):
+    """Stops screen recording on the device."""
     raise NotImplementedError
 
   def wait_for_device_online(self):

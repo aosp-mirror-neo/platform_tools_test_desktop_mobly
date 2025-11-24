@@ -80,6 +80,7 @@ python_library_host {
         "*/snippet_tools.py",
         "*/user_session_tools.py",
         "*/dumpsys_battery_parser.py",
+        "*/screen_recorder.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [

@@ -21,6 +21,7 @@ import threading
 import time
 
 from lib.pasit.android import dumpsys_battery_parser
+from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
@@ -71,6 +72,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     super().__init__(controller, servo)
     self.snippets = snippet_tools.SnippetTools(self.controller)
     self.user_session = user_session_tools.UserSessionTools(self.controller)
+    self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
@@ -85,6 +87,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.snippets.register_uiautomator()
     self._add_process_not_responding_watcher()
     self._bypass_login_screen()
+    self._boot_id = None
+    self._update_boot_id()
 
   def cleanup(self):
     self._remove_process_not_responding_watcher()
@@ -105,7 +109,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       ) from e
 
   def reboot(self):
+    # ensure that boot ID is cleared before reboot to avoid false positives
+    # if the device fails to boot completely after a reboot.
+    self._boot_id = None
     self.controller.reboot()
+    self._update_boot_id()
     self._bypass_login_screen()
 
   def power_on(self):
@@ -113,6 +121,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
     self._wait_for_boot_completion()
+    self._update_boot_id()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     self.user_session.switch_to_login_screen_user()
@@ -130,6 +139,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.request_power_off()
     logging.debug('Waiting for device to power off...')
     self.wait_for_device_offline()
+    self._boot_id = None
 
   def suspend(self):
     self._stop_services()
@@ -157,6 +167,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         policy=retry.RetryPolicy(max_tries=3, delay_seconds=2),
         exceptions=(PasitDeviceError,),
     )
+    if self.unexpected_reboots():
+      raise PasitDeviceError('Device rebooted between suspend and wakeup.')
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -257,6 +269,32 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return dumpsys_battery_parser.DumpsysBatteryParser(
         self.controller
     ).is_powered()
+
+  def _get_boot_id(self) -> str:
+    return self.shell(['cat', '/proc/sys/kernel/random/boot_id']).decode(
+        'utf-8'
+    ).strip()
+
+  def _update_boot_id(self) -> None:
+    self._boot_id = self._get_boot_id()
+
+  def unexpected_reboots(self) -> bool:
+    current_boot_id = self._get_boot_id()
+    if self._boot_id and self._boot_id != current_boot_id:
+      logging.error(
+          'Device rebooted unexpectedly (boot_id changed from %s to %s)',
+          self._boot_id,
+          current_boot_id,
+      )
+      self._boot_id = current_boot_id
+      return True
+    return False
+
+  def start_screen_recording(self):
+    self._screen_recorder.start()
+
+  def stop_screen_recording(self, output_path: str):
+    self._screen_recorder.stop(output_path)
 
   def _wait_for_boot_completion(self):
     try:

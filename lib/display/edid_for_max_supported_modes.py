@@ -14,18 +14,21 @@
 
 """This module stores the EDID information for different displays."""
 
-from dataclasses import dataclass, field
+import dataclasses
 from display.utils import edid_datum
 from display.utils import edids_list
 
 EdidDatum = edid_datum.EdidDatum
 
-@dataclass
+
+@dataclasses.dataclass
 class EdidForMaxMode:
   """Represents the EDID information for the maximum supported resolution of a display."""
+
   Hactive: int
   Vactive: int
   RefreshRate: int
+  refresh_rate_tolerance_hz: int
   Edid: EdidDatum
 
   def __str__(self):
@@ -35,6 +38,7 @@ class EdidForMaxMode:
         f"  Horizontal Active: {self.Hactive} pixels\n"
         f"  Vertical Active: {self.Vactive} pixels\n"
         f"  Refresh Rate: {self.RefreshRate} Hz\n"
+        f"  Refresh Rate Tolerance: {self.refresh_rate_tolerance_hz} Hz\n"
         f"  EDID Data: {self.Edid.name if self.Edid else 'Not available'}"
     )
 
@@ -43,5 +47,6 @@ edid_8k_60Hz_Timings = EdidForMaxMode(
     Hactive=7680,
     Vactive=4320,
     RefreshRate=60,
+    refresh_rate_tolerance_hz=1,
     Edid=edids_list.GENERATED_8k_60Hz,
 )
