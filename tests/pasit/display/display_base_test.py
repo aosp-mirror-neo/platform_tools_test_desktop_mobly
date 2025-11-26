@@ -93,10 +93,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   camera_mapper: display_camera_mapper.DisplayCameraMapper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
 
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.display_path_tag = None
-
   def setup_class(self):
     """Handle the setup for the test.
 
@@ -116,7 +112,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.painter,
         self.current_test_info.output_path,
     )
-    self.display_path_tag = None
 
   def teardown_test(self):
     """Handle the teardown for the test."""
@@ -223,26 +218,39 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     ]
     return len(valid_displays)
 
-  def setup_display_path(
+  def _get_display_path_tag(
       self, connection_type: ConnectionType, min_display_count: int = 1
-  ):
-    """Setup the display path for the test.
+  ) -> ConnectionTag | None:
+    """Get the connection tag to use for the display path.
 
     This will determine the tag to use when enabling/disabling the display. And
     will skip the test if the display path cannot be determined.
+
+    Args:
+      connection_type: The type of connection to use for the display.
+      min_display_count: The minimum number of displays required for the test.
+
+    Returns:
+      The connection tag to use for the display.
     """
+    display_path_tag = None
     try:
-      self.display_path_tag = self._determine_connection_tag(connection_type)
+      display_path_tag = self._determine_connection_tag(connection_type)
     except (DisplayNotFoundError, DisplayPathNotFoundError) as e:
       asserts.skip(f'No display path found: {e}')
-    display_cnt = self._determine_display_count(self.display_path_tag)
+    display_cnt = self._determine_display_count(display_path_tag)
     if display_cnt < min_display_count:
       asserts.skip(
           f'Display count {display_cnt} is less than minimum required count'
           f' of {min_display_count} displays for this test.'
       )
+    return display_path_tag
 
-  def plug_in_external_displays(self, external_display_count: int):
+  def plug_in_external_displays(
+      self,
+      external_display_count: int,
+      connection_type: ConnectionType = ConnectionType.ANY,
+  ):
     """Emulate multiple external display plug in using passport.
 
     Skips the test if the number of monitors in the topology is less than the
@@ -250,6 +258,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
     Args:
       external_display_count: The number of external displays to plug in.
+      connection_type: The type of connection to use for the displays.
     """
     monitor_ids = self.passport_host.get_device_ids_by_type(
         self.DEVICE_TYPE_MONITOR
@@ -259,24 +268,33 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         f'Expected at least {external_display_count} monitors, but'
         f' found {len(monitor_ids)}.',
     )
+    display_path_tag = self._get_display_path_tag(
+        connection_type, external_display_count
+    )
     for monitor_id in monitor_ids[:external_display_count]:
       logging.info('Plugging in external display %s', monitor_id)
-      self.passport_host.activate_device_by_id(
-          monitor_id, self.display_path_tag
-      )
+      self.passport_host.activate_device_by_id(monitor_id, display_path_tag)
 
-  def plug_in_external_display(self):
+  def plug_in_external_display(
+      self, connection_type: ConnectionType = ConnectionType.ANY
+  ):
     """Emulate external display plug in using passport."""
+    display_path_tag = self._get_display_path_tag(connection_type)
+
     logging.info('Plugging in external display')
     self.passport_host.activate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+        self.DEVICE_TYPE_MONITOR, display_path_tag
     )
 
-  def unplug_external_display(self):
+  def unplug_external_display(
+      self, connection_type: ConnectionType = ConnectionType.ANY
+  ):
     """Emulate external display unplug using passport."""
+    display_path_tag = self._get_display_path_tag(connection_type)
+
     logging.info('Unplugging external display')
     self.passport_host.deactivate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+        self.DEVICE_TYPE_MONITOR, display_path_tag
     )
 
   def verify_display_count(self, expected_count: int, event_to_log: str):

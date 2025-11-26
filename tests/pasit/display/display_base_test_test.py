@@ -240,7 +240,9 @@ class DisplayBaseTestTest(unittest.TestCase):
   ):
     test = self._create_test_instance(filename)
     try:
-      test.setup_display_path(connection_type, min_display_count)
+      display_path_tag = test._get_display_path_tag(  # pylint: disable=protected-access
+          connection_type, min_display_count
+      )
     except signals.TestSkip as e:
       logging.error('Error message: %s, error_regex: %s', e, error_regex)
       if error_regex:
@@ -248,7 +250,7 @@ class DisplayBaseTestTest(unittest.TestCase):
         return
       else:
         raise
-    self.assertEqual(test.display_path_tag, expected_display_path)
+    self.assertEqual(display_path_tag, expected_display_path)
     self.assertNotEqual(error_regex, 'Expected error but no error was raised.')
 
 

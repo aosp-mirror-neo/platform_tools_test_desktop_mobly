@@ -72,13 +72,14 @@ class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   ):
     """Test that plugs in two external displays when DUT is in different states."""
     self.skip_if_servo_needed_and_not_configured(state_when_plug_display)
-    self.setup_display_path(connection_type, 2)
 
     internal_display_id = self.helper.get_internal_display_id()
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_plug_display
     ):
-      self.plug_in_external_displays(_EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN)
+      self.plug_in_external_displays(
+          _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN, connection_type
+      )
 
     self.verify_display_count(
         _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN + 1,
