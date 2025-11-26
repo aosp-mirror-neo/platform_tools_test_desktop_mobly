@@ -17,16 +17,16 @@ import os
 import sys
 import unittest
 from unittest import mock
-
+from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit import peripheral_connector
 from lib.pasit.passport import passport_host
 from lib.utils import functools
 import yaml
 
 
-NOT_FOUND_ERROR_REGEX = 'Display path .* not found in topology'
-NOT_ENOUGH_DISPLAYS_ERROR_REGEX = (
-    'Display count .* is less than minimum required count .*'
+NOT_FOUND_ERROR_REGEX = 'Peripheral path .* not found in topology'
+NOT_ENOUGH_PERIPHERALS_ERROR_REGEX = (
+    'Peripheral count .* is less than minimum required count .*'
 )
 
 TESTDATA_PATH = os.path.join(
@@ -93,179 +93,158 @@ class PeripheralConnectorTest(unittest.TestCase):
     )
 
   @functools.with_variants(
-      dock=(
+      pasit_box_dock=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DOCK,
           peripheral_connector.ConnectionTag.DOCK,
+          1,
       ),
-      dockless=(
+      pasit_box_dockless=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DOCKLESS,
           peripheral_connector.ConnectionTag.DOCKLESS,
+          1,
       ),
-      daisy_chain=(
+      pasit_box_daisy_chain=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DAISY_CHAIN,
           peripheral_connector.ConnectionTag.DAISY_CHAIN,
+          1,
       ),
-  )
-  def test_setup_display_path_pasit_box(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      connection_tag: peripheral_connector.ConnectionTag,
-  ):
-    self._test_display_path('pasit-box.yaml', connection_type, connection_tag)
-
-  @functools.with_variants(
-      dock=(
+      pasit_box_dock_two_displays=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DOCK,
           peripheral_connector.ConnectionTag.DOCK,
+          2,
       ),
-      dockless=(
-          peripheral_connector.ConnectionType.DOCKLESS,
-          peripheral_connector.ConnectionTag.DOCKLESS,
-          NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
-      ),
-      daisy_chain=(
+      pasit_box_daisy_chain_two_displays=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DAISY_CHAIN,
           peripheral_connector.ConnectionTag.DAISY_CHAIN,
+          2,
       ),
-  )
-  def test_setup_display_path_pasit_box_two_displays(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      connection_tag: peripheral_connector.ConnectionTag,
-      error_regex: str | None = None,
-  ):
-    self._test_display_path(
-        'pasit-box.yaml', connection_type, connection_tag, 2, error_regex
-    )
-
-  @functools.with_variants(
-      dock=(
+      non_standard_setup_dock=(
+          'non-standard-setup.yaml',
           peripheral_connector.ConnectionType.DOCK,
           peripheral_connector.ConnectionTag.DOCK,
+          1,
       ),
-      dockless=(
+      non_standard_setup_dockless=(
+          'non-standard-setup.yaml',
           peripheral_connector.ConnectionType.DOCKLESS,
           peripheral_connector.ConnectionTag.DOCKLESS,
+          1,
       ),
-      daisy_chain=(
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          peripheral_connector.ConnectionTag.DAISY_CHAIN,
-          NOT_FOUND_ERROR_REGEX,
-      ),
-  )
-  def test_setup_display_path_non_standard_setup(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      connection_tag: peripheral_connector.ConnectionTag,
-      error_regex: str | None = None,
-  ):
-    self._test_display_path(
-        'non-standard-setup.yaml',
-        connection_type,
-        connection_tag,
-        error_regex=error_regex,
-    )
-
-  # This non-standard setup has 2 displays, but only one is dockless and one is
-  # dock so we expect a not enough displays error for all display paths.
-  @functools.with_variants(
-      dock=(
+      single_display_setup_dock=(
+          'single-display.yaml',
           peripheral_connector.ConnectionType.DOCK,
-          peripheral_connector.ConnectionTag.DOCK,
-          NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
-      ),
-      dockless=(
-          peripheral_connector.ConnectionType.DOCKLESS,
-          peripheral_connector.ConnectionTag.DOCKLESS,
-          NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
-      ),
-      daisy_chain=(
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          peripheral_connector.ConnectionTag.DAISY_CHAIN,
-          NOT_FOUND_ERROR_REGEX,
+          None,
+          1,
       ),
   )
-  def test_setup_display_path_non_standard_setup_two_displays(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      connection_tag: peripheral_connector.ConnectionTag,
-      error_regex: str | None = None,
-  ):
-    self._test_display_path(
-        'non-standard-setup.yaml',
-        connection_type,
-        connection_tag,
-        2,
-        error_regex,
-    )
-
-  @functools.with_variants(
-      dock=(peripheral_connector.ConnectionType.DOCK,),
-      dockless=(
-          peripheral_connector.ConnectionType.DOCKLESS,
-          NOT_FOUND_ERROR_REGEX,
-      ),
-      daisy_chain=(
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          NOT_FOUND_ERROR_REGEX,
-      ),
-  )
-  def test_setup_display_path_single_display_setup(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      error_regex: str | None = None,
-  ):
-    self._test_display_path(
-        'single-display.yaml', connection_type, None, error_regex=error_regex
-    )
-
-  # This non-standard setup has 2 displays, but only one is dockless and one is
-  # dock so we expect a not enough displays error for all display paths.
-  @functools.with_variants(
-      dock=(
-          peripheral_connector.ConnectionType.DOCK,
-          NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
-      ),
-      dockless=(
-          peripheral_connector.ConnectionType.DOCKLESS,
-          NOT_FOUND_ERROR_REGEX,
-      ),
-      daisy_chain=(
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          NOT_FOUND_ERROR_REGEX,
-      ),
-  )
-  def test_setup_display_path_single_display_setup_two_displays(
-      self,
-      connection_type: peripheral_connector.ConnectionType,
-      error_regex: str | None = None,
-  ):
-    self._test_display_path(
-        'single-display.yaml', connection_type, None, 2, error_regex
-    )
-
-  def _test_display_path(
+  def test_get_peripheral_path_tag(
       self,
       filename: str,
       connection_type: peripheral_connector.ConnectionType,
-      expected_display_path: peripheral_connector.ConnectionTag | None = None,
-      min_display_count: int = 1,
-      error_regex: str | None = None,
+      expected_tag: peripheral_connector.ConnectionTag | None,
+      min_display_count: int,
   ):
     connector = self._create_peripheral_connector(filename)
-    try:
-      display_path_tag = connector.get_display_path_tag(
-          connection_type, min_display_count
+    path_tag = connector.get_peripheral_path_tag(
+        pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+        connection_type,
+        min_display_count,
+    )
+    self.assertEqual(path_tag, expected_tag)
+
+  @functools.with_variants(
+      pasit_box_dockless_two_displays=(
+          'pasit-box.yaml',
+          peripheral_connector.ConnectionType.DOCKLESS,
+          2,
+          peripheral_connector.PeripheralCountMismatchError,
+          NOT_ENOUGH_PERIPHERALS_ERROR_REGEX,
+      ),
+      non_standard_setup_daisy_chain=(
+          'non-standard-setup.yaml',
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          1,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+      non_standard_setup_dock_two_displays=(
+          'non-standard-setup.yaml',
+          peripheral_connector.ConnectionType.DOCK,
+          2,
+          peripheral_connector.PeripheralCountMismatchError,
+          NOT_ENOUGH_PERIPHERALS_ERROR_REGEX,
+      ),
+      non_standard_setup_dockless_two_displays=(
+          'non-standard-setup.yaml',
+          peripheral_connector.ConnectionType.DOCKLESS,
+          2,
+          peripheral_connector.PeripheralCountMismatchError,
+          NOT_ENOUGH_PERIPHERALS_ERROR_REGEX,
+      ),
+      non_standard_setup_daisy_chain_two_displays=(
+          'non-standard-setup.yaml',
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          2,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+      single_display_setup_dockless=(
+          'single-display.yaml',
+          peripheral_connector.ConnectionType.DOCKLESS,
+          1,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+      single_display_setup_daisy_chain=(
+          'single-display.yaml',
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          1,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+      single_display_setup_dock_two_displays=(
+          'single-display.yaml',
+          peripheral_connector.ConnectionType.DOCK,
+          2,
+          peripheral_connector.PeripheralCountMismatchError,
+          NOT_ENOUGH_PERIPHERALS_ERROR_REGEX,
+      ),
+      single_display_setup_dockless_two_displays=(
+          'single-display.yaml',
+          peripheral_connector.ConnectionType.DOCKLESS,
+          2,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+      single_display_setup_daisy_chain_two_displays=(
+          'single-display.yaml',
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          2,
+          peripheral_connector.PeripheralPathNotFoundError,
+          NOT_FOUND_ERROR_REGEX,
+      ),
+  )
+  def test_get_peripheral_path_tag_raises_error(
+      self,
+      filename: str,
+      connection_type: peripheral_connector.ConnectionType,
+      min_display_count: int,
+      exception_type: type[Exception],
+      error_regex: str,
+  ):
+    connector = self._create_peripheral_connector(filename)
+    with self.assertRaises(exception_type) as context:
+      connector.get_peripheral_path_tag(
+          pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+          connection_type,
+          min_display_count,
       )
-    except Exception as e:  # pylint: disable=broad-except
-      logging.error('Error message: %s, error_regex: %s', e, error_regex)
-      if error_regex:
-        self.assertRegex(str(e), error_regex)  # pylint: disable=g-assert-in-except
-        return
-      else:
-        raise
-    self.assertEqual(display_path_tag, expected_display_path)
-    self.assertNotEqual(error_regex, 'Expected error but no error was raised.')
+    self.assertRegex(str(context.exception), error_regex)
 
 
 if __name__ == '__main__':

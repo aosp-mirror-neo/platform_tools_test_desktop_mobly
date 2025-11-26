@@ -20,6 +20,16 @@ from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit.passport import passport_host
 
 
+def get_device_type_name(
+    device_type: pasit_host_pb2.PasitHost.Device.Type,
+) -> str:
+  return (
+      pasit_host_pb2.PasitHost.Device.Type.Name(device_type)
+      if device_type
+      else ''
+  )
+
+
 class ConnectionType(enum.Enum):
   """Enum for the types of connection in the topology.
 
@@ -61,159 +71,174 @@ CONNECTION_TAG_BY_CONNECTION_TYPE: dict[
 }
 
 
-class DisplayNotFoundError(Exception):
-  """Error when the display is not found in the topology."""
+class PeripheralNotFoundError(Exception):
+  """Error when the peripheral is not found in the topology."""
 
-  def __init__(self):
-    super().__init__('No display found in the topology.')
+  def __init__(self, peripheral_type: pasit_host_pb2.PasitHost.Device.Type):
+    super().__init__(
+        f'No {get_device_type_name(peripheral_type)} found in the topology.'
+    )
+    self.peripheral_type = peripheral_type
 
 
-class DisplayPathNotFoundError(Exception):
-  """Error when the display path is not found in the topology."""
+class PeripheralPathNotFoundError(Exception):
+  """Error when the path for the peripheral is not found in the topology."""
 
   def __init__(self, connection_type: ConnectionType):
-    super().__init__(f'Display path {connection_type} not found in topology.')
+    super().__init__(
+        f'Peripheral path {connection_type} not found in topology.'
+    )
     self.connection_type = connection_type
 
 
-class DisplayCountMismatchError(Exception):
-  """Error when the display count is less than the minimum required count."""
+class PeripheralCountMismatchError(Exception):
+  """Error when the peripheral count is less than the minimum required count."""
 
-  def __init__(self, display_count: int, min_display_count: int):
+  def __init__(self, peripheral_count: int, min_peripheral_count: int):
     super().__init__(
-        f'Display count {display_count} is less than minimum required'
-        f' count of {min_display_count} displays for this test.'
+        f'Peripheral count {peripheral_count} is less than minimum required'
+        f' count of {min_peripheral_count} peripherals for this test.'
     )
-    self.display_count = display_count
-    self.min_display_count = min_display_count
+    self.peripheral_count = peripheral_count
+    self.min_peripheral_count = min_peripheral_count
 
 
 class PeripheralConnector:
   """Helper class for connecting and disconnecting peripherals."""
-
-  DEVICE_TYPE_MONITOR = pasit_host_pb2.PasitHost.Device.Type.MONITOR
-  DEVICE_TYPE_DOCK = pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION
 
   def __init__(self, passport: passport_host.PassportHost):
     self.passport_host = passport
 
   def _determine_connection_tag(
       self,
+      peripheral_type: pasit_host_pb2.PasitHost.Device.Type,
       connection_type: ConnectionType,
   ) -> ConnectionTag | None:
     """Determine the connection tag to use for the test.
 
     This will account for both tagged and untagged connections.  It defaults by
-    searching for a display with a tag, and if it is not found, it will attempt
-    to infer the path type of an untagged display.
+    searching for a peripheral with a tag, and if it is not found, it will
+    attempt to infer the path type of an untagged peripheral.
 
     Args:
-      connection_type: The type of connection to use for the display.
+      peripheral_type: The type of peripheral to get the connection tag for.
+      connection_type: The type of connection to use for the peripheral.
 
     Returns:
-      The connection tag to use for the display.
+      The connection tag to use for the peripheral.
     Raises:
-      DisplayNotFoundError: If the display is not found in the topology.
-      DisplayPathNotFoundError: If the display path is not found in the
-      topology.
+      PeripheralNotFoundError: If the peripheral type is not found in the
+        topology.
+      PeripheralPathNotFoundError: If the path for the peripheral is not found
+      in the topology.
     """
-    # Check if the display is present in the topology at all.
-    if not self.passport_host.is_device_type_present(
-        self.DEVICE_TYPE_MONITOR, None
-    ):
-      raise DisplayNotFoundError()
+    # Check if the peripheral is present in the topology at all.
+    if not self.passport_host.is_device_type_present(peripheral_type, None):
+      raise PeripheralNotFoundError(peripheral_type)
 
     # get the connection tag that corresponds to the connection type
     connection_tag = CONNECTION_TAG_BY_CONNECTION_TYPE[connection_type]
-    # Check if the display is present in the topology with the connection tag.
+    # check if the peripheral is present in the topology with the connection tag
     if self.passport_host.is_device_type_present(
-        self.DEVICE_TYPE_MONITOR, connection_tag
+        peripheral_type, connection_tag
     ):
       return connection_tag
 
     # If there are no tagged paths, attempt to infer the path type (dock or
-    # dockless), by checking whether or not a display is connected via a
+    # dockless), by checking whether or not a peripheral is connected via a
     # dock. If there are different paths (some with dock, some without) in the
     # topology, then raise an error.
-    paths = self.passport_host.get_paths_by_type(self.DEVICE_TYPE_MONITOR, None)
-    dock_path_count = 0
-    for path in paths:
-      for node in path:
-        if (
-            self.passport_host.get_device_by_id(node).type
-            == self.DEVICE_TYPE_DOCK
-        ):
-          dock_path_count += 1
+    all_paths = self.passport_host.get_paths_by_type(peripheral_type, None)
+    dock_paths_count = sum(self._is_dock_path(path) for path in all_paths)
 
-    if connection_type == ConnectionType.DOCK and dock_path_count == len(paths):
+    if connection_type == ConnectionType.DOCK and dock_paths_count == len(
+        all_paths
+    ):
       # using no tag is the same as using the DOCK tag if all paths contain a
       # dock.
       return None
-    if connection_type == ConnectionType.DOCKLESS and dock_path_count == 0:
+    if connection_type == ConnectionType.DOCKLESS and dock_paths_count == 0:
       # using no tag is the same as using the DOCKLESS tag if no paths contain
       # a dock.
       return None
 
-    raise DisplayPathNotFoundError(connection_type)
+    raise PeripheralPathNotFoundError(connection_type)
 
-  def _determine_display_count(
+  def _is_dock_path(self, path: list[pasit_host_pb2.PasitHost.Device]) -> bool:
+    """Determine if the path contains a dock."""
+    for node in path:
+      if (
+          self.passport_host.get_device_by_id(node).type
+          == pasit_host_pb2.PasitHost.Device.Type.DOCKING_STATION
+      ):
+        return True
+    return False
+
+  def _determine_peripheral_count(
       self,
+      peripheral_type: pasit_host_pb2.PasitHost.Device.Type,
       connection_tag: ConnectionTag | None,
   ) -> int:
-    """Determine the display count to use for the test.
+    """Determine the peripheral count to use for the test.
 
-    Determines the number of displays in the topology that are with the given
+    Determines the number of peripherals in the topology that are with the given
     connection tag.  For instance if the connection tag is DOCK, then this will
-    return the number of unique displays that are in the topology and tagged
+    return the number of unique peripherals that are in the topology and tagged
     as DOCK.
 
     Args:
-      connection_tag: The tag to use for determining the display count.
+      peripheral_type: The type of peripheral to determine the count for.
+      connection_tag: The connection tag to use for determining the peripherals.
 
     Returns:
-      The number of displays in the topology that have the given tag.
+      The number of peripherals in the topology that have the given tag.
     """
-    displays = self.passport_host.get_device_ids_by_type(
-        self.DEVICE_TYPE_MONITOR
-    )
+    peripheral_ids = self.passport_host.get_device_ids_by_type(peripheral_type)
     paths = self.passport_host.get_paths_by_type(
-        self.DEVICE_TYPE_MONITOR, connection_tag
+        peripheral_type, connection_tag
     )
-    # Filter so only displays that are in the list of paths are included.
-    # This is to ensure we have the correct number of displays for the a given
-    # path tag. If the display device ID is anywehere in the path, then it is
-    # considered to be reachable for enabling/disabling by the path tag.
-    valid_displays = [
-        display_id
-        for display_id in displays
-        if any(display_id in path for path in paths)
+    # Filter so only peripherals that are in the list of paths are included.
+    # This is to ensure we have the correct number of peripherals for the a
+    # given path tag. If the peripheral device ID is anywhere in the path, then
+    # it is considered to be reachable for enabling/disabling by the path tag.
+    valid_peripherals = [
+        peripheral_id
+        for peripheral_id in peripheral_ids
+        if any(peripheral_id in path for path in paths)
     ]
-    return len(valid_displays)
+    return len(valid_peripherals)
 
-  def get_display_path_tag(
-      self, connection_type: ConnectionType, min_display_count: int = 1
+  def get_peripheral_path_tag(
+      self,
+      peripheral_type: pasit_host_pb2.PasitHost.Device.Type,
+      connection_type: ConnectionType,
+      min_peripheral_count: int = 1,
   ) -> ConnectionTag | None:
-    """Setup the display path for the test.
+    """Get the connection tag to use for the peripheral path.
 
-    This will determine the tag to use when enabling/disabling the display. And
-    will skip the test if the display path cannot be determined.
+    This will determine the tag to use when enabling/disabling the peripheral.
+    And will skip the test if the peripheral path cannot be determined.
 
     Args:
-      connection_type: The type of connection to use for the display.
-      min_display_count: The minimum number of displays required for the test.
+      peripheral_type: The type of peripheral to get the connection tag for.
+      connection_type: The type of connection to use for the peripheral.
+      min_peripheral_count: The minimum number of peripherals that are required
+        to be present in the topology.
 
     Returns:
-      The connection tag to use for the display.
-
+      The connection tag to use for the test.
     Raises:
-      DisplayNotFoundError: If the display is not found in the topology.
-      DisplayPathNotFoundError: If the display path is not found in the
-      topology.
-      DisplayCountMismatchError: If the display count is less than the minimum
-      required count.
+      PeripheralNotFoundError: If the peripheral type is not found in the
+        topology.
+      PeripheralPathNotFoundError: If the path for the peripheral is not found
+      in the topology.
+      PeripheralCountMismatchError: If the peripheral count is less than the
+      minimum required count.
     """
-    display_path_tag = self._determine_connection_tag(connection_type)
-    display_cnt = self._determine_display_count(display_path_tag)
-    if display_cnt < min_display_count:
-      raise DisplayCountMismatchError(display_cnt, min_display_count)
-    return display_path_tag
+    path_tag = self._determine_connection_tag(peripheral_type, connection_type)
+    peripheral_count = self._determine_peripheral_count(
+        peripheral_type, path_tag
+    )
+    if peripheral_count < min_peripheral_count:
+      raise PeripheralCountMismatchError(peripheral_count, min_peripheral_count)
+    return path_tag

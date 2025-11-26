@@ -89,16 +89,18 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     try:
       return peripheral_connector.PeripheralConnector(
           self.passport_host
-      ).get_display_path_tag(connection_type, min_display_count)
+      ).get_peripheral_path_tag(
+          self.DEVICE_TYPE_MONITOR, connection_type, min_display_count
+      )
     except (
-        peripheral_connector.DisplayNotFoundError,
-        peripheral_connector.DisplayPathNotFoundError,
+        peripheral_connector.PeripheralNotFoundError,
+        peripheral_connector.PeripheralPathNotFoundError,
     ) as e:
       asserts.skip(f'No display path found: {e}')
-    except peripheral_connector.DisplayCountMismatchError as e:
+    except peripheral_connector.PeripheralCountMismatchError as e:
       asserts.skip(
-          f'Display count {e.display_count} is less than minimum required count'
-          f' of {e.min_display_count} displays for this test.'
+          f'Display count {e.peripheral_count} is less than minimum required'
+          f' count of {e.min_peripheral_count} displays for this test.'
       )
 
   def plug_in_external_displays(
