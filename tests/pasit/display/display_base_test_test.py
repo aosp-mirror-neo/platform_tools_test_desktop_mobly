@@ -66,7 +66,7 @@ class DisplayBaseTestTest(unittest.TestCase):
     self.assertTrue(
         passport_config, 'PassportHost not found in config for file {filename}.'
     )
-    self.assertEqual(
+    self.assertEqual(  # pylint: disable=g-generic-assert
         len(passport_config),
         1,
         'Expected exactly one PassportHost controller in config for file'
@@ -79,49 +79,76 @@ class DisplayBaseTestTest(unittest.TestCase):
     return test_instance
 
   @functools.with_variants(
-      dock=(display_base_test.DisplayPaths.DOCK,),
-      dockless=(display_base_test.DisplayPaths.DOCKLESS,),
-      daisy_chain=(display_base_test.DisplayPaths.DAISY_CHAIN,),
+      dock=(
+          display_base_test.ConnectionType.DOCK,
+          display_base_test.ConnectionTag.DOCK,
+      ),
+      dockless=(
+          display_base_test.ConnectionType.DOCKLESS,
+          display_base_test.ConnectionTag.DOCKLESS,
+      ),
+      daisy_chain=(
+          display_base_test.ConnectionType.DAISY_CHAIN,
+          display_base_test.ConnectionTag.DAISY_CHAIN,
+      ),
   )
   def test_setup_display_path_pasit_box(
-      self, display_path: display_base_test.DisplayPaths
+      self,
+      connection_type: display_base_test.ConnectionType,
+      connection_tag: display_base_test.ConnectionTag,
   ):
-    self._test_display_path('pasit-box.yaml', display_path, display_path.value)
+    self._test_display_path('pasit-box.yaml', connection_type, connection_tag)
 
   @functools.with_variants(
-      dock=(display_base_test.DisplayPaths.DOCK,),
+      dock=(
+          display_base_test.ConnectionType.DOCK,
+          display_base_test.ConnectionTag.DOCK,
+      ),
       dockless=(
-          display_base_test.DisplayPaths.DOCKLESS,
+          display_base_test.ConnectionType.DOCKLESS,
+          display_base_test.ConnectionTag.DOCKLESS,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
-      daisy_chain=(display_base_test.DisplayPaths.DAISY_CHAIN,),
+      daisy_chain=(
+          display_base_test.ConnectionType.DAISY_CHAIN,
+          display_base_test.ConnectionTag.DAISY_CHAIN,
+      ),
   )
   def test_setup_display_path_pasit_box_two_displays(
       self,
-      display_path: display_base_test.DisplayPaths,
+      connection_type: display_base_test.ConnectionType,
+      connection_tag: display_base_test.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
-        'pasit-box.yaml', display_path, display_path.value, 2, error_regex
+        'pasit-box.yaml', connection_type, connection_tag, 2, error_regex
     )
 
   @functools.with_variants(
-      dock=(display_base_test.DisplayPaths.DOCK,),
-      dockless=(display_base_test.DisplayPaths.DOCKLESS,),
+      dock=(
+          display_base_test.ConnectionType.DOCK,
+          display_base_test.ConnectionTag.DOCK,
+      ),
+      dockless=(
+          display_base_test.ConnectionType.DOCKLESS,
+          display_base_test.ConnectionTag.DOCKLESS,
+      ),
       daisy_chain=(
-          display_base_test.DisplayPaths.DAISY_CHAIN,
+          display_base_test.ConnectionType.DAISY_CHAIN,
+          display_base_test.ConnectionTag.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_non_standard_setup(
       self,
-      display_path: display_base_test.DisplayPaths,
+      connection_type: display_base_test.ConnectionType,
+      connection_tag: display_base_test.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
         'non-standard-setup.yaml',
-        display_path,
-        display_path.value,
+        connection_type,
+        connection_tag,
         error_regex=error_regex,
     )
 
@@ -129,84 +156,91 @@ class DisplayBaseTestTest(unittest.TestCase):
   # dock so we expect a not enough displays error for all display paths.
   @functools.with_variants(
       dock=(
-          display_base_test.DisplayPaths.DOCK,
+          display_base_test.ConnectionType.DOCK,
+          display_base_test.ConnectionTag.DOCK,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       dockless=(
-          display_base_test.DisplayPaths.DOCKLESS,
+          display_base_test.ConnectionType.DOCKLESS,
+          display_base_test.ConnectionTag.DOCKLESS,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.DisplayPaths.DAISY_CHAIN,
+          display_base_test.ConnectionType.DAISY_CHAIN,
+          display_base_test.ConnectionTag.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_non_standard_setup_two_displays(
       self,
-      display_path: display_base_test.DisplayPaths,
+      connection_type: display_base_test.ConnectionType,
+      connection_tag: display_base_test.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
         'non-standard-setup.yaml',
-        display_path,
-        display_path.value,
+        connection_type,
+        connection_tag,
         2,
         error_regex,
     )
 
   @functools.with_variants(
-      dock=(display_base_test.DisplayPaths.DOCK,),
-      dockless=(display_base_test.DisplayPaths.DOCKLESS,NOT_FOUND_ERROR_REGEX),
+      dock=(display_base_test.ConnectionType.DOCK,),
+      dockless=(
+          display_base_test.ConnectionType.DOCKLESS,
+          NOT_FOUND_ERROR_REGEX,
+      ),
       daisy_chain=(
-          display_base_test.DisplayPaths.DAISY_CHAIN,
+          display_base_test.ConnectionType.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_single_display_setup(
       self,
-      display_path: display_base_test.DisplayPaths,
+      connection_type: display_base_test.ConnectionType,
       error_regex: str | None = None,
   ):
     self._test_display_path(
-        'single-display.yaml', display_path, None, error_regex=error_regex
+        'single-display.yaml', connection_type, None, error_regex=error_regex
     )
 
   # This non-standard setup has 2 displays, but only one is dockless and one is
   # dock so we expect a not enough displays error for all display paths.
   @functools.with_variants(
       dock=(
-          display_base_test.DisplayPaths.DOCK,
+          display_base_test.ConnectionType.DOCK,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       dockless=(
-          display_base_test.DisplayPaths.DOCKLESS,
+          display_base_test.ConnectionType.DOCKLESS,
           NOT_FOUND_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.DisplayPaths.DAISY_CHAIN,
+          display_base_test.ConnectionType.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_single_display_setup_two_displays(
       self,
-      display_path: display_base_test.DisplayPaths,
+      connection_type: display_base_test.ConnectionType,
       error_regex: str | None = None,
   ):
     self._test_display_path(
-        'single-display.yaml', display_path, None, 2, error_regex
+        'single-display.yaml', connection_type, None, 2, error_regex
     )
 
   def _test_display_path(
       self,
       filename: str,
-      display_path: display_base_test.DisplayPaths,
-      expected_display_path: display_base_test.DisplayPaths | None = None,
+      connection_type: display_base_test.ConnectionType,
+      expected_display_path: display_base_test.ConnectionTag | None = None,
       min_display_count: int = 1,
       error_regex: str | None = None,
   ):
     test = self._create_test_instance(filename)
     try:
-      test.setup_display_path(display_path, min_display_count)
+      test.setup_display_path(connection_type, min_display_count)
     except signals.TestSkip as e:
       logging.error('Error message: %s, error_regex: %s', e, error_regex)
       if error_regex:

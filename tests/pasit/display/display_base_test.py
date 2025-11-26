@@ -28,10 +28,60 @@ from lib.utils import retry
 from mobly import asserts
 
 
-class DisplayPaths(enum.StrEnum):
+class ConnectionType(enum.Enum):
+  """Enum for the types of connection in the topology.
+
+  Connection type is determined by the connection path in the topology. For
+  example, a peripheral may be connected directly (without a dock) and not
+  marked with a 'DOCKLESS' tag (for example, USB-A peripherals).
+  """
+
+  ANY = (
+      enum.auto()
+  )  # Used for tests where peripherals can be connected via any path.
+  DOCK = enum.auto()
+  DOCKLESS = enum.auto()
+  DAISY_CHAIN = enum.auto()
+
+
+class ConnectionTag(enum.StrEnum):
+  """Enum for the different device connection tags.
+
+  Represents the connection tags in the topology. For example, if a peripheral
+  is connected via a dock, but marked with a 'DOCKLESS' tag - the connection tag
+  would be DOCKLESS.
+  """
+
   DOCK = 'DOCK'
   DOCKLESS = 'DOCKLESS'
   DAISY_CHAIN = 'DAISY_CHAIN'
+
+
+# Direct mapping from connection type to connection tag. This doesn't appy if
+# the topology connections are not marked with tags.
+CONNECTION_TAG_BY_CONNECTION_TYPE: dict[
+    ConnectionType, ConnectionTag | None
+] = {
+    ConnectionType.ANY: None,
+    ConnectionType.DOCK: ConnectionTag.DOCK,
+    ConnectionType.DOCKLESS: ConnectionTag.DOCKLESS,
+    ConnectionType.DAISY_CHAIN: ConnectionTag.DAISY_CHAIN,
+}
+
+
+class DisplayNotFoundError(Exception):
+  """Error when the display is not found in the topology."""
+
+  def __init__(self):
+    super().__init__('No display found in the topology.')
+
+
+class DisplayPathNotFoundError(Exception):
+  """Error when the display path is not found in the topology."""
+
+  def __init__(self, connection_type: ConnectionType):
+    super().__init__(f'Display path {connection_type} not found in topology.')
+    self.connection_type = connection_type
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -80,32 +130,45 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.painter.cleanup()
     super().teardown_class()
 
-  def _determine_display_path(
-      self, display_path: DisplayPaths
-  ) -> DisplayPaths | None:
-    """Determine the display path to use for the test.
+  def _determine_connection_tag(
+      self,
+      connection_type: ConnectionType,
+  ) -> ConnectionTag | None:
+    """Determine the connection tag to use for the test.
 
-    This will account for both tagged and untagged displays.  It defaults by
-    searching for a display with a tag, and if none are found, it will attempt
-    infer the path type of an untagged display.
+    This will account for both tagged and untagged connections.  It defaults by
+    searching for a display with a tag, and if it is not found, it will attempt
+    to infer the path type of an untagged display.
+
+    Args:
+      connection_type: The type of connection to use for the display.
 
     Returns:
-      The display path to use for the test.
+      The connection tag to use for the display.
     Raises:
-      ValueError: If the display path cannot be determined.
+      DisplayNotFoundError: If the display is not found in the topology.
+      DisplayPathNotFoundError: If the display path is not found in the
+      topology.
     """
+    # Check if the display is present in the topology at all.
     if not self.passport_host.is_device_type_present(
         self.DEVICE_TYPE_MONITOR, None
     ):
-      raise ValueError('No displays found in topology.')
+      raise DisplayNotFoundError()
+
+    # get the connection tag that corresponds to the connection type
+    connection_tag = CONNECTION_TAG_BY_CONNECTION_TYPE[connection_type]
+    # Check if the display is present in the topology with the connection tag.
     if self.passport_host.is_device_type_present(
-        self.DEVICE_TYPE_MONITOR, display_path
+        self.DEVICE_TYPE_MONITOR, connection_tag
     ):
-      return display_path
+      return connection_tag
+
+    # If there are no tagged paths, attempt to infer the path type (dock or
+    # dockless), by checking whether or not a display is connected via a
+    # dock. If there are different paths (some with dock, some without) in the
+    # topology, then raise an error.
     paths = self.passport_host.get_paths_by_type(self.DEVICE_TYPE_MONITOR, None)
-    # if there are no tagged paths attempt to infer the path type, by checking
-    # whether or not a display is connected via a dock.  We only attempt to
-    # infer if all the display paths are the same (dock or dockless).
     dock_path_count = 0
     for path in paths:
       for node in path:
@@ -115,35 +178,43 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         ):
           dock_path_count += 1
 
-    if display_path == DisplayPaths.DOCK and dock_path_count == len(paths):
+    if connection_type == ConnectionType.DOCK and dock_path_count == len(paths):
+      # using no tag is the same as using the DOCK tag if all paths contain a
+      # dock.
       return None
-    if display_path == DisplayPaths.DOCKLESS and dock_path_count == 0:
+    if connection_type == ConnectionType.DOCKLESS and dock_path_count == 0:
+      # using no tag is the same as using the DOCKLESS tag if no paths contain
+      # a dock.
       return None
 
-    raise ValueError(f'Display path {display_path} not found in topology.')
+    raise DisplayPathNotFoundError(connection_type)
 
-  def _determine_display_count(self, display_path: DisplayPaths) -> int:
+  def _determine_display_count(
+      self,
+      connection_tag: ConnectionTag | None,
+  ) -> int:
     """Determine the display count to use for the test.
 
-    Determines the number of displays in the topology that are in the display
-    path.  For instance if the display path is DOCK, then this will return the
-    number of unique displays that are in the topology and tagged as DOCK.
+    Determines the number of displays in the topology that are with the given
+    connection tag.  For instance if the connection tag is DOCK, then this will
+    return the number of unique displays that are in the topology and tagged
+    as DOCK.
 
     Args:
-      display_path: The display path to use for determining the display count.
+      connection_tag: The tag to use for determining the display count.
 
     Returns:
-      The number of displays in the topology that are in the display path.
+      The number of displays in the topology that have the given tag.
     """
     displays = self.passport_host.get_device_ids_by_type(
         self.DEVICE_TYPE_MONITOR
     )
     paths = self.passport_host.get_paths_by_type(
-        self.DEVICE_TYPE_MONITOR, display_path
+        self.DEVICE_TYPE_MONITOR, connection_tag
     )
     # Filter so only displays that are in the list of paths are included.
     # This is to ensure we have the correct number of displays for the a given
-    # path tag.  If the display device ID is anywehere in the path, then it is
+    # path tag. If the display device ID is anywehere in the path, then it is
     # considered to be reachable for enabling/disabling by the path tag.
     valid_displays = [
         display_id
@@ -153,7 +224,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     return len(valid_displays)
 
   def setup_display_path(
-      self, display_path: DisplayPaths, min_display_count: int = 1
+      self, connection_type: ConnectionType, min_display_count: int = 1
   ):
     """Setup the display path for the test.
 
@@ -161,8 +232,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     will skip the test if the display path cannot be determined.
     """
     try:
-      self.display_path_tag = self._determine_display_path(display_path)
-    except ValueError as e:
+      self.display_path_tag = self._determine_connection_tag(connection_type)
+    except (DisplayNotFoundError, DisplayPathNotFoundError) as e:
       asserts.skip(f'No display path found: {e}')
     display_cnt = self._determine_display_count(self.display_path_tag)
     if display_cnt < min_display_count:
