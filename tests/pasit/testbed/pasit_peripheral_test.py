@@ -35,6 +35,7 @@ from lib.pasit import pasit_hid
 from lib.pasit import pasit_network
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import peripheral_connector
 from lib.pasit import test_policy
 from lib.pasit.passport import utils
 from lib.utils import retry
@@ -125,7 +126,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     self.passport_host.activate_device_by_id(device_id, tag)
     expected_display_count = 2  # 1 internal + 1 external
-    if tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value:
+    if tag == peripheral_connector.ConnectionTag.DAISY_CHAIN:
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
@@ -334,21 +335,21 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       tags = utils.get_child_tags(
           topology,
           device.id,
-          [item.value for item in display_camera_mapper.DisplayPaths],
+          [item for item in peripheral_connector.ConnectionTag],
       )
       if utils.is_edid(topology, device.id):
         # EDID devices do not work properly with DUTs, so skip them.
         continue
       for tag in tags:
         if (
-            tag == display_camera_mapper.DisplayPaths.DAISY_CHAIN.value
+            tag == peripheral_connector.ConnectionTag.DAISY_CHAIN
             and not utils.is_leaf_node(topology, device.id)
         ):
           # for daisy chain, we only test the full chain, so skip all the
           # intermediate displays and only test the leaf node.
           continue
         display_count_test_devices.append((device.id, tag))
-        if tag != display_camera_mapper.DisplayPaths.DAISY_CHAIN.value:
+        if tag != peripheral_connector.ConnectionTag.DAISY_CHAIN:
           # Generate display mapping tests for dock and dockless only, ignoring
           # daisy chain.  We want to minimize the tests in this suite to only
           # cover the basic cases and rely on the real PASIT tests to cover the
