@@ -1,13 +1,26 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 import os
 import sys
 import unittest
 from unittest import mock
 
-import display_base_test
+from lib.pasit import peripheral_connector
 from lib.pasit.passport import passport_host
 from lib.utils import functools
-from mobly import signals
 import yaml
 
 
@@ -16,9 +29,14 @@ NOT_ENOUGH_DISPLAYS_ERROR_REGEX = (
     'Display count .* is less than minimum required count .*'
 )
 
+TESTDATA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(sys.argv[0])),
+    'testdata',
+)
+
 
 @functools.generate_tests
-class DisplayBaseTestTest(unittest.TestCase):
+class PeripheralConnectorTest(unittest.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -26,12 +44,6 @@ class DisplayBaseTestTest(unittest.TestCase):
     # Note it must be to stdout and not stderr, otherwise the logs interfere
     # with the parsing of the test results.
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    self.data_dir = os.path.join(
-        # due to the way files are packaged in the par file/build dir, we need
-        # to walk up the directory tree twice to get to the right spot.
-        os.path.dirname(os.path.dirname(display_base_test.__file__)),
-        'data',
-    )
     patchers = [
         mock.patch(
             'lib.pasit.passport.passport_host.PassportHost._connect_to_service',
@@ -50,10 +62,14 @@ class DisplayBaseTestTest(unittest.TestCase):
       patcher.start()
       self.addCleanup(patcher.stop)
 
-  def _create_test_instance(self, filename):
-    """Creates an instance of DisplayBaseTest with a mocked passport_host."""
-    with open(os.path.join(self.data_dir, filename), 'r') as f:
-      config = yaml.safe_load(f)
+  def _get_test_data(self, file_name):
+    file_path = os.path.join(TESTDATA_PATH, file_name)
+    with open(file_path, 'r') as f:
+      return yaml.safe_load(f)
+
+  def _create_peripheral_connector(self, filename):
+    """Creates an instance of PeripheralConnector with a mocked passport_host."""
+    config = self._get_test_data(filename)
     testbed_config = config.get('TestBeds', [{}])[0]
     self.assertTrue(
         testbed_config, 'TestBeds not found in config for file {filename}.'
@@ -72,52 +88,50 @@ class DisplayBaseTestTest(unittest.TestCase):
         'Expected exactly one PassportHost controller in config for file'
         f' {filename}.',
     )
-    test_instance = display_base_test.DisplayBaseTest.__new__(
-        display_base_test.DisplayBaseTest
+    return peripheral_connector.PeripheralConnector(
+        passport_host.PassportHost(passport_config[0])
     )
-    test_instance.passport_host = passport_host.PassportHost(passport_config[0])
-    return test_instance
 
   @functools.with_variants(
       dock=(
-          display_base_test.ConnectionType.DOCK,
-          display_base_test.ConnectionTag.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
+          peripheral_connector.ConnectionTag.DOCK,
       ),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
-          display_base_test.ConnectionTag.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionTag.DOCKLESS,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
-          display_base_test.ConnectionTag.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionTag.DAISY_CHAIN,
       ),
   )
   def test_setup_display_path_pasit_box(
       self,
-      connection_type: display_base_test.ConnectionType,
-      connection_tag: display_base_test.ConnectionTag,
+      connection_type: peripheral_connector.ConnectionType,
+      connection_tag: peripheral_connector.ConnectionTag,
   ):
     self._test_display_path('pasit-box.yaml', connection_type, connection_tag)
 
   @functools.with_variants(
       dock=(
-          display_base_test.ConnectionType.DOCK,
-          display_base_test.ConnectionTag.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
+          peripheral_connector.ConnectionTag.DOCK,
       ),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
-          display_base_test.ConnectionTag.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionTag.DOCKLESS,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
-          display_base_test.ConnectionTag.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionTag.DAISY_CHAIN,
       ),
   )
   def test_setup_display_path_pasit_box_two_displays(
       self,
-      connection_type: display_base_test.ConnectionType,
-      connection_tag: display_base_test.ConnectionTag,
+      connection_type: peripheral_connector.ConnectionType,
+      connection_tag: peripheral_connector.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
@@ -126,23 +140,23 @@ class DisplayBaseTestTest(unittest.TestCase):
 
   @functools.with_variants(
       dock=(
-          display_base_test.ConnectionType.DOCK,
-          display_base_test.ConnectionTag.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
+          peripheral_connector.ConnectionTag.DOCK,
       ),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
-          display_base_test.ConnectionTag.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionTag.DOCKLESS,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
-          display_base_test.ConnectionTag.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionTag.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_non_standard_setup(
       self,
-      connection_type: display_base_test.ConnectionType,
-      connection_tag: display_base_test.ConnectionTag,
+      connection_type: peripheral_connector.ConnectionType,
+      connection_tag: peripheral_connector.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
@@ -156,25 +170,25 @@ class DisplayBaseTestTest(unittest.TestCase):
   # dock so we expect a not enough displays error for all display paths.
   @functools.with_variants(
       dock=(
-          display_base_test.ConnectionType.DOCK,
-          display_base_test.ConnectionTag.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
+          peripheral_connector.ConnectionTag.DOCK,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
-          display_base_test.ConnectionTag.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionTag.DOCKLESS,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
-          display_base_test.ConnectionTag.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionTag.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_non_standard_setup_two_displays(
       self,
-      connection_type: display_base_test.ConnectionType,
-      connection_tag: display_base_test.ConnectionTag,
+      connection_type: peripheral_connector.ConnectionType,
+      connection_tag: peripheral_connector.ConnectionTag,
       error_regex: str | None = None,
   ):
     self._test_display_path(
@@ -186,19 +200,19 @@ class DisplayBaseTestTest(unittest.TestCase):
     )
 
   @functools.with_variants(
-      dock=(display_base_test.ConnectionType.DOCK,),
+      dock=(peripheral_connector.ConnectionType.DOCK,),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
           NOT_FOUND_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_single_display_setup(
       self,
-      connection_type: display_base_test.ConnectionType,
+      connection_type: peripheral_connector.ConnectionType,
       error_regex: str | None = None,
   ):
     self._test_display_path(
@@ -209,21 +223,21 @@ class DisplayBaseTestTest(unittest.TestCase):
   # dock so we expect a not enough displays error for all display paths.
   @functools.with_variants(
       dock=(
-          display_base_test.ConnectionType.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
           NOT_ENOUGH_DISPLAYS_ERROR_REGEX,
       ),
       dockless=(
-          display_base_test.ConnectionType.DOCKLESS,
+          peripheral_connector.ConnectionType.DOCKLESS,
           NOT_FOUND_ERROR_REGEX,
       ),
       daisy_chain=(
-          display_base_test.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
           NOT_FOUND_ERROR_REGEX,
       ),
   )
   def test_setup_display_path_single_display_setup_two_displays(
       self,
-      connection_type: display_base_test.ConnectionType,
+      connection_type: peripheral_connector.ConnectionType,
       error_regex: str | None = None,
   ):
     self._test_display_path(
@@ -233,20 +247,20 @@ class DisplayBaseTestTest(unittest.TestCase):
   def _test_display_path(
       self,
       filename: str,
-      connection_type: display_base_test.ConnectionType,
-      expected_display_path: display_base_test.ConnectionTag | None = None,
+      connection_type: peripheral_connector.ConnectionType,
+      expected_display_path: peripheral_connector.ConnectionTag | None = None,
       min_display_count: int = 1,
       error_regex: str | None = None,
   ):
-    test = self._create_test_instance(filename)
+    connector = self._create_peripheral_connector(filename)
     try:
-      display_path_tag = test._get_display_path_tag(  # pylint: disable=protected-access
+      display_path_tag = connector.get_display_path_tag(
           connection_type, min_display_count
       )
-    except signals.TestSkip as e:
+    except Exception as e:  # pylint: disable=broad-except
       logging.error('Error message: %s, error_regex: %s', e, error_regex)
       if error_regex:
-        self.assertRegex(str(e), error_regex)
+        self.assertRegex(str(e), error_regex)  # pylint: disable=g-assert-in-except
         return
       else:
         raise

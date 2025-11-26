@@ -18,6 +18,7 @@ import logging
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.pasit import peripheral_connector
 from lib.utils import functools
 from lib.utils import image
 from mobly import test_runner
@@ -42,33 +43,33 @@ class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   @functools.with_variants(
       on_dock=(
           dut_state_manager.PowerState.ON,
-          display_base_test.ConnectionType.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
       ),
       on_daisychain=(
           dut_state_manager.PowerState.ON,
-          display_base_test.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
       ),
       off_dock=(
           dut_state_manager.PowerState.OFF,
-          display_base_test.ConnectionType.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
       ),
       off_daisychain=(
           dut_state_manager.PowerState.OFF,
-          display_base_test.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
       ),
       suspended_dock=(
           dut_state_manager.PowerState.SUSPEND,
-          display_base_test.ConnectionType.DOCK,
+          peripheral_connector.ConnectionType.DOCK,
       ),
       suspended_daisychain=(
           dut_state_manager.PowerState.SUSPEND,
-          display_base_test.ConnectionType.DAISY_CHAIN,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
       ),
   )
   def test_plug_in_two_displays_when_dut(
       self,
       state_when_plug_display: dut_state_manager.PowerState,
-      connection_type: display_base_test.ConnectionType,
+      connection_type: peripheral_connector.ConnectionType,
   ):
     """Test that plugs in two external displays when DUT is in different states."""
     self.skip_if_servo_needed_and_not_configured(state_when_plug_display)

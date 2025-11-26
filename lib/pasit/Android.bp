@@ -201,6 +201,15 @@ python_library_host {
     pkg_path: "lib/pasit",
 }
 
+python_library_host {
+    name: "py-peripheral-connector",
+    srcs: ["peripheral_connector.py"],
+    libs: [
+        "py-passport",
+    ],
+    pkg_path: "lib/pasit",
+}
+
 python_test_host {
     name: "pasit_lib_imports_test",
     srcs: [
@@ -278,5 +287,25 @@ python_test_host {
     },
     libs: [
         "py-pasit-device",
+    ],
+}
+
+python_test_host {
+    name: "peripheral_connector_test",
+    team: "trendy_team_desktop_peripherals",
+    srcs: [
+        "peripheral_connector_test.py",
+    ],
+    data: [
+        "testdata/non-standard-setup.yaml",
+        "testdata/pasit-box.yaml",
+        "testdata/single-display.yaml",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-peripheral-connector",
+        "py-desktop-utils",
     ],
 }
