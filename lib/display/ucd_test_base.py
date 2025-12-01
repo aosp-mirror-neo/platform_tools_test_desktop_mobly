@@ -146,8 +146,8 @@ class UcdTestBase(pasit_test.PasitTestClass):
     """Reboots the device, with retries and cold resets if needed."""
     try:
       self.dut.reboot()
-    except Exception:  # pylint: disable=broad-except
-      logging.info("Reboot command failed. Will attempt cold reset.")
+    except Exception as e:  # pylint: disable=broad-except
+      logging.info("Reboot command failed. Will attempt cold reset: %s", e)
     else:
       is_online = retry.retry(
           self.dut.is_device_online,
