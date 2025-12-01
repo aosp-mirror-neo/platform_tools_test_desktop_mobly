@@ -14,7 +14,6 @@
 
 """Helper class for mapping displays to cameras."""
 
-import enum
 import logging
 
 from lib.pasit import color_capturer
@@ -30,14 +29,6 @@ class UnexpectedDisplayCountError(Exception):
 
 class MapDisplaysToCamerasError(Exception):
   """Error when mapping displays to cameras fails."""
-
-
-class DisplayPaths(enum.Enum):
-  """Enum for the different display paths."""
-
-  DOCK = 'DOCK'
-  DOCKLESS = 'DOCKLESS'
-  DAISY_CHAIN = 'DAISY_CHAIN'
 
 
 class DisplayCameraMapper:

@@ -14,7 +14,6 @@
 
 """Base test for PASIT display tests."""
 
-import enum
 import logging
 
 from lib.pasit import display_camera_mapper
@@ -22,16 +21,11 @@ from lib.pasit import display_helper
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
+from lib.pasit import peripheral_connector
 from lib.pasit import test_policy
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
-
-
-class DisplayPaths(enum.StrEnum):
-  DOCK = 'DOCK'
-  DOCKLESS = 'DOCKLESS'
-  DAISY_CHAIN = 'DAISY_CHAIN'
 
 
 class DisplayBaseTest(pasit_test.PasitTestClass):
@@ -42,10 +36,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   helper: display_helper.DisplayHelper
   camera_mapper: display_camera_mapper.DisplayCameraMapper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
-
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.display_path_tag = None
 
   def setup_class(self):
     """Handle the setup for the test.
@@ -66,7 +56,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.painter,
         self.current_test_info.output_path,
     )
-    self.display_path_tag = None
 
   def teardown_test(self):
     """Handle the teardown for the test."""
@@ -80,98 +69,45 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.painter.cleanup()
     super().teardown_class()
 
-  def _determine_display_path(
-      self, display_path: DisplayPaths
-  ) -> DisplayPaths | None:
-    """Determine the display path to use for the test.
-
-    This will account for both tagged and untagged displays.  It defaults by
-    searching for a display with a tag, and if none are found, it will attempt
-    infer the path type of an untagged display.
-
-    Returns:
-      The display path to use for the test.
-    Raises:
-      ValueError: If the display path cannot be determined.
-    """
-    if not self.passport_host.is_device_type_present(
-        self.DEVICE_TYPE_MONITOR, None
-    ):
-      raise ValueError('No displays found in topology.')
-    if self.passport_host.is_device_type_present(
-        self.DEVICE_TYPE_MONITOR, display_path
-    ):
-      return display_path
-    paths = self.passport_host.get_paths_by_type(self.DEVICE_TYPE_MONITOR, None)
-    # if there are no tagged paths attempt to infer the path type, by checking
-    # whether or not a display is connected via a dock.  We only attempt to
-    # infer if all the display paths are the same (dock or dockless).
-    dock_path_count = 0
-    for path in paths:
-      for node in path:
-        if (
-            self.passport_host.get_device_by_id(node).type
-            == self.DEVICE_TYPE_DOCK
-        ):
-          dock_path_count += 1
-
-    if display_path == DisplayPaths.DOCK and dock_path_count == len(paths):
-      return None
-    if display_path == DisplayPaths.DOCKLESS and dock_path_count == 0:
-      return None
-
-    raise ValueError(f'Display path {display_path} not found in topology.')
-
-  def _determine_display_count(self, display_path: DisplayPaths) -> int:
-    """Determine the display count to use for the test.
-
-    Determines the number of displays in the topology that are in the display
-    path.  For instance if the display path is DOCK, then this will return the
-    number of unique displays that are in the topology and tagged as DOCK.
-
-    Args:
-      display_path: The display path to use for determining the display count.
-
-    Returns:
-      The number of displays in the topology that are in the display path.
-    """
-    displays = self.passport_host.get_device_ids_by_type(
-        self.DEVICE_TYPE_MONITOR
-    )
-    paths = self.passport_host.get_paths_by_type(
-        self.DEVICE_TYPE_MONITOR, display_path
-    )
-    # Filter so only displays that are in the list of paths are included.
-    # This is to ensure we have the correct number of displays for the a given
-    # path tag.  If the display device ID is anywehere in the path, then it is
-    # considered to be reachable for enabling/disabling by the path tag.
-    valid_displays = [
-        display_id
-        for display_id in displays
-        if any(display_id in path for path in paths)
-    ]
-    return len(valid_displays)
-
-  def setup_display_path(
-      self, display_path: DisplayPaths, min_display_count: int = 1
-  ):
-    """Setup the display path for the test.
+  def _get_display_path_tag(
+      self,
+      connection_type: peripheral_connector.ConnectionType,
+      min_display_count: int = 1,
+  ) -> peripheral_connector.ConnectionTag | None:
+    """Get the connection tag to use for the display path.
 
     This will determine the tag to use when enabling/disabling the display. And
     will skip the test if the display path cannot be determined.
+
+    Args:
+      connection_type: The type of connection to use for the display.
+      min_display_count: The minimum number of displays required for the test.
+
+    Returns:
+      The connection tag to use for the display.
     """
     try:
-      self.display_path_tag = self._determine_display_path(display_path)
-    except ValueError as e:
+      return peripheral_connector.PeripheralConnector(
+          self.passport_host
+      ).get_peripheral_path_tag(
+          self.DEVICE_TYPE_MONITOR, connection_type, min_display_count
+      )
+    except (
+        peripheral_connector.PeripheralNotFoundError,
+        peripheral_connector.PeripheralPathNotFoundError,
+    ) as e:
       asserts.skip(f'No display path found: {e}')
-    display_cnt = self._determine_display_count(self.display_path_tag)
-    if display_cnt < min_display_count:
+    except peripheral_connector.PeripheralCountMismatchError as e:
       asserts.skip(
-          f'Display count {display_cnt} is less than minimum required count'
-          f' of {min_display_count} displays for this test.'
+          f'Display count {e.peripheral_count} is less than minimum required'
+          f' count of {e.min_peripheral_count} displays for this test.'
       )
 
-  def plug_in_external_displays(self, external_display_count: int):
+  def plug_in_external_displays(
+      self,
+      external_display_count: int,
+      connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
+  ):
     """Emulate multiple external display plug in using passport.
 
     Skips the test if the number of monitors in the topology is less than the
@@ -179,6 +115,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
     Args:
       external_display_count: The number of external displays to plug in.
+      connection_type: The type of connection to use for the displays.
     """
     monitor_ids = self.passport_host.get_device_ids_by_type(
         self.DEVICE_TYPE_MONITOR
@@ -188,24 +125,35 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         f'Expected at least {external_display_count} monitors, but'
         f' found {len(monitor_ids)}.',
     )
+    display_path_tag = self._get_display_path_tag(
+        connection_type, external_display_count
+    )
     for monitor_id in monitor_ids[:external_display_count]:
       logging.info('Plugging in external display %s', monitor_id)
-      self.passport_host.activate_device_by_id(
-          monitor_id, self.display_path_tag
-      )
+      self.passport_host.activate_device_by_id(monitor_id, display_path_tag)
 
-  def plug_in_external_display(self):
+  def plug_in_external_display(
+      self,
+      connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
+  ):
     """Emulate external display plug in using passport."""
+    display_path_tag = self._get_display_path_tag(connection_type)
+
     logging.info('Plugging in external display')
     self.passport_host.activate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+        self.DEVICE_TYPE_MONITOR, display_path_tag
     )
 
-  def unplug_external_display(self):
+  def unplug_external_display(
+      self,
+      connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
+  ):
     """Emulate external display unplug using passport."""
+    display_path_tag = self._get_display_path_tag(connection_type)
+
     logging.info('Unplugging external display')
     self.passport_host.deactivate_device_by_type(
-        self.DEVICE_TYPE_MONITOR, self.display_path_tag
+        self.DEVICE_TYPE_MONITOR, display_path_tag
     )
 
   def verify_display_count(self, expected_count: int, event_to_log: str):

@@ -49,6 +49,8 @@ class UcdTestBase(pasit_test.PasitTestClass):
   display: pasit_display.PasitDisplay
   helper: display_helper.DisplayHelper
 
+  disable_screen_recording = True
+
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
 
