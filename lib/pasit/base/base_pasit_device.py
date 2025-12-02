@@ -380,3 +380,29 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     if not self._servo:
       raise ServoNotConfiguredError('Failed to set lid state to closed.')
     self._servo.set_lid_state(False)
+
+  def reset(self) -> None:
+    """Performs a cold reset, or reboot if servo is not configured.
+
+    Raises:
+      PasitDeviceError: If the device is not online after the maximum number
+      of tries.
+    """
+    if not self._servo:
+      self.reboot()
+      return
+
+    self._servo.cold_reset()
+    self.wait_for_device_online()
+
+  def safe_reset(self) -> None:
+    """Performs a safe reset, or reboot if servo is not configured.
+
+    Raises no exceptions.
+    """
+    try:
+      self.reset()
+    except Exception as e:  # pylint: disable=broad-except
+      logging.error(
+          'Failed to reset device, device may be in a bad state: %s', e
+      )

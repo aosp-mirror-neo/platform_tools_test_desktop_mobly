@@ -69,6 +69,11 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       self.painter.cleanup()
     super().teardown_class()
 
+  def on_fail(self, record):
+    """Handle the teardown for the class."""
+    self.dut.safe_reset()
+    super().on_fail(record)
+
   def _get_display_path_tag(
       self,
       connection_type: peripheral_connector.ConnectionType,
