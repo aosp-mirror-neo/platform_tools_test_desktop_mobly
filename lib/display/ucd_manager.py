@@ -285,9 +285,9 @@ class UcdManager(abc.ABC):
 
     remaining_display_count = active_displays_count - 1
     enable_mst = force_mst or bool(remaining_display_count > 1)
-    self._set_display_caps(enable_mst, remaining_display_count)
 
     if remaining_display_count > 0:
+      self._set_display_caps(enable_mst, remaining_display_count)
       if not self.send_hpd_pulse():
         raise UcdManagerError(
             "Failed to send HPD pulse on unplug_last_display."
@@ -306,7 +306,6 @@ class UcdManager(abc.ABC):
 
   def unplug_all_displays(self, wait_for_active: bool):
     """Unplugs all displays and destroys their configuration."""
-    self._set_display_caps(is_mst=False, displays_to_set=0)
     logging.debug("Detaching.")
     if not self._vsc.perform_attach_operation(False):
       raise UcdManagerError("Failed to detach from the DUT.")
@@ -556,6 +555,12 @@ class Ucd500Manager(UcdManager):
     ]
 
   def _set_display_caps(self, is_mst: bool, displays_to_set: int) -> None:
+    if displays_to_set < 1:
+      raise UcdManagerError(
+          "There is no need to set display capabilities if there are %d"
+          " display. Just go ahead and detach instead." % displays_to_set
+      )
+
     logging.debug(
         "Setting DP link capabilities with is_mst: %s, displays_to_set: %d,"
         " video_spec: %s, dsc: %s",
