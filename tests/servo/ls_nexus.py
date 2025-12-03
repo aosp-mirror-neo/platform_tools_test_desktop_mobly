@@ -31,12 +31,11 @@ class LSNexusTest(base_test.BaseTestClass):
 
   def setup_class(self):
     """Setup the test class."""
-    # self.dut = self.register_controller(android_device)[0]
+    self.dut = self.register_controller(android_device)[0]
 
   def _setup_servo(self) -> servo_client.ServoBase:
     """Setup the servo."""
-    # hostname = self.dut.serial.split(':')[0]
-    hostname = 'localhost'
+    hostname = self.dut.serial.split(':')[0]
     lsnexus_uri = self.user_params.get('lsnexus_' + hostname)
     if not lsnexus_uri:
       raise LSNexusNotConfiguredError(f'no configuration found for {hostname}')
