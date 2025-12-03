@@ -15,7 +15,7 @@
 """Test basic functionality of LS Nexus with a servo and Mobly test harness."""
 
 import logging
-
+import sys
 from lib.utils import servo_client
 from mobly import asserts
 from mobly import base_test
@@ -71,4 +71,8 @@ class LSNexusTest(base_test.BaseTestClass):
 
 
 if __name__ == '__main__':
+  # TODO(b/465848599) remove this workaround once the bug is fixed.
+  if '--' in sys.argv:
+    index = sys.argv.index('--')
+    sys.argv = sys.argv[:index] + sys.argv[index + 1:]
   test_runner.main()
