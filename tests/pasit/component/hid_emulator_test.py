@@ -47,10 +47,12 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
     with asserts.assert_raises(hid_emulator.HIDEmulator.Error):
       emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
 
-  def test_emulate_keypress_after_initialize_and_unplug_hid_emulator(
-      self,
-  ) -> None:
+  def test_emulate_mouse_click_before_initialize_raises_error(self) -> None:
     emulator = hid_emulator.HIDEmulator(self.passport_host)
+    with asserts.assert_raises(hid_emulator.HIDEmulator.Error):
+      emulator.emulate_mouse_click(hid_emulator.MouseButton.LEFT)
+
+  def test_plug_unplug_hid_emulator(self) -> None:
     hid_devices_before = self.hid.get_hid_devices()
     self.plug_in_hid_emulator()
     asserts.assert_equal(
@@ -59,18 +61,34 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
         'Expected to find 3 new HIDs after plugging in HID emulator.',
     )
 
-    emulator.initialize()
-    emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
-
     self.unplug_hid_emulator()
     asserts.assert_equal(
         len(self.hid.get_hid_devices()) - len(hid_devices_before),
         0,
         'Expected to find no new HIDs after unplugging HID emulator.',
     )
+
+  def test_emulate_keypress(self) -> None:
+    emulator = hid_emulator.HIDEmulator(self.passport_host)
     self.plug_in_hid_emulator()
     emulator.initialize()
     emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
+
+    self.unplug_hid_emulator()
+    self.plug_in_hid_emulator()
+    emulator.initialize()
+    emulator.emulate_keypress([hid_keys.Alphanumeric.KEY_A])
+
+  def test_emulate_mouse_click(self) -> None:
+    emulator = hid_emulator.HIDEmulator(self.passport_host)
+    self.plug_in_hid_emulator()
+    emulator.initialize()
+    emulator.emulate_mouse_click(hid_emulator.MouseButton.LEFT)
+
+    self.unplug_hid_emulator()
+    self.plug_in_hid_emulator()
+    emulator.initialize()
+    emulator.emulate_mouse_click(hid_emulator.MouseButton.RIGHT)
 
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
