@@ -82,8 +82,8 @@ class BasePasitHID(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_captured_keys(self) -> List[str]:
-    """Returns the list of captured keys from the DUT."""
+  def get_captured_key_events(self) -> List[str]:
+    """Returns the list of captured key events from the DUT."""
     raise NotImplementedError
 
   def get_expected_key_events(self, key: str) -> List[str]:

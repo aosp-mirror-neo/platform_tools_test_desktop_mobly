@@ -61,7 +61,7 @@ class HIDEmulator:
       )
     self.device_id = hid_devices[0]
 
-  def emulate_keypress(self, keys: list[str]) -> None:
+  def keypress(self, keys: list[str]) -> None:
     """Emulates a keypress on the HID emulator.
 
     Args:
@@ -74,7 +74,7 @@ class HIDEmulator:
     logging.info('Emulating keypress: %s', keys)
     self.passport.hid_client.send_keypress(self.device_id, keys)
 
-  def emulate_mouse_click(self, button: MouseButton) -> None:
+  def mouse_click(self, button: MouseButton) -> None:
     """Emulates a mouse button press on the HID emulator.
 
     Args:
@@ -87,7 +87,7 @@ class HIDEmulator:
     logging.info('Emulating mouse button press: %s', MouseButton.Name(button))
     self.passport.hid_client.send_mouse_click(self.device_id, button)
 
-  def emulate_mouse_move(self, x: int, y: int) -> None:
+  def mouse_move(self, x: int, y: int) -> None:
     """Emulates a mouse move on the HID emulator.
 
     The x and y values are passed to HID service of the Passport API directly.
@@ -105,7 +105,7 @@ class HIDEmulator:
     logging.info('Emulating mouse move: (%d, %d)', x, y)
     self.passport.hid_client.send_mouse_move(self.device_id, x, y)
 
-  def emulate_mouse_scroll(self, distance: int) -> None:
+  def mouse_scroll(self, distance: int) -> None:
     """Emulates a mouse scroll on the HID emulator.
 
     The distance is passed to HID service of the Passport API directly.
