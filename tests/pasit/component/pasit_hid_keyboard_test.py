@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A test that exercises PASIT HID functionality."""
+"""A test that exercises PASIT HID keyboard functionality."""
 
 import logging
 from lib.pasit import hid_emulator
@@ -23,8 +23,8 @@ from mobly import asserts
 from mobly import test_runner
 
 
-class PasitHIDTest(pasit_test.PasitTestClass):
-  """A test that exercises PASIT HID functionality."""
+class PasitHIDKeyboardTest(pasit_test.PasitTestClass):
+  """A test that exercises PASIT HID keyboard functionality."""
 
   hid: pasit_hid.PasitHID
   emulator: hid_emulator.HIDEmulator
