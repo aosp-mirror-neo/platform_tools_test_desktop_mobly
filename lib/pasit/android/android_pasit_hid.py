@@ -163,7 +163,7 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
         timeout=datetime.timedelta(seconds=5)
     )
 
-  def get_captured_keys(self) -> List[str]:
+  def get_captured_key_events(self) -> List[str]:
     return self.controller.hid.getKeyLog()
 
   def get_expected_key_events(self, key: str) -> List[str]:
