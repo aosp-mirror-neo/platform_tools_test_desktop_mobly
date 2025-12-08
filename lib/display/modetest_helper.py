@@ -102,14 +102,18 @@ def _parse_modetest_output(output: str) -> dict[int, dict[str, Any]]:
   current_connector_id = None
   in_props_section = False
   # A prop line looks like: `  3  PATH:`
-  prop_line_regex = r"\s+\d+\s+(.*):$"
+  prop_line_regex = r"^\s+\d+\s+(.*):$"
 
   in_connectors_section = False
-  for line_index, line in enumerate(lines):
+  i = 0
+  while i < len(lines):
+    line = lines[i]
     line_stripped = line.strip()
+
     if not in_connectors_section:
       if line_stripped == "Connectors:":
         in_connectors_section = True
+      i += 1
       continue
 
     parts = line.split()
@@ -128,45 +132,71 @@ def _parse_modetest_output(output: str) -> dict[int, dict[str, Any]]:
           "props": {},
       }
       in_props_section = False
+      i += 1
       continue
 
     if current_connector_id is None:
+      i += 1
       continue
 
     if line_stripped == "props:":
       in_props_section = True
+      i += 1
       continue
 
     if not in_props_section:
+      i += 1
       continue
 
     match = re.match(prop_line_regex, line)
     if match:
       prop_name = match.group(1).strip()
       prop_value = ""
-      for value_line_index in range(line_index + 1, len(lines)):
-        value_line = lines[value_line_index]
-        value_line_stripped = value_line.strip()
-        if value_line_stripped.startswith("value:"):
-          prop_value = value_line_stripped.split(":", 1)[1].strip()
-          if not prop_value and value_line_index + 1 < len(lines):
-            # check indentation to see if it's a multi-line value
-            if len(lines[value_line_index + 1]) > len(value_line) - len(
-                value_line.lstrip()
-            ):
-              prop_value = lines[value_line_index + 1].strip()
-          break
-        elif re.match(prop_line_regex, value_line):  # next prop
-          break
-        else:  # Stop if we see what looks like a new connector
-          next_parts = value_line.split()
-          if (
-              next_parts
-              and next_parts[0].isdigit()
-              and len(next_parts) >= 3
-              and next_parts[2] in ["connected", "disconnected", "unknown"]
-          ):
-            break
-      connectors[current_connector_id]["props"][prop_name] = prop_value
 
+      # Find "value:" line for this prop
+      value_line_index = -1
+      for j in range(i + 1, len(lines)):
+        # Stop if we hit the next property or connector
+        if re.match(prop_line_regex, lines[j]):
+          break
+        next_parts = lines[j].split()
+        if (
+            next_parts
+            and next_parts[0].isdigit()
+            and len(next_parts) >= 3
+            and next_parts[2] in ["connected", "disconnected", "unknown"]
+        ):
+          break
+        if lines[j].strip().startswith("value:"):
+          value_line_index = j
+          break
+
+      if value_line_index != -1:
+        value_on_line = lines[value_line_index].strip().split(":", 1)[1].strip()
+        value_parts = [value_on_line] if value_on_line else []
+        value_line_indentation = len(lines[value_line_index]) - len(
+            lines[value_line_index].lstrip()
+        )
+        k = value_line_index + 1
+        while k < len(lines):
+          next_line = lines[k]
+          next_line_indentation = len(next_line) - len(next_line.lstrip())
+          # if next line is more indented, it is part of the value.
+          if (
+              next_line.strip()
+              and next_line_indentation > value_line_indentation
+          ):
+            value_parts.append(next_line.strip())
+            k += 1
+          else:
+            break
+        prop_value = "".join(value_parts)
+        i = k  # advance main loop index
+      else:
+        i += 1  # no value found, just advance to next line
+
+      connectors[current_connector_id]["props"][prop_name] = prop_value
+      continue
+
+    i += 1
   return connectors
