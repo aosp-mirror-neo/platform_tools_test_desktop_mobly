@@ -43,6 +43,11 @@ board_display_capabilities: Dict[str, BoardDisplayCapabilities] = {
         dp_spec=video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_1_4,
         dsc=True,
     ),
+    'fatcat': BoardDisplayCapabilities(
+        edid_for_max_mode=edid_for_max_supported_modes.edid_4k_160Hz_Timings,
+        dp_spec=video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_2_1,
+        dsc=False,
+    ),
 }
 
 
