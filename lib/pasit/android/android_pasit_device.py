@@ -23,6 +23,7 @@ import time
 from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
+from lib.pasit.android import ui_watcher
 from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
 from lib.utils import retry
@@ -60,9 +61,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   SCREENSHOTS_PATH = '/data/media/10/Pictures/Screenshots/'
   TMP_DIR = '/data/local/tmp/'
 
-  _PROCESS_NOT_RESPONDING_WATCHER = 'process_not_responding'
-  _PROCESS_NOT_RESPONDING_TEXT = "Process system isn't responding"
-  _PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT = 'Close app'
+  _PROCESS_NOT_RESPONDING_PARAMS = ui_watcher.UIWatcherParams(
+      text_to_match="Process system isn't responding",
+      text_to_click='Close app',
+  )
+
+  _ANDROID_SETUP_KEEPS_STOPPING_PARAMS = ui_watcher.UIWatcherParams(
+      text_to_match='Android Setup keeps stopping',
+      text_to_click='Close app',
+  )
 
   def __init__(
       self,
@@ -70,31 +77,33 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
-    self.snippets = snippet_tools.SnippetTools(self.controller)
-    self.user_session = user_session_tools.UserSessionTools(self.controller)
+    self._snippets = snippet_tools.SnippetTools(self.controller)
+    self._user_session = user_session_tools.UserSessionTools(self.controller)
     self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
+    self._ui_watcher = ui_watcher.UIWatcher(self.controller)
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
-    self.user_session.skip_oobe()
+    self._user_session.skip_oobe()
     # for consistency across all runs
     # and to make sure that mbs is installed under the login screen user
-    self.user_session.switch_to_login_screen_user()
+    self._user_session.switch_to_login_screen_user()
     self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
-    self.snippets.uninstall_all()
-    self.snippets.install_and_load_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
-    self.snippets.register_uiautomator()
-    self._add_process_not_responding_watcher()
+    self._snippets.uninstall_all()
+    self._snippets.install_and_load_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
+    self._snippets.register_uiautomator()
+    self._ui_watcher.add(self._PROCESS_NOT_RESPONDING_PARAMS)
+    self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS)
     self._bypass_login_screen()
     self._boot_id = None
     self._update_boot_id()
 
   def cleanup(self):
-    self._remove_process_not_responding_watcher()
+    self._ui_watcher.remove_all()
     self._stop_services()
     # clean up after testing to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
-    self.snippets.uninstall_all()
+    self._snippets.uninstall_all()
 
   def shell(self, params: Iterable[str]) -> bytes:
     try:
@@ -124,10 +133,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._update_boot_id()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
-    self.user_session.switch_to_login_screen_user()
+    self._user_session.switch_to_login_screen_user()
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
-    self.snippets.install_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
+    self._snippets.install_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
     self.controller.root_adb()
     self._start_services()
     self._bypass_login_screen()
@@ -271,9 +280,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     ).is_powered()
 
   def _get_boot_id(self) -> str:
-    return self.shell(['cat', '/proc/sys/kernel/random/boot_id']).decode(
-        'utf-8'
-    ).strip()
+    return (
+        self.shell(['cat', '/proc/sys/kernel/random/boot_id'])
+        .decode('utf-8')
+        .strip()
+    )
 
   def _update_boot_id(self) -> None:
     self._boot_id = self._get_boot_id()
@@ -322,7 +333,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.wait_for_device_offline()
 
   def _bypass_login_screen(self):
-    self.user_session.switch_to_logged_in_user()
+    self._user_session.switch_to_logged_in_user()
 
   def _set_wakup_timeout(self, wakeup_timeout_seconds: int):
     self._adb_shell_as_user(
@@ -363,49 +374,3 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return self.controller.adb.shell(
         ['su', f'{user_id}'] + cmd,
     )
-
-  def _add_process_not_responding_watcher(self) -> None:
-    """Adds a watcher to close the process not responding window.
-
-    Checks if the process not responding window exists and if so closes it. Also
-    adds a watcher to close the window if it appears again during the test. This
-    is to prevent the window from obscuring the view of UI elements.
-    """
-    try:
-      if self.controller.ui(text=self._PROCESS_NOT_RESPONDING_TEXT).exists:
-        self.controller.ui(
-            text=self._PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT
-        ).click()
-        logging.warning(
-            f"'{self._PROCESS_NOT_RESPONDING_TEXT}' window detected and closed."
-        )
-
-      self.controller.ui.watcher(self._PROCESS_NOT_RESPONDING_WATCHER).when(
-          text=self._PROCESS_NOT_RESPONDING_TEXT
-      ).click(text=self._PROCESS_NOT_RESPONDING_CLOSE_BUTTON_TEXT)
-    except Exception as e:  # pylint: disable=broad-except
-      logging.error(
-          "Failed to add watcher for '%s' window: %s",
-          self._PROCESS_NOT_RESPONDING_TEXT,
-          e,
-      )
-
-  def _remove_process_not_responding_watcher(self) -> None:
-    """Removes the process not responding watcher.
-
-    Logs if the watcher was triggered and closed the window.
-    """
-    try:
-      if self.controller.ui.watcher(
-          self._PROCESS_NOT_RESPONDING_WATCHER
-      ).triggered:
-        logging.warning(
-            f"'{self._PROCESS_NOT_RESPONDING_TEXT}' window detected and closed."
-        )
-      self.controller.ui.watcher(self._PROCESS_NOT_RESPONDING_WATCHER).remove()
-    except Exception as e:  # pylint: disable=broad-except
-      logging.error(
-          "Failed to remove watcher for '%s' window: %s",
-          self._PROCESS_NOT_RESPONDING_TEXT,
-          e,
-      )
