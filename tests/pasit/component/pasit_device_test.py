@@ -43,6 +43,10 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Rebooting device...')
     self.dut.reboot()
 
+  def test_cold_reset(self):
+    logging.info('Cold resetting device...')
+    self.dut.cold_reset()
+
   def test_power_on_off_via_servo(self):
     asserts.skip_if(
         not self.dut.is_servo_configured(), 'Servo is not configured.'

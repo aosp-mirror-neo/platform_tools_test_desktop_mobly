@@ -125,10 +125,25 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._update_boot_id()
     self._bypass_login_screen()
 
+  def cold_reset(self):
+    self._boot_id = None
+    try:
+      self._stop_services()
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to stop services during cold reset: %s', e)
+    self._servo.cold_reset()
+    self.wait_for_device_online()
+    self._power_on_routine()
+
   def power_on(self):
     self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
+    self._power_on_routine()
+    # if device was previously suspended ensure that the wakelocks are restored
+    self._set_wakup_timeout(0)
+
+  def _power_on_routine(self):
     self._wait_for_boot_completion()
     self._update_boot_id()
     # for consistency across all runs, switch to the login screen user first
@@ -140,8 +155,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.root_adb()
     self._start_services()
     self._bypass_login_screen()
-    # if device was previously suspended ensure that the wakelocks are restored
-    self._set_wakup_timeout(0)
 
   def power_off(self):
     self._stop_services()
