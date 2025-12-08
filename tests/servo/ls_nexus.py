@@ -15,7 +15,7 @@
 """Test basic functionality of LS Nexus with a servo and Mobly test harness."""
 
 import logging
-
+import sys
 from lib.utils import servo_client
 from mobly import asserts
 from mobly import base_test
@@ -31,12 +31,11 @@ class LSNexusTest(base_test.BaseTestClass):
 
   def setup_class(self):
     """Setup the test class."""
-    # self.dut = self.register_controller(android_device)[0]
+    self.dut = self.register_controller(android_device)[0]
 
   def _setup_servo(self) -> servo_client.ServoBase:
     """Setup the servo."""
-    # hostname = self.dut.serial.split(':')[0]
-    hostname = 'localhost'
+    hostname = self.dut.serial.split(':')[0]
     lsnexus_uri = self.user_params.get('lsnexus_' + hostname)
     if not lsnexus_uri:
       raise LSNexusNotConfiguredError(f'no configuration found for {hostname}')
@@ -72,4 +71,8 @@ class LSNexusTest(base_test.BaseTestClass):
 
 
 if __name__ == '__main__':
+  # TODO(b/465848599) remove this workaround once the bug is fixed.
+  if '--' in sys.argv:
+    index = sys.argv.index('--')
+    sys.argv = sys.argv[:index] + sys.argv[index + 1:]
   test_runner.main()

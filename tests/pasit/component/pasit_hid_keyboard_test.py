@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A test that exercises PASIT HID functionality."""
+"""A test that exercises PASIT HID keyboard functionality."""
 
 import logging
 from lib.pasit import hid_emulator
@@ -23,8 +23,8 @@ from mobly import asserts
 from mobly import test_runner
 
 
-class PasitHIDTest(pasit_test.PasitTestClass):
-  """A test that exercises PASIT HID functionality."""
+class PasitHIDKeyboardTest(pasit_test.PasitTestClass):
+  """A test that exercises PASIT HID keyboard functionality."""
 
   hid: pasit_hid.PasitHID
   emulator: hid_emulator.HIDEmulator
@@ -76,12 +76,12 @@ class PasitHIDTest(pasit_test.PasitTestClass):
     failed_keys = []
     for key in keys:
       try:
-        self.emulator.emulate_keypress([key])
+        self.emulator.keypress([key])
       except Exception as e:  # pylint: disable=broad-except
         logging.exception('Failed to emulate keypress %s: %s', key, e)
         failed_keys.append(key)
         continue
-      all_captured_keys.append(self.hid.get_captured_keys())
+      all_captured_keys.append(self.hid.get_captured_key_events())
       all_expected_keys.append(self.hid.get_expected_key_events(key))
     asserts.assert_equal(all_expected_keys, all_captured_keys)
     asserts.assert_equal(

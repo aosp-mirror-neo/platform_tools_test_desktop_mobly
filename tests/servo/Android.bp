@@ -14,10 +14,10 @@
 
 package {
     default_applicable_licenses: ["Android-Apache-2.0"],
-    // TODO b/447020680: Add default team once a team is created for this test.
-    // default_team: "",
+    default_team: "trendy_team_desktop_peripherals",
 }
 
+// This target is for running the test directly with the Mobly test runner localy.
 python_test_host {
     name: "DesktopLSNexusMoblyTests",
     main: "ls_nexus.py",
@@ -37,4 +37,26 @@ python_test_host {
         "general-tests",
     ],
     pkg_path: "servo",
+}
+
+// This target runs Mobly tests via TF for integration with ATE systems.
+python_test_host {
+    name: "DesktopLSNexusMoblyTestsTF",
+    main: "ls_nexus.py",
+    srcs: ["ls_nexus.py"],
+    test_options: {
+        // This is not a unit test as it communicates with a device.
+        unit_test: false,
+    },
+    libs: [
+        "py-grpcio",
+        "libprotobuf-python",
+        "py-desktop-utils",
+        "mobly",
+        "py-pasit-test",
+        "platform-test-py-annotations",
+    ],
+    test_suites: [
+        "general-tests",
+    ],
 }

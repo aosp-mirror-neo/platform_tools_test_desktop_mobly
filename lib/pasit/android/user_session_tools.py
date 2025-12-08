@@ -48,8 +48,9 @@ class UnexpectedActivePackageError(Exception):
 class UserSessionTools:
   """UserSessionTools provides tools for managing user sessions on an Android device."""
 
-  _FOUR_CORNER_EXIT_ACTION_ERROR = (
-      'Activity not started, unable to resolve Intent'
+  _IGNORABLE_OOBE_ERRORS = (
+      'Activity not started, unable to resolve Intent',
+      'Activity not started, not allowed for the given user',
   )
   _LOGIN_SCREEN_PACKAGE_NAME = 'com.google.android.desktop.identity.login'
   _LAUNCHER_PACKAGE_NAME = 'com.google.android.apps.nexuslauncher'
@@ -65,13 +66,20 @@ class UserSessionTools:
           ['am', 'start', '-a', 'com.android.setupwizard.FOUR_CORNER_EXIT']
       )
     except adb.AdbError as e:
-      if self._FOUR_CORNER_EXIT_ACTION_ERROR in str(e.stderr):
+      if self._ignore_oobe_error(e):
         # The four corner exit action will not run if the device is already
         # logged in or if the device is not rooted.
         self.controller.log.debug('Ignoring failure to skip OOBE/Setup Wizard.')
         self.controller.log.debug(e)
       else:
         raise e
+
+  def _ignore_oobe_error(self, e: adb.AdbError):
+    """Checks if the OOBE error is ignorable."""
+    return any(
+        error_to_ignore in str(e.stderr)
+        for error_to_ignore in self._IGNORABLE_OOBE_ERRORS
+    )
 
   def switch_to_login_screen_user(self):
     self._switch_user(LOGIN_SCREEN_USER_ID)

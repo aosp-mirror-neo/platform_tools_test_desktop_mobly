@@ -15,8 +15,13 @@
 """A class to represent a HID emulator."""
 
 import logging
+from typing import TypeAlias
 
+from chromiumos.test.lab.api.passport import hid_service_pb2
 from lib.pasit.passport import passport_host
+
+
+MouseButton: TypeAlias = hid_service_pb2.MouseActionRequest.Button
 
 
 class HIDEmulator:
@@ -56,7 +61,7 @@ class HIDEmulator:
       )
     self.device_id = hid_devices[0]
 
-  def emulate_keypress(self, keys: list[str]) -> None:
+  def keypress(self, keys: list[str]) -> None:
     """Emulates a keypress on the HID emulator.
 
     Args:
@@ -65,10 +70,67 @@ class HIDEmulator:
     Raises:
       Error: If the emulator is not initialized.
     """
+    self._ensure_initialized()
+    logging.info('Emulating keypress: %s', keys)
+    self.passport.hid_client.send_keypress(self.device_id, keys)
+
+  def mouse_click(self, button: MouseButton) -> None:
+    """Emulates a mouse button press on the HID emulator.
+
+    Args:
+      button: The mouse button to emulate.
+
+    Raises:
+      Error: If the emulator is not initialized.
+    """
+    self._ensure_initialized()
+    logging.info('Emulating mouse button press: %s', MouseButton.Name(button))
+    self.passport.hid_client.send_mouse_click(self.device_id, button)
+
+  def mouse_move(self, x: int, y: int) -> None:
+    """Emulates a mouse move on the HID emulator.
+
+    The x and y values are passed to HID service of the Passport API directly.
+    Please refer to the HID service API documentation for more details on
+    how the values are interpreted.
+
+    Args:
+      x: The distance to move a mouse pointer by in a horizontal axis.
+      y: The distance to move a mouse pointer by in a vertical axis.
+
+    Raises:
+      Error: If the emulator is not initialized.
+    """
+    self._ensure_initialized()
+    logging.info('Emulating mouse move: (%d, %d)', x, y)
+    self.passport.hid_client.send_mouse_move(self.device_id, x, y)
+
+  def mouse_scroll(self, distance: int) -> None:
+    """Emulates a mouse scroll on the HID emulator.
+
+    The distance is passed to HID service of the Passport API directly.
+    Please refer to the HID service API documentation for more details on
+    how the value is interpreted.
+
+    Args:
+      distance: The distance to scroll by. Positive values scroll up and
+        negative values scroll down.
+
+    Raises:
+      Error: If the emulator is not initialized.
+    """
+    self._ensure_initialized()
+    logging.info('Emulating mouse scroll: %d', distance)
+    self.passport.hid_client.send_mouse_scroll(self.device_id, distance)
+
+  def _ensure_initialized(self) -> None:
+    """Ensures the emulator is initialized.
+
+    Raises:
+      Error: If the emulator is not initialized.
+    """
     if not hasattr(self, 'device_id'):
       raise self.Error(
           'HID emulator is not initialized. Please call initialize() before'
-          ' emulate_keypress().'
+          ' using the emulator.'
       )
-    logging.info('Emulating keypress: %s', keys)
-    self.passport.hid_client.send_keypress(self.device_id, keys)

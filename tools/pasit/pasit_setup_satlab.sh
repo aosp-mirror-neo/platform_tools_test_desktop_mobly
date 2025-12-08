@@ -73,6 +73,9 @@ function usage() {
 }
 
 function check_ssh_access() {
+  # shellcheck disable=SC2086
+  ssh -O exit ${SSH_OPTS} "${SATLAB_IP}" > /dev/null 2>&1
+  rm "${SOCKET}" > /dev/null 2>&1
   echo -e "\n\nChecking SSH access to ${SATLAB_IP}..."
   # shellcheck disable=SC2086
   if ! ssh ${SSH_OPTS} -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
