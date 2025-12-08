@@ -42,6 +42,13 @@ class EdidForMaxMode:
         f"  EDID Data: {self.Edid.name if self.Edid else 'Not available'}"
     )
 
+edid_4k_160Hz_Timings = EdidForMaxMode(
+    Hactive=3840,
+    Vactive=2160,
+    RefreshRate=160,
+    refresh_rate_tolerance_hz=1,
+    Edid=edids_list.MTK_MNT,
+)
 
 edid_8k_30Hz_Timings = EdidForMaxMode(
     Hactive=7680,
