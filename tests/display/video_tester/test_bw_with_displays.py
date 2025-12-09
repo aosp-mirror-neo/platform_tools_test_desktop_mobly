@@ -15,9 +15,9 @@
 """Testing the System Bandwidth in supporting displays."""
 
 
-from chromiumos.test.lab.api.passport import video_tester_service_pb2
 from display.utils import board_capabilities
 from display.utils import interface_types
+from display.utils import modetest_helper
 from display.utils import platform_info_helper
 from display.utils import ucd_test_base
 from mobly import asserts
@@ -38,21 +38,18 @@ class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
 
     original_spec, original_dsc = self._ucd_manager.get_dp_video_spec()
     try:
-      self._ucd_manager.set_dp_video_spec(
-          video_tester_service_pb2.VideoSpecification.VIDEO_SPECIFICATION_DP_2_1,
-          dsc=True,
-      )
       # Setup UCD as a sink with required max resolution per board
       board_name = platform_info_helper.get_current_board_name(self.dut)
-      edid_for_max_mode = (
-          board_capabilities.get_edid_for_max_supported_res_for_board(
-              board_name
-          )
-      )
+      board_caps = board_capabilities.get_board_display_capabilities(board_name)
       asserts.assert_true(
-          edid_for_max_mode,
-          f"No Edid for Max Resolution found for board: '{board_name}'",
+          board_caps,
+          f"No Display Capabilities found for board: '{board_name}'",
       )
+
+      self._ucd_manager.set_dp_video_spec(
+          board_caps.dp_spec, dsc=board_caps.dsc
+      )
+      edid_for_max_mode = board_caps.edid_for_max_mode
 
       self._ucd_manager.replug_displays(
           display_count=1,
@@ -65,6 +62,24 @@ class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
           1,
           "Number of valid streams do not match the number of ext displays"
           " connected: 1",
+      )
+
+      # Verify the EDID on the connector matches what we expect.
+      _, connectors = modetest_helper.get_all_connectors_props(self.dut)
+      dut_edid = None
+      for _, props in connectors.items():
+        if props["connected"] and props["name"].startswith("DP"):
+          dut_edid = props["props"].get("EDID")
+          break
+      asserts.assert_is_not_none(
+          dut_edid, "Could not find EDID for connected DP."
+      )
+      expected_edid = "".join(edid_for_max_mode.Edid.edid_hex_string.split())
+      asserts.assert_equal(
+          dut_edid.lower(),
+          expected_edid.lower(),
+          "DUT EDID does not match the expected EDID. DUT EDID: "
+          f"{dut_edid}, Expected EDID: {expected_edid}",
       )
 
       requested_hactive = edid_for_max_mode.Hactive
@@ -93,6 +108,8 @@ class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
           f"{streams[0].frame_rate / 1000.0:.2f}Hz"
           f" ({streams[0].frame_rate}mHz)",
       )
+
+      self.check_all_screenshots_for_displays(1)
     finally:
       self._ucd_manager.set_dp_video_spec(original_spec, original_dsc)
 
