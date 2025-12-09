@@ -156,13 +156,18 @@ function setup_tunnel() {
   fi
 
   # shellcheck disable=SC2086
-  ssh -fNT \
+  SSH_CMD=(ssh -fNT \
     "${DUT_TUNNEL}" \
     -L "${PASSPORT_TUNNEL_PORT}:${PASSPORT_IP}:8300" \
     -L "${IP_POWER_SWITCH_TUNNEL_PORT}:${IP_POWER_SWITCH_IP}:80" \
     ${SSH_OPTS} \
     ${SERVO_TUNNEL} \
-    "${SATLAB_IP}"
+    "${SATLAB_IP}")
+
+  echo "Starting SSH tunnel to ${SATLAB_IP}: "
+  echo "Running: ${SSH_CMD[*]}"
+  "${SSH_CMD[@]}"
+
   if [[ $? -ne 0 ]]; then
     echo -e "\n\nERROR: Failed to start SSH tunnel to ${SATLAB_IP}"
     exit 1
