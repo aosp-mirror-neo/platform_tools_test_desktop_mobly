@@ -71,7 +71,8 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
   def on_fail(self, record):
     """Handle the teardown for the class."""
-    self.dut.safe_reset()
+    if hasattr(self, 'dut'):
+      self.dut.safe_reset()
     super().on_fail(record)
 
   def _get_display_path_tag(
