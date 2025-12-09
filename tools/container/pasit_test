@@ -60,9 +60,11 @@ usage() {
 }
 
 
-PASSPORT_DOCKER_REGISTRY="us-docker.pkg.dev/cros-passport"
-PASIT_ANDROID_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/android:latest"
-PASIT_CROS_IMAGE="${PASSPORT_DOCKER_REGISTRY}/testbed/cros:latest"
+PASSPORT_DOCKER_REGISTRY="${PASSPORT_DOCKER_REGISTRY:-us-docker.pkg.dev/cros-passport}"
+PASSPORT_INTERNAL_DOCKER_REGISTRY="${PASSPORT_INTERNAL_DOCKER_REGISTRY:-us-docker.pkg.dev/cros-passport-internal}"
+PASIT_TAG="${PASIT_TAG:-latest}"
+PASIT_ANDROID_IMAGE="${PASIT_ANDROID_IMAGE:-${PASSPORT_DOCKER_REGISTRY}/testbed/android:${PASIT_TAG}}"
+PASIT_CROS_IMAGE="${PASIT_CROS_IMAGE:-${PASSPORT_INTERNAL_DOCKER_REGISTRY}/testbed/cros:${PASIT_TAG}}"
 PASIT_VOLUME_NAME="pasit_volume"
 PASIT_PERSISTENT_CONTAINER_NAME="pasit_persistent_container"
 PASIT_PERSISTENT_LOG_CONTAINER_NAME="pasit_persistent_log_upload_container"
@@ -253,8 +255,14 @@ setup_docker_credentials() {
       "cat /home/satlab/keys/pubsub-key-do-not-delete.json \
       | /usr/local/bin/docker login -u _json_key --password-stdin \
       ${PASSPORT_DOCKER_REGISTRY}" > /dev/null 2>&1; then
-    log_color ERROR "failed to login to docker registry."
+    log_color ERROR "Failed to login to docker registry."
     exit 1
+  fi
+  if ! docker exec -i compose sh -c \
+      "cat /home/satlab/keys/pubsub-key-do-not-delete.json \
+      | /usr/local/bin/docker login -u _json_key --password-stdin \
+      ${PASSPORT_INTERNAL_DOCKER_REGISTRY}" > /dev/null 2>&1; then
+    log_color WARN "Failed to login to internal docker registry."
   fi
 }
 
@@ -266,8 +274,7 @@ pull_pasit_testbed_containers() {
   fi
   if ! docker exec -i compose sh -c \
     "/usr/local/bin/docker pull ${PASIT_CROS_IMAGE}"; then
-    log_color ERROR "failed to pull ${PASIT_CROS_IMAGE}"
-    exit 1
+    log_color WARN "failed to pull ${PASIT_CROS_IMAGE} proceeding without it..."
   fi
 }
 
@@ -409,6 +416,11 @@ run_pasit_testbed_suite() {
       -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
   fi
 
+  if [[ $? -ne 0 ]]; then
+    log_color ERROR "PASIT failed to setup PASIT container, can't run tests."
+    exit 1
+  fi
+
   summarize_test_output "${TEMP_DIR}/pasit_run_output.txt"
 
   local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
@@ -528,6 +540,7 @@ if [[ $# -gt 0 ]]; then
 fi
 
 check_satlab_drone_running_tests
+set -o pipefail
 
 if [[ "${UPLOAD_LOGS}" -eq 1 ]]; then
   upload_logs
