@@ -110,6 +110,11 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def cold_reset(self):
+    """Performs a cold reset on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def power_on(self):
     """Powers on the device."""
     raise NotImplementedError
@@ -313,9 +318,8 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     if self.is_device_offline():
       if self._servo:
         logging.debug('Device is offline, performing cold reset...')
-        self._servo.cold_reset()
         try:
-          self.wait_for_device_online()
+          self.cold_reset()
         except PasitDeviceError:
           logging.error('Device is still offline after cold reset.')
       return True
@@ -392,8 +396,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
       self.reboot()
       return
 
-    self._servo.cold_reset()
-    self.wait_for_device_online()
+    self.cold_reset()
 
   def safe_reset(self) -> None:
     """Performs a safe reset, or reboot if servo is not configured.
