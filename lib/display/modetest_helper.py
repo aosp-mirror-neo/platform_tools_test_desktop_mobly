@@ -58,6 +58,31 @@ def get_crtcs_count(dut: pasit_device.PasitDevice) -> int:
     return -1
 
 
+def get_all_encoders_props(
+    dut: pasit_device.PasitDevice,
+) -> tuple[str, dict[int, dict[str, Any]]]:
+  """Gets all encoders and their properties from 'modetest -e'.
+
+  Args:
+    dut: The DUT that accesses the shell.
+
+  Returns:
+    A tuple containing the raw modetest output and a dictionary mapping
+    encoder IDs to their properties. Each property dictionary includes the
+    encoder's 'crtc'. Returns an empty string and dict if the command fails.
+    Example encoder dictionary:
+    {
+      708: { 'crtc': 199 },
+      718: { 'crtc': 0 },
+    }
+  """
+  try:
+    output = dut.shell(["modetest", "-e"]).decode("utf-8", errors="ignore")
+    return output, _parse_modetest_encoders_output(output)
+  except subprocess.CalledProcessError:
+    return "", {}
+
+
 def get_all_connectors_props(
     dut: pasit_device.PasitDevice,
 ) -> tuple[str, dict[int, dict[str, Any]]]:
@@ -69,13 +94,14 @@ def get_all_connectors_props(
   Returns:
     A tuple containing the raw modetest output and a dictionary mapping
     connector IDs to their properties. Each property dictionary includes a
-    'name' and a 'connected' boolean. Returns an empty string and dict if the
-    command fails.
+    'name', a 'connected' boolean, and the 'active_encoder'. Returns an empty
+    string and dict if the command fails.
     Example connector dictionary:
     {
       709: {
         'name': 'eDP-1',
         'connected': True,
+        'active_encoder': 708,
         'props': {
           'EDID': '00ffff...',
           'DPMS': '0',
@@ -84,6 +110,7 @@ def get_all_connectors_props(
       719: {
         'name': 'HDMI-A-1',
         'connected': False,
+        'active_encoder': 0,
         'props': { ... }
       }
     }
@@ -129,6 +156,7 @@ def _parse_modetest_output(output: str) -> dict[int, dict[str, Any]]:
       connectors[current_connector_id] = {
           "name": parts[3],
           "connected": parts[2] == "connected",
+          "active_encoder": int(parts[1]),
           "props": {},
       }
       in_props_section = False
@@ -200,3 +228,29 @@ def _parse_modetest_output(output: str) -> dict[int, dict[str, Any]]:
 
     i += 1
   return connectors
+
+
+def _parse_modetest_encoders_output(output: str) -> dict[int, dict[str, Any]]:
+  """Parses the output of 'modetest -e' to extract encoder properties."""
+  lines = output.splitlines()
+  encoders = {}
+  in_encoders_section = False
+  encoder_regex = re.compile(r"^\s*(\d+)\s+(\d+)\s+([A-Z]+)\s+.*")
+
+  for line in lines:
+    line_stripped = line.strip()
+    if not in_encoders_section:
+      if line_stripped == "Encoders:":
+        in_encoders_section = True
+      continue
+
+    if line_stripped.startswith("id") or not line_stripped:
+      continue
+
+    match = encoder_regex.match(line)
+    if match:
+      encoder_id = int(match.group(1))
+      crtc_id = int(match.group(2))
+      encoders[encoder_id] = {"crtc": crtc_id}
+
+  return encoders
