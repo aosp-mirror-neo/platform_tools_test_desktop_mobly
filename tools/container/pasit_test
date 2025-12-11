@@ -416,11 +416,6 @@ run_pasit_testbed_suite() {
       -c /workdir/pasit_config.yaml ${forwarded_args} | tee ${TEMP_DIR}/pasit_run_output.txt
   fi
 
-  if [[ $? -ne 0 ]]; then
-    log_color ERROR "PASIT failed to setup PASIT container, can't run tests."
-    exit 1
-  fi
-
   summarize_test_output "${TEMP_DIR}/pasit_run_output.txt"
 
   local log_dir="$(grep 'Artifacts are saved in'  ${TEMP_DIR}/pasit_run_output.txt | cut -d '"' -f2)"
