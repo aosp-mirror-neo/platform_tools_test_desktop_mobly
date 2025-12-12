@@ -37,7 +37,7 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
   # replace this by self.max_tested_displays
   _MAX_DISPLAYS_TO_TEST = 2
   _SUSPEND_TIME_BASE = 3.7
-  _MAX_SUSPEND_TIME_EXPONENT = 4
+  _MAX_OFF_TIME_EXPONENT = 4
   _STRESS_ITERATION_COUNT = 77
 
   class PlugInStage(enum.Enum):
