@@ -14,6 +14,7 @@
 
 """Helper class for connecting and disconnecting peripherals."""
 
+from collections.abc import MutableSequence
 import enum
 
 from chromiumos.test.lab.api import pasit_host_pb2
@@ -164,7 +165,7 @@ class PeripheralConnector:
 
     raise PeripheralPathNotFoundError(connection_type)
 
-  def _is_dock_path(self, path: list[pasit_host_pb2.PasitHost.Device]) -> bool:
+  def _is_dock_path(self, path: MutableSequence[str]) -> bool:
     """Determine if the path contains a dock."""
     for node in path:
       if (

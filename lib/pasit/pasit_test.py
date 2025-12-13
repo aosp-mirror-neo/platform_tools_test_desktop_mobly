@@ -22,7 +22,7 @@ from typing import Any
 from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_device
-from lib.pasit.passport import passport_host
+from lib.pasit.passport import passport_host as passport_host_module
 from mobly import asserts
 from mobly import base_test
 from mobly import signals
@@ -52,6 +52,9 @@ class PasitTestClass(base_test.BaseTestClass):
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
   disable_screen_recording: bool = False
   bugreport: str
+  failure_pause_seconds: int
+  failure_drop_to_interpreter: bool
+  passport_host: passport_host_module.PassportHost
 
   def setup_class(self):
     """Setup steps before any test is executed."""
@@ -128,10 +131,10 @@ class PasitTestClass(base_test.BaseTestClass):
         f'Unknown controller type: {type(controller).__name__}'
     )
 
-  def _create_passport_controller(self) -> passport_host.PassportHost:
+  def _create_passport_controller(self) -> passport_host_module.PassportHost:
     """Create passport host controller from the testbed configuration."""
     if 'PassportHost' in self.controller_configs:
-      return self.register_controller(passport_host)[0]
+      return self.register_controller(passport_host_module)[0]
     else:
       raise signals.TestError(
           'No PassportHost found for controller config:'

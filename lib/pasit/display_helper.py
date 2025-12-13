@@ -114,7 +114,7 @@ class DisplayHelper:
     display_ids = retry.retry(
         self._get_stable_ids,
         until=lambda ids: len(ids) == expected_total_display_count,
-        exceptions=(DisplayIDsNotStableError),
+        exceptions=(DisplayIDsNotStableError,),
         policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
     if len(display_ids) != expected_total_display_count:
