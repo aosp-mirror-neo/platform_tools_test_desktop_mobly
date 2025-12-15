@@ -228,7 +228,7 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
 
   def _generate_off_time(self, exp: int) -> float:
     """Generates the off time for the test."""
-    return round(self._OFF_TIME_BASE**exp, 1)
+    return round(self._MAX_OFF_TIME_EXPONENT**exp, 1)
 
   def _plug_in_and_verify_displays(self, display_count: int):
     self._ucd_manager.replug_displays(
