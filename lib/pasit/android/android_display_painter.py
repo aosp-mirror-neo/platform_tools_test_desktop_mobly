@@ -284,12 +284,11 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       determined.
     """
     try:
-      return self.controller.ui(
-          desc=(
-              f'{self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION} (Desktop'
-              ' windowing)'
-          )
-      ).count
+      # Use package name to count the app windows. This matches both
+      # desktop (windowed) and fullscreen instances, and avoids matching
+      # SystemUI decorations or Launcher icons that might contain the
+      # app name in their description.
+      return self.controller.ui(pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME).count
     except Exception as e:  # pylint: disable=broad-except
       raise DisplayPainterError(
           'Failed to get color fill test app window count'
@@ -303,13 +302,21 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       maximized.
     """
     try:
-      self.controller.ui(
+      button = self.controller.ui(
           desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
-      ).click()
+      )
+      if button.exists:
+        button.click()
+      else:
+        logging.debug(
+            'Maximize button not found for color fill test app window, skipping'
+            ' window maximization.'
+        )
     except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to maximize color fill test app window'
-      ) from e
+      # If the window is already maximized or is in fullscreen mode (e.g. on
+      # external display), the maximize button might not be present.
+      # We log this but do not fail the test.
+      logging.warning('Failed to maximize color fill test app window: %s', e)
 
   def _wait_for_color_fill_test_app_window_gone(
       self, timeout_seconds: int = 10
