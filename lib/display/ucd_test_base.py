@@ -145,35 +145,20 @@ class UcdTestBase(pasit_test.PasitTestClass):
   def super_reboot(self):
     """Reboots the device, with retries and cold resets if needed."""
     try:
+      # reboot will perform a soft reboot, and will wait for the device to be
+      # online. If the device is not online after the reboot, it will raise an
+      # exception.
       self.dut.reboot()
     except Exception as e:  # pylint: disable=broad-except
       logging.info("Reboot command failed. Will attempt cold reset: %s", e)
-    else:
-      is_online = retry.retry(
-          self.dut.is_device_online,
-          until=lambda result: result,
-          policy=retry.RetryPolicy(max_tries=6, delay_seconds=5),  # 30 seconds
+      retry.retry(
+          # reset() will perform a cold reset, and will wait for the device to
+          # be online. If the device is not online after the reset, it will
+          # raise a PasitDeviceError.
+          self.dut.reset,
+          policy=retry.RetryPolicy(max_tries=3, delay_seconds=0),
+          exceptions=(base_pasit_device.PasitDeviceError,),
       )
-      if is_online:
-        logging.debug("Device rebooted successfully.")
-        return
-      else:
-        logging.info(
-            "Device did not come back online after reboot. Will attempt cold"
-            " resets."
-        )
-
-    for i in range(3):
-      logging.debug("Cold reset attempt %d/3", i + 1)
-      self.dut.power_on_if_offline()
-      if self.dut.is_device_online():
-        logging.debug("Device is online after cold reset.")
-        return
-      logging.warning("Device still offline after cold reset attempt.")
-
-    raise base_pasit_device.PasitDeviceError(
-        "Device failed to come online after reboot and 3 cold resets."
-    )
 
   def _check_single_display_screenshot(
       self, display_index: int, color: image.Color | None
