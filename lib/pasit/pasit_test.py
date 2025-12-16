@@ -91,7 +91,16 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""
-    if self.dut.power_on_if_offline():
+    dut_offline_after_test = False
+    try:
+      dut_offline_after_test = self.dut.power_on_if_offline()
+    except pasit_device.PasitDeviceError as e:
+      logging.warning('Failed to power on DUT: %s', e)
+      asserts.abort_class(
+          'The DUT is unexpectedly offline and recovery failed.'
+      )
+
+    if dut_offline_after_test:
       asserts.fail('DUT is offline after test.')
     elif self.dut.unexpected_reboots():
       asserts.fail('DUT unexpectedly rebooted during test.')

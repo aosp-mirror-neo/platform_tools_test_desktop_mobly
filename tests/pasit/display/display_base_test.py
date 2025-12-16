@@ -72,7 +72,13 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def on_fail(self, record):
     """Handle the teardown for the class."""
     if hasattr(self, 'dut'):
-      self.dut.safe_reset()
+      reset_result = self.dut.safe_reset()
+      if not reset_result:
+        # Abort the class but not all the tests, in case the device will come
+        # back online. The test class will create a new dut instance and
+        # re-initialize the DUT state.
+        logging.warning('Failed to reset device, skipping the remaining tests.')
+        asserts.abort_class('Failed to reset device.')
     super().on_fail(record)
 
   def _get_display_path_tag(
