@@ -253,16 +253,13 @@ def parse_textproto(
 
 
 def generate_graph(
-    input_file: str, output_file: str, ignore_unknown_fields: bool = False,
-    dot_binary: bool = 'dot'
+    input_file: str, output_file: str, ignore_unknown_fields: bool = False
 ):
   """Generates a graph image from a topology file.
 
   Args:
     input_file: string path to a JSON or YAML file containing a pasit topology.
     output_file: string path to a PNG file to write the graph image.
-    ignore_unknown_fields: bool indicating if unknown fields should be skipped.
-    dot_binary: path to 'dot' executable if not available in PATH.
   """
   # extract the file type from extension
   file_type = os.path.splitext(input_file)[1]
@@ -319,7 +316,7 @@ def generate_graph(
 
   # Use graphviz to generate the graph image to PNG
   dot_process = subprocess.Popen(
-      [dot_binary, '-Tpng', '-o', output_file],
+      ['dot', '-Tpng', '-o', output_file],
       stdin=subprocess.PIPE,
       stderr=subprocess.PIPE,
   )
