@@ -115,6 +115,7 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
         lambda: self.file.list_files(self.camera.get_files_path()),
         until=lambda file_list: file_list,
         policy=test_policy.CameraTestPolicy.FIND_CAMERA_CAPTURED_FILES_RETRY_POLICY,
+        exceptions=(FileNotFoundError,),
     )
     asserts.assert_greater(
         len(file_list),
