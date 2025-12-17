@@ -314,16 +314,23 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
     Returns:
       True if device was offline.
+
+    Raises:
+      PasitDeviceError: If the device is not online after the cold reset.
     """
-    if self.is_device_offline():
-      if self._servo:
-        logging.debug('Device is offline, performing cold reset...')
-        try:
-          self.cold_reset()
-        except PasitDeviceError:
-          logging.error('Device is still offline after cold reset.')
-      return True
-    return False
+    if not self.is_servo_configured():
+      logging.debug(
+          'Device is not connected to Servo, skipping power on if offline.'
+      )
+      return self.is_device_offline()
+
+    if not self.is_device_offline():
+      logging.debug('Device is online, skipping power on if offline.')
+      return False
+
+    logging.warning('Device is offline, performing cold reset...')
+    self.cold_reset()
+    return True
 
   def is_servo_configured(self) -> bool:
     """Returns True if Servo is configured."""
@@ -398,14 +405,19 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
     self.cold_reset()
 
-  def safe_reset(self) -> None:
+  def safe_reset(self) -> bool:
     """Performs a safe reset, or reboot if servo is not configured.
 
     Raises no exceptions.
+
+    Returns:
+      True if the device was reset successfully, False otherwise.
     """
     try:
       self.reset()
+      return True
     except Exception as e:  # pylint: disable=broad-except
       logging.error(
           'Failed to reset device, device may be in a bad state: %s', e
       )
+      return False

@@ -26,6 +26,7 @@ from mobly.controllers import android_device
 
 
 PasitDevice = base_pasit_device.BasePasitDevice
+PasitDeviceError = base_pasit_device.PasitDeviceError
 
 
 def create_controller(
