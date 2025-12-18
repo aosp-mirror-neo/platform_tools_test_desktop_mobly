@@ -47,6 +47,7 @@ from mobly import test_runner
 class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
+  disable_screen_recording = True
 
   def teardown_test(self):
     """Handle the teardown for the test."""
