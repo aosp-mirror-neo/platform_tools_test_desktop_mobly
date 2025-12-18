@@ -77,6 +77,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
+
+    # Override the screenshot timeout from Mobly default values to prevent
+    # screenshot failures due to timeout, when screen recording is enabled.
+    android_device.TAKE_SCREENSHOT_TIMEOUT_SECOND = 20
+
     self._snippets = snippet_tools.SnippetTools(self.controller)
     self._user_session = user_session_tools.UserSessionTools(self.controller)
     self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
