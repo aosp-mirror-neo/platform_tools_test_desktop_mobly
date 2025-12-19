@@ -14,11 +14,38 @@
 
 """Base class for UTC-274 tests that sets tester state between tests."""
 
+import functools
+import logging
+
 from lib.mobly.typec import typec_android_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
 from mobly import base_test
 from mobly.controllers import android_device
+
+
+def test_entry(func):
+  """Decorator for test entry.
+
+  Args:
+    func: The test function to decorate.
+
+  Returns:
+    The decorated test function.
+
+  Performs common actions for all tests that are:
+    - print iterations count
+    - apply UTC params to the tester
+  """
+  @functools.wraps(func)
+  def wrapper(*args, **_):
+    instance = args[0]
+    params = args[1]
+    logging.info('Running %d iterations', params.iterations)
+    params.apply(instance.utc)
+    return func(instance, params)
+
+  return wrapper
 
 
 class UtcBaseTest(base_test.BaseTestClass):
