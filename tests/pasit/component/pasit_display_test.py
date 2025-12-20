@@ -35,6 +35,7 @@ class DisplayIdType(enum.StrEnum):
 
 @functools.generate_tests
 class PasitDisplayTest(pasit_test.PasitTestClass):
+  EXPECTED_DISPLAY_COUNT = 2
 
   display: pasit_display.PasitDisplay
   painter: display_painter.DisplayPainter
@@ -61,17 +62,12 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     logging.info('Display IDs before external display plug in: %s', display_ids)
     asserts.assert_equal(len(display_ids), 1, 'Display IDs count is not 1.')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    EXPECTED_DISPLAY_COUNT = 2
-    display_ids = retry.retry(
-        self.display.get_display_ids,
-        until=lambda display_ids: len(display_ids) == EXPECTED_DISPLAY_COUNT,
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-    )
+    display_ids = self._get_stable_display_ids(self.EXPECTED_DISPLAY_COUNT)
     logging.info('Display IDs after external display plug in: %s', display_ids)
     asserts.assert_equal(
         len(display_ids),
-        EXPECTED_DISPLAY_COUNT,
-        f'Display IDs count is not {EXPECTED_DISPLAY_COUNT}.',
+        self.EXPECTED_DISPLAY_COUNT,
+        f'Display IDs count is not {self.EXPECTED_DISPLAY_COUNT}.',
     )
 
   @functools.with_variants(
@@ -199,10 +195,22 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
+    self._get_stable_display_ids(self.EXPECTED_DISPLAY_COUNT)
     external_display_ids = self.helper.get_external_display_ids(
         internal_display_id, 1
     )
     return external_display_ids[0]
+
+  def _get_stable_display_ids(
+      self, expected_display_count: int
+  ) -> list[pasit_display.PasitDisplay.DisplayId]:
+    """Returns the stable display IDs."""
+    return retry.retry(
+        self.helper.get_stable_display_ids,
+        until=lambda ids: len(ids) == expected_display_count,
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+        exceptions=(display_helper.DisplayIDsNotStableError,),
+    )
 
 
 if __name__ == '__main__':

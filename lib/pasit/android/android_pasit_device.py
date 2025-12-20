@@ -16,6 +16,7 @@
 
 from collections.abc import Iterable
 import datetime
+import functools
 import logging
 import threading
 import time
@@ -77,6 +78,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       servo: servo_client.ServoBase,
   ):
     super().__init__(controller, servo)
+    self._override_boot_completion_timeout()
 
     # Override the screenshot timeout from Mobly default values to prevent
     # screenshot failures due to timeout, when screen recording is enabled.
@@ -103,6 +105,29 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._bypass_login_screen()
     self._boot_id = None
     self._update_boot_id()
+
+  def _override_boot_completion_timeout(self):
+    """Overrides the boot completion timeout to reduce test time.
+
+    Override the boot completion timeout to reduce test time when DUT has
+    boot issues. The default from Mobly of 15 minutes is too long for this use
+    case.
+    """
+    # overriding this value only affects function calls that use the default
+    # value, which is why we patch wait_for_boot_completion below as well.
+    android_device.DEFAULT_TIMEOUT_BOOT_COMPLETION_SECOND = (
+        self._BOOT_COMPLETION_TIMEOUT_SECONDS
+    )
+    # MonkeyPatch AndroidDevice.wait_for_boot_completion to override the
+    # timeout in calls to it that use the default value.
+    original_wait_for_boot_completion = self.controller.wait_for_boot_completion
+
+    @functools.wraps(original_wait_for_boot_completion)
+    def _patched_wait_for_boot_completion(*args, **kwargs):
+      kwargs.setdefault('timeout', self._BOOT_COMPLETION_TIMEOUT_SECONDS)
+      return original_wait_for_boot_completion(*args, **kwargs)
+
+    self.controller.wait_for_boot_completion = _patched_wait_for_boot_completion
 
   def cleanup(self):
     self._ui_watcher.remove_all()
