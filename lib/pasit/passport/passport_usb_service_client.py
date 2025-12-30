@@ -456,6 +456,26 @@ class PassportUsbServiceClient:
     self._validate_reply(ret)
     return ret.src_pdos
 
+  def sink_current(self, current: int, pd: bool = False) -> None:
+    """Start sinking current by USB tester in SNK role.
+
+    Args:
+      current: The current in 0.1A.
+      pd: True in case of PD connection, False for non-PD.
+
+    Raises:
+      RuntimeError: If the request fails.
+    """
+    if pd:
+      capability = uts_pb.Capability.CURRENT_LOAD
+    else:
+      capability = uts_pb.Capability.NON_PD_CURRENT
+    self._set_capability(
+        uts_pb.SetUsbTesterCapabilityRequest(
+            capability=capability, non_descrete=current
+        )
+    )
+
   def is_open(self) -> bool:
     """Returns True if the USB tester is open, False otherwise."""
     return self._tester_serial is not None
