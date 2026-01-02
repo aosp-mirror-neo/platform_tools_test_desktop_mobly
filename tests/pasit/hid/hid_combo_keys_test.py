@@ -28,6 +28,9 @@ KeyboardShortcut = pasit_hid.PasitHID.KeyboardShortcut
 
 
 @DesktopTest(
+    cujs=[
+        'b/369447611',  # External keyboard P1 keys
+    ],
     manual=[
         'al_external_input.external_keyboard_p1_keys',
         'al_external_input.external_keyboard_shortcuts',
