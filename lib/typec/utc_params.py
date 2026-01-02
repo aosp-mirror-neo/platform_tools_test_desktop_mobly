@@ -41,6 +41,7 @@ class UTCParams:
     utc.active_port = None
     utc.usb_channel = self.params["usb_channel"]
     utc.pd_init_state = self.params["pd_init_state"]
+    utc.power_swap_policy = self.params["power_swap_policy"]
     utc.source_pdo_count = self.params["source_pdo_count"]
     utc.dpam_enabled = self.params["dpam_enabled"]
 
@@ -87,6 +88,7 @@ def generate_utc_params(
                   "active_cc": usb.ActiveCC.CC2 if flip else usb.ActiveCC.CC1,
                   "usb_channel": usb.UsbChannel.USB_3,
                   "pd_init_state": usb.InitPdState.PD_DRP,
+                  "power_swap_policy": usb.PdSwapPolicy.PD_SWAP_POLICY_ACCEPT,
                   "source_pdo_count": usb.DEFAULT_SRC_PDO_COUNT,
                   "dpam_enabled": False,
                   "pd_enabled": True
