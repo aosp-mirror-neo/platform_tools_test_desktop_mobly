@@ -22,6 +22,9 @@ from pasit.storage import write_to_storage_base_test
 
 
 @DesktopTest(
+    cujs=[
+        'b/379290617',  # Transfer and delete files
+    ],
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
         'al_external_storage.boot_reboot_with_media_connected',
