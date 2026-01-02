@@ -34,7 +34,12 @@ from pasit.camera import camera_base_test
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
         'al_external_webcam.connect_disconnect_external_webcam',
-    ]
+    ],
+    cujs=[
+        'b/471031460',  # Record video from external camera
+        'b/352598161',  # Use external USB webcam
+        'b/352597365',  # Switch between internal and external cameras
+    ],
 )
 @functools.generate_tests
 class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
