@@ -90,6 +90,20 @@ class ActiveCC(enum.Enum):
   CC2 = uts_pb.CC2
 
 
+class PdSwapPolicy(enum.Enum):
+  """PD data swap policy of the USB tester.
+
+  PD_SWAP_POLICY_ACCEPT: Policy of accepting PD swap requests.
+  PD_SWAP_POLICY_REJECT: Policy of rejecting PD data requests.
+  PD_SWAP_POLICY_WAIT: Policy of replying with wait to PD swap requests.
+  """
+
+  PD_SWAP_POLICY_NOT_SET = uts_pb.PD_SWAP_POLICY_NOT_SET
+  PD_SWAP_POLICY_ACCEPT = uts_pb.PD_SWAP_POLICY_ALLOW
+  PD_SWAP_POLICY_REJECT = uts_pb.PD_SWAP_POLICY_REJECT
+  PD_SWAP_POLICY_WAIT = uts_pb.PD_SWAP_POLICY_WAIT
+
+
 class PassportUsbServiceClient:
   """Passport USB service client."""
 
@@ -268,74 +282,94 @@ class PassportUsbServiceClient:
     )
 
   @property
-  def data_swap_policy(self) -> bool:
+  def data_swap_policy(self) -> PdSwapPolicy:
     """Gets the PD data swap policy.
 
     Returns:
-      True if the data swap is accepted, False if rejected.
+      PD_SWAP_POLICY_ACCEPT if reply to data swap is accept,
+      PD_SWAP_POLICY_REJECT if rejected,
+      PD_SWAP_POLICY_WAIT if wait response is sent.
     """
     ret = self._get_capability(capability=uts_pb.DATA_SWAP_POLICY)
     return ret.data_role_swap_policy
 
   @data_swap_policy.setter
-  def data_swap_policy(self, enabled: bool) -> None:
+  def data_swap_policy(self, policy: PdSwapPolicy) -> None:
     """Sets the PD data swap policy.
 
     Args:
-      enabled: True to accept data swap, False to reject.
+      policy:
+        PD_SWAP_POLICY_ACCEPT if reply to data swap is accept,
+        PD_SWAP_POLICY_REJECT if rejected,
+        PD_SWAP_POLICY_WAIT if wait response is sent.
+
+
     """
     self._set_capability(
         uts_pb.SetUsbTesterCapabilityRequest(
             capability=uts_pb.DATA_SWAP_POLICY,
-            data_role_swap_policy=enabled,
+            data_role_swap_policy=policy.value,
         )
     )
 
   @property
-  def power_swap_policy(self) -> bool:
+  def power_swap_policy(self) -> PdSwapPolicy:
     """Gets the PD power swap policy.
 
     Returns:
-      True if the power swap is accepted, False if rejected.
+      PD_SWAP_POLICY_ACCEPT if the reply to power swap is accept,
+      PD_SWAP_POLICY_REJECT if rejected,
+      PD_SWAP_POLICY_WAIT if wait response is sent.
     """
     ret = self._get_capability(capability=uts_pb.POWER_SWAP_POLICY)
     return ret.power_role_swap_policy
 
   @power_swap_policy.setter
-  def power_swap_policy(self, enabled: bool) -> None:
+  def power_swap_policy(self, policy: PdSwapPolicy) -> None:
     """Sets the PD power swap policy.
 
     Args:
-      enabled: True to accept power swap, False to reject.
+      policy:
+        PD_SWAP_POLICY_ACCEPT if reply to power swap is accept,
+        PD_SWAP_POLICY_REJECT if rejected,
+        PD_SWAP_POLICY_WAIT if wait response is sent.
+
     """
     self._set_capability(
         uts_pb.SetUsbTesterCapabilityRequest(
             capability=uts_pb.POWER_SWAP_POLICY,
-            power_role_swap_policy=enabled,
+            power_role_swap_policy=policy.value,
         )
     )
 
   @property
-  def vconn_swap_policy(self) -> bool:
+  def vconn_swap_policy(self) -> PdSwapPolicy:
     """Gets the PD VCONN swap policy.
 
     Returns:
-      True if the vconn swap is accepted, False if rejected.
+      PD_SWAP_POLICY_ACCEPT if the reply to VCONN swap is accept,
+      PD_SWAP_POLICY_REJECT if rejected,
     """
     ret = self._get_capability(capability=uts_pb.VCONN_SWAP_POLICY)
     return ret.vconn_swap_policy
 
   @vconn_swap_policy.setter
-  def set_pd_vconn_swap_policy(self, enabled: bool) -> None:
+  def set_pd_vconn_swap_policy(self, policy: PdSwapPolicy) -> None:
     """Sets the PD VCONN swap policy.
 
     Args:
-      enabled: True to accept vconn swap, False to reject.
+      policy:
+        PD_SWAP_POLICY_ACCEPT if reply to VCONN swap is accept,
+        PD_SWAP_POLICY_REJECT if rejected,
+        PD_SWAP_POLICY_WAIT is not allowed.
     """
+    if policy == PdSwapPolicy.PD_SWAP_POLICY_WAIT:
+      raise ValueError('PD_SWAP_POLICY_WAIT is not allowed for VCONN swap.')
+
     self._set_capability(
         uts_pb.SetUsbTesterCapabilityRequest(
             capability=uts_pb.VCONN_SWAP_POLICY,
-            vconn_swap_policy=enabled,
+            vconn_swap_policy=policy.value,
         )
     )
 
