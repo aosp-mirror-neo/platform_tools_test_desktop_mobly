@@ -18,6 +18,7 @@ import functools
 import logging
 
 from lib.mobly.typec import typec_android_device
+from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
 from mobly import base_test
@@ -37,6 +38,7 @@ def test_entry(func):
     - print iterations count
     - apply UTC params to the tester
   """
+
   @functools.wraps(func)
   def wrapper(*args, **_):
     instance = args[0]
@@ -73,6 +75,12 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.ads = self.register_controller(android_device)
     self.dut = typec_android_device.TypecAndroidDevice(self.ads[0])
 
+    # Setup servo if connected.
+    hostname = self.ads[0].serial.split(':')[0]
+    self.servo = pasit_device.create_servo(self, hostname)
+    if self.servo:
+      self.servo.disable_servo_power()
+
     # Make ADB run as root from the start. Some dts/libtypec actions require
     # this.
     self.dut.adb.root()
@@ -87,6 +95,8 @@ class UtcBaseTest(base_test.BaseTestClass):
   def teardown_class(self):
     # Teardown the passport host and UTC-274.
     self.passport.teardown()
+    if self.servo:
+      self.servo.enable_servo_power()
     super().teardown_class()
 
   def _set_usb_tester_default_state(self):
