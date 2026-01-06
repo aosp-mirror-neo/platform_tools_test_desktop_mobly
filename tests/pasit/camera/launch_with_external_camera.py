@@ -27,7 +27,11 @@ from pasit.camera import camera_base_test
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
         'al_external_webcam.connect_disconnect_external_webcam',
-    ]
+    ],
+    cujs=[
+        'b/352598161',  # Use external USB webcam
+        'b/352597365',  # Switch between internal and external cameras
+    ],
 )
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
