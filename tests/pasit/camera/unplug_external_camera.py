@@ -21,6 +21,7 @@ from lib.utils import functools
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
+
 @DesktopTest(
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
@@ -41,8 +42,9 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
       suspended=(dut_state_manager.PowerState.SUSPEND,),
       on=(dut_state_manager.PowerState.ON,),
   )
-  def test_unplug_external_camera(
-      self, state_when_unplug_camera: dut_state_manager.PowerState):
+  def test_unplug_external_camera_when_dut(
+      self, state_when_unplug_camera: dut_state_manager.PowerState
+  ):
     """Test camera state after unplugging, with power state changes.
 
     Args:
@@ -51,7 +53,7 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
     """
     self.launch_camera_app()
     self.capture_screenshots('after_launch_camera_app')
-    _, external_camera_devices = (
+    internal_camera_devices, external_camera_devices = (
         self.connect_external_camera()
     )
     self.capture_screenshots('after_plug_in_external_camera')
@@ -65,14 +67,11 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_unplug_camera
     ):
-
       self.unplug_external_camera()
+
     self.launch_camera_app()
-
-    current_internal_devices = self.camera.get_connected_cameras()
-
     self.verify_camera_app_is_using_any_device(
-        current_internal_devices, 'internal camera'
+        internal_camera_devices, 'internal camera'
     )
     self.capture_screenshots('after_unplug_external_camera')
 
