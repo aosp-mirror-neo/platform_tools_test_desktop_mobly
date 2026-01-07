@@ -24,10 +24,13 @@ from pasit.storage import storage_base_test
 
 
 @DesktopTest(
+    cujs=[
+        'b/471033936',  # Eject external storage
+    ],
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
         'al_external_storage.eject_unplug_external_storage_media',
-    ]
+    ],
 )
 @functools.generate_tests
 class EjectExternalStorageTest(storage_base_test.StorageBaseTest):

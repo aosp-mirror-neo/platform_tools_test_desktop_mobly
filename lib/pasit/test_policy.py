@@ -11,6 +11,9 @@ class CameraTestPolicy:
   FIND_CAMERA_CAPTURED_FILES_RETRY_POLICY = retry.RetryPolicy(
       max_tries=10, delay_seconds=1
   )
+  VERIFY_EXTERNAL_CAMERA_COLOR_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=3, delay_seconds=1
+  )
 
 
 class DisplayTestPolicy:

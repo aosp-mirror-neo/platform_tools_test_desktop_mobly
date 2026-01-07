@@ -15,7 +15,9 @@
 """Test launching the camera app with an external camera plugged in."""
 
 from android.platform.test.annotations import DesktopTest
+from lib.pasit import test_policy
 from lib.utils import image
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.camera import camera_base_test
@@ -25,7 +27,11 @@ from pasit.camera import camera_base_test
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
         'al_external_webcam.connect_disconnect_external_webcam',
-    ]
+    ],
+    cujs=[
+        'b/352598161',  # Use external USB webcam
+        'b/352597365',  # Switch between internal and external cameras
+    ],
 )
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
@@ -62,8 +68,12 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     self.camera.maximize_camera_app_window()
     self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
-        self.camera_mapper.try_match_color(
-            camera_id, color, 'external_camera_preview_color'
+        retry.retry(
+            lambda: self.camera_mapper.try_match_color(
+                camera_id, color, 'external_camera_preview_color'
+            ),
+            policy=test_policy.CameraTestPolicy.VERIFY_EXTERNAL_CAMERA_COLOR_RETRY_POLICY,
+            until=lambda result: result,
         ),
         message,
     )
