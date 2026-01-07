@@ -18,6 +18,7 @@ import functools
 import logging
 
 from lib.mobly.typec import typec_android_device
+from lib.mobly.typec import utc_params
 from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
@@ -106,3 +107,8 @@ class UtcBaseTest(base_test.BaseTestClass):
     self.utc.usb_channel = usb.UsbChannel.USB_3
     self.utc.usb_path = usb.UsbPath.USB_PATH_INTERNAL
     self.utc.source_pdo_count = usb.DEFAULT_SRC_PDO_COUNT
+
+  def generate_test_name(self, params: utc_params.UTCParams) -> str:
+    """Generates the test name for the test."""
+    flipped = 'flipped' if params.flip else 'normal'
+    return f'test_{params.name}_port{params.port}_{flipped}'
