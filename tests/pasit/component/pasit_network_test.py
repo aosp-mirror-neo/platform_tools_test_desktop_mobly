@@ -31,6 +31,10 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.network = self.create(pasit_network)
 
+  def teardown_class(self) -> None:
+    super().teardown_class()
+    self.network.cleanup()
+
   def test_get_network_infos(self) -> None:
     networks = self.network.get_network_infos()
     asserts.assert_true(
@@ -93,7 +97,6 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
     )
 
   def test_is_network_connected_to_internet_not_connected(self) -> None:
-    self.network = self.create(pasit_network)
     networks = self.network.get_network_infos()
     iface = None
     # try the connected test on the first network found that is not DOWN
