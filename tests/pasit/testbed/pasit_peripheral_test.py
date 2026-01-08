@@ -54,6 +54,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     if hasattr(self, 'display'):
       self.display.save_debug_info(self.current_test_info.output_path)
     super().teardown_test()
+    if hasattr(self, 'network'):
+      self.network.cleanup()
+      delattr(self, 'network')
 
   def _get_test_name(
       self, device_type: str, device_id: str, tag: str | None = None
@@ -178,13 +181,13 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   def _network_test_logic(self, device_id: str):
     """Tests that we can activate and detect a specific Ethernet device."""
-    network = self.create(pasit_network)
-    network_devices_before_activation = network.get_network_infos()
+    self.network = self.create(pasit_network)
+    network_devices_before_activation = self.network.get_network_infos()
     logging.info('Testing Ethernet device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
     logging.info('Waiting for new network device to be detected...')
     network_infos_after_activation = retry.retry(
-        network.get_network_infos,
+        self.network.get_network_infos,
         until=lambda network_infos: network_infos.keys()
         - network_devices_before_activation.keys(),
         policy=test_policy.NetworkTestPolicy.DETECT_EXTERNAL_NETWORK_DEVICES_RETRY_POLICY,
@@ -205,7 +208,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     )
     # check if cable is connected
     networks = retry.retry(
-        network.get_network_infos,
+        self.network.get_network_infos,
         until=lambda networks: _is_network_cable_connected(
             networks, iface_name
         ),
@@ -220,7 +223,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         iface_name,
     )
     has_internet = retry.retry(
-        lambda: network.is_network_connected_to_internet(iface_name),
+        lambda: self. network.is_network_connected_to_internet(iface_name),
         until=lambda result: result,
         policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_INTERNET_CONNECTED_RETRY_POLICY,
     )
