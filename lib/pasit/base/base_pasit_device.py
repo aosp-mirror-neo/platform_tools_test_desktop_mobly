@@ -70,6 +70,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Represents a UI application on the device."""
 
     SETTINGS = 'Settings'
+    FILES = 'Files'
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -248,6 +249,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def stop_screen_recording(self, output_path: str):
     """Stops screen recording on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def launch_app(self, app: UiApplication):
+    """Launches the UI application on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_app(self, app: UiApplication):
+    """Stops the UI application on the device."""
     raise NotImplementedError
 
   def wait_for_device_online(self):

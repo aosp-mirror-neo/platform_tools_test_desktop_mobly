@@ -43,6 +43,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   _UI_APPLICATION_PACKAGE_NAME = {
       UiApplication.SETTINGS: 'com.android.settings',
+      UiApplication.FILES: 'com.google.android.documentsui',
   }
 
   _WAIT_APP_OPEN_TIMEOUT_SECONDS = 10
@@ -284,11 +285,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return self.TMP_DIR
 
   def wait_app_open(self, app: UiApplication) -> bool:
-    if app not in self._UI_APPLICATION_PACKAGE_NAME:
-      raise ValueError(
-          f'Unsupported UI application: {app}. Supported applications:'
-          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
-      )
+    self._ensure_app_is_supported(app)
     try:
       return self.controller.ui(
           pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
@@ -301,11 +298,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       raise PasitDeviceError(f'Failed to wait for app to open: {app}') from e
 
   def wait_app_close(self, app: UiApplication) -> bool:
-    if app not in self._UI_APPLICATION_PACKAGE_NAME:
-      raise ValueError(
-          f'Unsupported UI application: {app}. Supported applications:'
-          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
-      )
+    self._ensure_app_is_supported(app)
     try:
       return self.controller.ui(
           pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
@@ -349,6 +342,32 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def stop_screen_recording(self, output_path: str):
     self._screen_recorder.stop(output_path)
+
+  def launch_app(self, app: UiApplication):
+    self._ensure_app_is_supported(app)
+    self.controller.adb.shell([
+        'monkey',
+        '-p',
+        self._UI_APPLICATION_PACKAGE_NAME[app],
+        '-c',
+        'android.intent.category.LAUNCHER',
+        '1',
+    ])
+
+  def stop_app(self, app: UiApplication):
+    self._ensure_app_is_supported(app)
+    self.controller.adb.shell([
+        'am',
+        'force-stop',
+        self._UI_APPLICATION_PACKAGE_NAME[app],
+    ])
+
+  def _ensure_app_is_supported(self, app: UiApplication) -> None:
+    if app not in self._UI_APPLICATION_PACKAGE_NAME:
+      raise ValueError(
+          f'Unsupported UI application: {app}. Supported applications:'
+          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
+      )
 
   def _wait_for_boot_completion(self):
     try:
