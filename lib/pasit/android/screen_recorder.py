@@ -209,7 +209,11 @@ class ScreenRecorder:
     """
     _log_info('Stopping screen recording...')
     self._cancel_and_join_watcher_thread()
-    self._copy_screen_recording_files(output_path)
+    try:
+      self._copy_screen_recording_files(output_path)
+    except android_device.adb.AdbError as e:
+      # ignore the error if the file is not found, or if permission is denied
+      _log_warning('Failed to copy screen recording files: %s', e)
 
   def _cleanup(self) -> None:
     """Cleans up the screen recording process.
@@ -297,12 +301,6 @@ class ScreenRecorder:
     _log_debug('Screen recording files: %s', files)
     for file in files:
       file_path = os.path.join(self._DEVICE_PATH, file)
-      try:
-        self._controller.adb.pull([file_path, output_path])
-        # remove the file from the device after copying it to the host
-        self._controller.adb.shell(['rm', '-f', file_path])
-      except android_device.adb.AdbError as e:
-        # ignore the error if the file is not found, or if permission is denied
-        _log_warning(
-            'Failed to copy screen recording file %s: %s', file_path, e
-        )
+      self._controller.adb.pull([file_path, output_path])
+      # remove the file from the device after copying it to the host
+      self._controller.adb.shell(['rm', '-f', file_path])
