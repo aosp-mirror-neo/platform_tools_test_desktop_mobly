@@ -17,6 +17,8 @@
 import functools
 import logging
 
+from chromiumos.test.lab.api import pasit_host_pb2
+from google.protobuf import json_format
 from lib.mobly.typec import typec_android_device
 from lib.mobly.typec import utc_params
 from lib.pasit import pasit_device
@@ -62,6 +64,7 @@ class UtcBaseTest(base_test.BaseTestClass):
   utc: usb.PassportUsbServiceClient
   ads: list[android_device.AndroidDevice]
   dut: android_device.AndroidDevice
+  enabled_ports: list[int]
 
   def setup_class(self):
     super().setup_class()
@@ -99,6 +102,24 @@ class UtcBaseTest(base_test.BaseTestClass):
     if self.servo:
       self.servo.enable_servo_power()
     super().teardown_class()
+
+  def pre_run(self):
+    """Extracts the enabled ports from the tester."""
+    self.enabled_ports = []
+    passport_config = self.controller_configs['PassportHost']
+    topology_config = passport_config[0].get('host_topology')
+    topology = json_format.ParseDict(
+        topology_config, pasit_host_pb2.PasitHost()
+    )
+    devices = {
+        device.id: device
+        for device in topology.devices
+        if device.type == pasit_host_pb2.PasitHost.Device.Type.USB_TESTER
+    }
+
+    for conn in topology.connections:
+      if conn.parent_id in devices and conn.parent_port:
+        self.enabled_ports.append(int(conn.parent_port))
 
   def _set_usb_tester_default_state(self):
     """Sets the USB tester state."""
