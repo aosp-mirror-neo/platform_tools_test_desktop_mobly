@@ -15,6 +15,7 @@
 """AndroidPasitNetwork handles network status for PASIT testing on Android devices."""
 
 import logging
+import time
 
 from lib.pasit.base import base_pasit_network
 from lib.utils import retry
@@ -45,6 +46,10 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
 
   def _start_ehide(self):
     self.controller.adb.shell(['start', 'ehide'])
+    # need a short delay to ensure that ehide is started and the adb connection
+    # glitch has happened before we wait for device and check if ehide is
+    # running.
+    time.sleep(1)
     self.controller.adb.wait_for_device(timeout=30)
     result = retry.retry(
         lambda: self.controller.adb.shell(['ehide-cli']),
