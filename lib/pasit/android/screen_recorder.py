@@ -84,10 +84,14 @@ class ScreenRecordingProcess:
     else:
       return_code = self._process.poll()
       if return_code is not None:
+        stdout = self._process.stdout
+        stderr = self._process.stderr
         _log_debug(
-            'Screen recording process terminated with return code %d,'
-            ' restarting...',
+            'Screen recording process terminated with return code %d (stdout:'
+            ' "%s", stderr: "%s"), restarting...',
             return_code,
+            stdout.read() if stdout else '',
+            stderr.read() if stderr else '',
         )
         self._process = self._start()
 
@@ -159,6 +163,7 @@ class ScreenRecorder:
   # restarting the screen recording process, or copying the screen recording
   # files to the output path.
   _DEVICE_READY_TIMEOUT_SECONDS = 10
+  _BOOT_COMPLETION_TIMEOUT_SECONDS = 10
 
   _controller: android_device.AndroidDevice
   _watcher_thread: threading.Thread | None = None
@@ -201,7 +206,7 @@ class ScreenRecorder:
     )
     self._watcher_thread.start()
 
-  def stop(self, output_path: str) -> None:
+  def stop(self, output_path: str | None = None) -> None:
     """Stops the screen recording process and copies the files to the output path.
 
     Args:
@@ -209,6 +214,9 @@ class ScreenRecorder:
     """
     _log_info('Stopping screen recording...')
     self._cancel_and_join_watcher_thread()
+    if not output_path:
+      return
+
     try:
       self._copy_screen_recording_files(output_path)
     except android_device.adb.AdbError as e:
@@ -276,6 +284,9 @@ class ScreenRecorder:
     try:
       self._controller.adb.wait_for_device(
           timeout=self._DEVICE_READY_TIMEOUT_SECONDS
+      )
+      self._controller.wait_for_boot_completion(
+          timeout=self._BOOT_COMPLETION_TIMEOUT_SECONDS
       )
     except android_device.adb.AdbTimeoutError:
       return False

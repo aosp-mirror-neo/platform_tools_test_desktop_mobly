@@ -91,6 +91,10 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""
+    # 1) stop the screen recording before cold reset in power_on_if_offline()
+    self._stop_screen_recording()
+
+    # 2) power on the DUT if it is offline after the test
     dut_offline_after_test = False
     try:
       dut_offline_after_test = self.dut.power_on_if_offline()
@@ -100,13 +104,15 @@ class PasitTestClass(base_test.BaseTestClass):
           'The DUT is unexpectedly offline and recovery failed.'
       )
 
+    # 3) if the DUT is online, copy the screen recording files to the test
+    #    output path.
+    self._stop_screen_recording(self.current_test_info.output_path)
+
+    # 4) fail the test if the DUT is offline or unexpectedly rebooted.
     if dut_offline_after_test:
       asserts.fail('DUT is offline after test.')
     elif self.dut.unexpected_reboots():
       asserts.fail('DUT unexpectedly rebooted during test.')
-
-    if not self.disable_screen_recording:
-      self.dut.stop_screen_recording(self.current_test_info.output_path)
 
     # ensure that the passport switches are disabled after the test
     self.passport_host.reset()
@@ -115,11 +121,15 @@ class PasitTestClass(base_test.BaseTestClass):
   def teardown_class(self):
     """Teardown steps after all tests are executed."""
     if hasattr(self, 'dut'):
-      if not self.disable_screen_recording:
-        # stop the screen recording here in case teardown_test was not executed
-        self.dut.stop_screen_recording(self.root_output_path)
+      # stop the screen recording here in case teardown_test was not executed
+      self._stop_screen_recording(self.root_output_path)
       self.dut.cleanup()
     super().teardown_class()
+
+  def _stop_screen_recording(self, output_path: str | None = None) -> None:
+    """Stops the screen recording and copies the files to the output path."""
+    if not self.disable_screen_recording:
+      self.dut.stop_screen_recording(output_path)
 
   def create(self, module: types.ModuleType) -> Any:
     """Create a component utility instance for the test Mobly controller.
@@ -294,11 +304,17 @@ class PasitTestClass(base_test.BaseTestClass):
     def wrapped_test_method():
       try:
         test_method()
+        # stop the screen recording before capturing the bugreport because
+        # bugreport may take a DUT offline
+        self._stop_screen_recording()
         self._capture_bugreport(False)
       # pylint: disable-next=try-except-raise
       except (signals.TestPass, signals.TestAbortSignal, signals.TestSkip):
         raise
       except Exception as e:
+        # stop the screen recording before capturing the bugreport because
+        # bugreport may take a DUT offline
+        self._stop_screen_recording()
         self._capture_bugreport(True)
         self._try_capture_screenshots()
         self._try_capture_images_from_all_cameras()
