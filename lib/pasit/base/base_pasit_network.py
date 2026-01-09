@@ -66,6 +66,15 @@ class BasePasitNetwork(metaclass=abc.ABCMeta):
     """
     self.controller = controller
 
+  @abc.abstractmethod
+  def cleanup(self):
+    """Cleans up the at the end of the test.
+
+    Any test or class that uses PasitNetwork should call cleanup() when the
+    test is completed to put the DUT back to the original state.
+    """
+    raise NotImplementedError
+
   def get_network_infos_not_down(self) -> dict[str, NetworkInfo]:
     """Gets the network information from the DUT for networks that are not DOWN.
 

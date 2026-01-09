@@ -146,6 +146,8 @@ python_library_host {
     exclude_srcs: ["passport/*"],
     libs: [
         "mobly",
+        "py-desktop-utils",
+        "py-passport",
     ],
     pkg_path: "lib/pasit",
 }
