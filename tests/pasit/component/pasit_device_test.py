@@ -17,11 +17,13 @@
 import logging
 
 from lib.pasit import pasit_device
+from lib.utils import functools
 from mobly import asserts
 from mobly import base_test
 from mobly import test_runner
 
 
+@functools.generate_tests
 class PasitDeviceTest(base_test.BaseTestClass):
 
   dut: pasit_device.PasitDevice
@@ -111,6 +113,22 @@ class PasitDeviceTest(base_test.BaseTestClass):
     self.dut.set_lid_open()
     # make sure device is online after setting lid open
     self.dut.wait_for_device_online()
+
+  @functools.with_variants(
+      settings=(pasit_device.PasitDevice.UiApplication.SETTINGS,),
+      files=(pasit_device.PasitDevice.UiApplication.FILES,),
+  )
+  def test_launch_app(self, app: pasit_device.PasitDevice.UiApplication):
+    logging.info('Launching app...')
+    self.dut.launch_app(app)
+    asserts.assert_true(self.dut.wait_app_open(app), 'App did not open.')
+    logging.info('Capturing screenshots after launching app...')
+    self.dut.capture_screenshots(
+        self.current_test_info.output_path, f'test_launch_app_{str(app)}'
+    )
+    logging.info('Stopping app...')
+    self.dut.stop_app(app)
+    asserts.assert_true(self.dut.wait_app_close(app), 'App did not close.')
 
 
 if __name__ == '__main__':
