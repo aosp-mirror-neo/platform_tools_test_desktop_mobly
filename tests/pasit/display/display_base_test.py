@@ -36,6 +36,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   helper: display_helper.DisplayHelper
   camera_mapper: display_camera_mapper.DisplayCameraMapper
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
+  reboot_policy = test_policy.DisplayTestPolicy.REBOOT_POLICY
 
   def setup_class(self):
     """Handle the setup for the test.
@@ -68,18 +69,6 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     if hasattr(self, 'painter'):
       self.painter.cleanup()
     super().teardown_class()
-
-  def on_fail(self, record):
-    """Handle the teardown for the class."""
-    if hasattr(self, 'dut'):
-      reset_result = self.dut.safe_reset()
-      if not reset_result:
-        # Abort the class but not all the tests, in case the device will come
-        # back online. The test class will create a new dut instance and
-        # re-initialize the DUT state.
-        logging.warning('Failed to reset device, skipping the remaining tests.')
-        asserts.abort_class('Failed to reset device.')
-    super().on_fail(record)
 
   def _get_display_path_tag(
       self,
