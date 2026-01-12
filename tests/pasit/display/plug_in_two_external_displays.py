@@ -30,6 +30,11 @@ _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 # TODO: b/443128286 - Review if we need to merge this test class with
 # plug_in_external_display.py.
 @DesktopTest(
+    cujs=[
+        'b/471032363',  # Two external displays in extended mode
+        'b/471032281',  # Daisy-chain configuration
+        'b/471030768',  # Display works after (sleep/reboot/shutdown)
+    ],
     manual=[
         'al_connect_disconnect_scenarios.boot_al_device_with_new_display_connected',
         'al_dock_and_display.connect_dp_display_with_usb_c_adapter',
