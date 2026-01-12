@@ -17,6 +17,7 @@
 import logging
 
 from lib.pasit import display_painter
+from lib.pasit import pasit_device
 from lib.pasit import pasit_test
 from lib.utils import image
 from mobly import asserts
@@ -38,6 +39,15 @@ class PasitTestTest(pasit_test.PasitTestClass):
     asserts.assert_true(
         self.dut.unexpected_reboots(), 'Unexpected reboot not detected.'
     )
+    # ensure test doesn't fail on teardown by handling the unexpected reboot in
+    # the test.
+    try:
+      self.dut.recover_unexpected_reboot()
+    except pasit_device.PasitDeviceError as e:
+      asserts.abort_class(
+          'Failed to recover from unexpected reboot, DUT may be in an'
+          f' unrecoverable state: {e}'
+      )
 
   def test_unexpected_reboot_part2(self):
     # this test checks that the dut is recovered properly after a reboot, it

@@ -112,6 +112,11 @@ class PasitTestClass(base_test.BaseTestClass):
     if dut_offline_after_test:
       asserts.fail('DUT is offline after test.')
     elif self.dut.unexpected_reboots():
+      try:
+        self.dut.recover_unexpected_reboot()
+      except pasit_device.PasitDeviceError as e:
+        # fail and don't run any other tests if recovery failed
+        asserts.abort_class(f'Failed to recover from unexpected reboot: {e}')
       asserts.fail('DUT unexpectedly rebooted during test.')
 
     # ensure that the passport switches are disabled after the test
