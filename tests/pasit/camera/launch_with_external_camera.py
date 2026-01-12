@@ -60,12 +60,15 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
       color: The color to capture.
       message: The message to use for the assertion if the verification fails.
     """
+    # Maximize the camera app window early so that there is no need to wait for
+    # it to be maximized later when matching the color using camera mapper.
+    self.camera.maximize_camera_app_window()
+
     # Display-testing camera, pointed at internal display.
     camera_id = self.show_color_for_external_camera_preview(color)
 
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
-    self.camera.maximize_camera_app_window()
     self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
         retry.retry(

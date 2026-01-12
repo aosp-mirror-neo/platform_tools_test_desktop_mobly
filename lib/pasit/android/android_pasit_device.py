@@ -473,6 +473,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         ('google_play_store_system_component_update_last_user_id', '-1'),
         ('google_ota_automatic_download', '0'),
         ('hide_error_dialogs', '1'),
+        # show seconds on the time for better debugability
+        ('clock_seconds', '1'),
     ]
     for setting, value in settings:
       self.controller.adb.shell(['settings', 'put', 'global', setting, value])
