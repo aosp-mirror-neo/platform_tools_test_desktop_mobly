@@ -1,3 +1,25 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Test policies for PASIT tests.
+
+These policies are used to keep timeouts and other parameters controlling the
+behavior of the tests in a single location for easier discovery and
+modification.
+"""
+
+from lib.pasit import pasit_test_config
 from lib.utils import retry
 
 
@@ -38,6 +60,7 @@ class DisplayTestPolicy:
   STABLE_ID_POLLING_INTERVAL_SECONDS = 2
   STABLE_ID_REQUIRED_DURATION_SECONDS = 10
   STABLE_ID_TIMEOUT_SECONDS = 20
+  REBOOT_POLICY = pasit_test_config.RebootPolicy.ON_FAIL
 
 
 class StorageTestPolicy:
