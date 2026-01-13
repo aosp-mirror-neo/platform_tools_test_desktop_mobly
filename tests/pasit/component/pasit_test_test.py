@@ -15,10 +15,12 @@
 """A test that exercises PASIT Device component tests."""
 
 import logging
+from unittest import mock
 
 from lib.pasit import display_painter
 from lib.pasit import pasit_device
 from lib.pasit import pasit_test
+from lib.pasit import pasit_test_config
 from lib.utils import image
 from mobly import asserts
 from mobly import test_runner
@@ -27,6 +29,15 @@ from mobly import test_runner
 class PasitTestTest(pasit_test.PasitTestClass):
 
   disable_screen_recording = True
+
+  def setup_class(self):
+    super().setup_class()
+    self.real_reset = self.dut.reset
+
+  def setup_test(self):
+    super().setup_test()
+    # allow tracking of the number of calls to the reset method
+    self.dut.reset = mock.MagicMock(wraps=self.real_reset)
 
   def test_unexpected_reboot(self):
     logging.info('Rebooting device...')
@@ -59,6 +70,22 @@ class PasitTestTest(pasit_test.PasitTestClass):
     self.painter = self.create(display_painter)
     self.painter.show_color_on_display(image.NamedColor.GREEN.value)
     self.painter.clean_color_on_display()
+
+  def test_reboot_behavior_on_teardown_on_success(self):
+    self.reboot_policy = pasit_test_config.RebootPolicy.ON_TEARDOWN_TEST
+    # Test succeeds, reboot expected
+    asserts.assert_true(True, 'This should not fail')
+
+  def teardown_test(self):
+    super().teardown_test()
+    if (
+        self.current_test_info.name
+        == 'test_reboot_behavior_on_teardown_on_success'
+    ):
+      # Validate that the dut was rebooted on teardown.
+      self.dut.reset.assert_called_once()
+      self.reboot_policy = pasit_test_config.RebootPolicy.NONE
+
 
 if __name__ == '__main__':
   test_runner.main()

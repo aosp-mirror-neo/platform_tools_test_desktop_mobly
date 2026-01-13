@@ -22,6 +22,7 @@ from typing import Any
 from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_device
+from lib.pasit import pasit_test_config
 from lib.pasit.passport import passport_host as passport_host_module
 from mobly import asserts
 from mobly import base_test
@@ -55,6 +56,10 @@ class PasitTestClass(base_test.BaseTestClass):
   failure_pause_seconds: int
   failure_drop_to_interpreter: bool
   passport_host: passport_host_module.PassportHost
+  reboot_policy: pasit_test_config.RebootPolicy = (
+      pasit_test_config.RebootPolicy.NONE
+  )
+  _test_failed: bool = False
 
   def setup_class(self):
     """Setup steps before any test is executed."""
@@ -91,10 +96,85 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""
-    # 1) stop the screen recording before cold reset in power_on_if_offline()
+    # 1) Reset the passport host after each test to ensure that the passport
+    #    fixtures are disabled.
+    self._reset_passport_host()
+    # 2) stop the screen recording before cold reset in power_on_if_offline()
     self._stop_screen_recording()
+    # 3) power on the DUT if it is offline after the test
+    if self._handle_dut_offline_after_test():
+      # dut offline and so abort the rest of the tests
+      asserts.abort_class('DUT is offline after test and recovery failed.')
+    unexpected_reboot_detected = self._handle_unexpected_reboot()
 
-    # 2) power on the DUT if it is offline after the test
+    # 4) if the DUT is online, copy the screen recording files to the test
+    #    output path.
+    self._stop_screen_recording(self.current_test_info.output_path)
+
+    # 5) handle the reboot policy
+    self._handle_reboot_policy()
+    # 6) if an unexpected reboot was detected, fail the test after the reboot
+    #    policy is handled.
+    if unexpected_reboot_detected:
+      # don't fail until after the reboot policy is handled
+      asserts.fail('DUT unexpectedly rebooted during test.')
+    super().teardown_test()
+
+  def _reset_passport_host(self):
+    """Resets the passport host."""
+    try:
+      # ensure that the passport switches are disabled after the test
+      self.passport_host.reset()
+    except Exception as e:  # pylint: disable=broad-except
+      logging.warning('Failed to reset passport host: %s', e)
+      asserts.abort_class(
+          'Failed to reset passport host, testbed may be in an unexpected'
+          ' state.'
+      )
+
+  def _handle_unexpected_reboot(self) -> bool:
+    """Checks if the DUT unexpectedly rebooted during the test.
+
+    If a reboot is detected, an attempt will be made to recover the DUT. If
+    recovery fails, then the test and any remaining tests in the class will be
+    aborted.
+
+    Returns:
+      True if an unexpected reboot was detected, False otherwise.
+    Raises:
+      signals.TestAbortClass: If an unexpected reboot was detected and recovery
+      failed.
+    """
+    unexpected_reboot_detected = False
+    try:
+      unexpected_reboot_detected = self.dut.unexpected_reboots()
+    except pasit_device.PasitDeviceError as e:
+      logging.warning('Failed to check for unexpected reboot: %s', e)
+      asserts.abort_class(
+          'Failed to check for unexpected reboot, DUT may be in an unexpected'
+          ' state.'
+      )
+    if unexpected_reboot_detected:
+      try:
+        self.dut.recover_unexpected_reboot()
+      except pasit_device.PasitDeviceError as e:
+        # fail and don't run any other tests if recovery failed
+        asserts.abort_class(f'Failed to recover from unexpected reboot: {e}')
+    return unexpected_reboot_detected
+
+  def _handle_dut_offline_after_test(self) -> bool:
+    """Handles the DUT being offline after the test.
+
+    If the DUT is offline after the test, an attempt will be made to recover the
+    DUT. If recovery fails, then the test and any remaining tests in the class
+    will be aborted.
+
+    Returns:
+      True if the DUT was offline after the test, False otherwise.
+    Raises:
+      signals.TestAbortClass: If the DUT is offline after the test and recovery
+      failed.
+    """
     dut_offline_after_test = False
     try:
       dut_offline_after_test = self.dut.power_on_if_offline()
@@ -103,25 +183,7 @@ class PasitTestClass(base_test.BaseTestClass):
       asserts.abort_class(
           'The DUT is unexpectedly offline and recovery failed.'
       )
-
-    # 3) if the DUT is online, copy the screen recording files to the test
-    #    output path.
-    self._stop_screen_recording(self.current_test_info.output_path)
-
-    # 4) fail the test if the DUT is offline or unexpectedly rebooted.
-    if dut_offline_after_test:
-      asserts.fail('DUT is offline after test.')
-    elif self.dut.unexpected_reboots():
-      try:
-        self.dut.recover_unexpected_reboot()
-      except pasit_device.PasitDeviceError as e:
-        # fail and don't run any other tests if recovery failed
-        asserts.abort_class(f'Failed to recover from unexpected reboot: {e}')
-      asserts.fail('DUT unexpectedly rebooted during test.')
-
-    # ensure that the passport switches are disabled after the test
-    self.passport_host.reset()
-    super().teardown_test()
+    return dut_offline_after_test
 
   def teardown_class(self):
     """Teardown steps after all tests are executed."""
@@ -317,9 +379,7 @@ class PasitTestClass(base_test.BaseTestClass):
       except (signals.TestPass, signals.TestAbortSignal, signals.TestSkip):
         raise
       except Exception as e:
-        # stop the screen recording before capturing the bugreport because
-        # bugreport may take a DUT offline
-        self._stop_screen_recording()
+        self._test_failed = True
         self._capture_bugreport(True)
         self._try_capture_screenshots()
         self._try_capture_images_from_all_cameras()
@@ -328,3 +388,19 @@ class PasitTestClass(base_test.BaseTestClass):
         raise e
 
     return super().exec_one_test(test_name, wrapped_test_method, record)
+
+  def _handle_reboot_policy(self):
+    """Reboots the DUT if the reboot policy is set to do so."""
+    reboot = False
+    if self.reboot_policy == pasit_test_config.RebootPolicy.ON_TEARDOWN_TEST:
+      logging.info('Rebooting DUT at the end of the test.')
+      reboot = True
+    elif (
+        self.reboot_policy == pasit_test_config.RebootPolicy.ON_FAIL
+        and self._test_failed
+    ):
+      logging.warning('Rebooting DUT due to test failure.')
+      reboot = True
+    if reboot:
+      if not self.dut.safe_reset():
+        asserts.abort_class('Failed to reset DUT at the end of the test.')
