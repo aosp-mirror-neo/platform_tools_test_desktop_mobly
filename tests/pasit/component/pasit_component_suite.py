@@ -22,6 +22,7 @@ from pasit.component import pasit_device_test
 from pasit.component import pasit_display_test
 from pasit.component import pasit_hid_keyboard_test
 from pasit.component import pasit_network_test
+from pasit.component import pasit_test_test
 
 
 class PasitComponentSuite(base_suite.BaseSuite):
@@ -42,6 +43,9 @@ class PasitComponentSuite(base_suite.BaseSuite):
     )
     self.add_test_class(
         pasit_network_test.PasitNetworkTest,
+    )
+    self.add_test_class(
+        pasit_test_test.PasitTestTest,
     )
 
 

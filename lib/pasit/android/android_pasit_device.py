@@ -343,9 +343,35 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           self._boot_id,
           current_boot_id,
       )
-      self._boot_id = current_boot_id
       return True
     return False
+
+  def recover_unexpected_reboot(self):
+    if not self.unexpected_reboots():
+      return
+    try:
+      # pause before stop seems to work through the unexpected reboot, while
+      # _stop_services() alone does not.
+      self.controller.services.pause_all()
+      self._stop_services()
+      self._snippets.reinstall_uiautomator()
+      self._power_on_routine()
+    except Exception as e:  # pylint: disable=broad-except
+      raise PasitDeviceError('Failed to recover from unexpected reboot.') from e
+    # check uiautomator after recovery to ensure that mobly services/snippets
+    # are running properly, better to raise an error before the next test
+    # starts rather than have the next test fail.
+    try:
+      retry.retry(
+          lambda: self.controller.ui.package_name,
+          policy=retry.RetryPolicy(max_tries=3, delay_seconds=1),
+          exceptions=(Exception,),
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      raise PasitDeviceError(
+          'Failed to recover from unexpected reboot, uiautomator is not'
+          ' available.'
+      ) from e
 
   def start_screen_recording(self):
     self._screen_recorder.start()

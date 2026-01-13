@@ -72,6 +72,14 @@ class SnippetTools:
         configs=uiautomator.UiAutomatorConfigs(snippet=snippet),
     )
 
+  def reinstall_uiautomator(self):
+    """Reinstalls UI Automator APK without reregistering the service."""
+    apk_utils.install(
+        device=self.controller,
+        apk_path=self.UIAUTOMATOR_APK_PATH,
+        timeout=10,
+    )
+
   def _load_mbs(self, user_id: int):
     self.controller.load_snippet(
         'mbs',

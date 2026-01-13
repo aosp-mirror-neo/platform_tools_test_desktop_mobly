@@ -232,6 +232,19 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def recover_unexpected_reboot(self):
+    """Attempts to recover from an unexpected reboot.
+
+    Recovery should include getting the device back to the same state as it is
+    in at the start of the test, including logging in, enabling services, etc.
+
+    Raises:
+      PasitDeviceError: If the device fails to recover from an unexpected reboot
+      or if the device is not online after the recovery attempts.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def is_powered(self) -> bool:
     """Returns True if the device is receiving power.
 
