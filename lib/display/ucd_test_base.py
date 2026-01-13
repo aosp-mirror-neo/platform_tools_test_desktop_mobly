@@ -23,7 +23,7 @@ from display.utils import ucd_manager
 from lib.pasit import display_helper
 from lib.pasit import pasit_display
 from lib.pasit import pasit_test
-from lib.pasit.base import base_pasit_device
+from lib.pasit import pasit_test_config
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
@@ -48,6 +48,7 @@ class UcdTestBase(pasit_test.PasitTestClass):
   max_tested_displays: int
   display: pasit_display.PasitDisplay
   helper: display_helper.DisplayHelper
+  reboot_policy = pasit_test_config.RebootPolicy.ON_TEARDOWN_TEST
 
   disable_screen_recording = True
 
@@ -87,14 +88,11 @@ class UcdTestBase(pasit_test.PasitTestClass):
     self.internal_display_id = self.helper.get_internal_display_id()
 
   def teardown_test(self):
-    # Clear UCD and DUT state after each test.
-    # This is to make sure that the displays are in a consistent state.
-    self._ucd_manager.unplug_all_displays(wait_for_active=False)
     try:
-      self.super_reboot()
+      self._ucd_manager.unplug_all_displays(wait_for_active=False)
     except Exception:  # pylint: disable=broad-except
-      # I don't want to fail the test if the reboot fails.
       pass
+
     super().teardown_test()
 
   def teardown_class(self):
@@ -140,24 +138,6 @@ class UcdTestBase(pasit_test.PasitTestClass):
           lambda i=i: self._check_single_display_screenshot(i, color),
           policy=retry.RetryPolicy(max_tries=3, delay_seconds=3),
           exceptions=(self.ColorMatchingError,),
-      )
-
-  def super_reboot(self):
-    """Reboots the device, with retries and cold resets if needed."""
-    try:
-      # reboot will perform a soft reboot, and will wait for the device to be
-      # online. If the device is not online after the reboot, it will raise an
-      # exception.
-      self.dut.reboot()
-    except Exception as e:  # pylint: disable=broad-except
-      logging.info("Reboot command failed. Will attempt cold reset: %s", e)
-      retry.retry(
-          # reset() will perform a cold reset, and will wait for the device to
-          # be online. If the device is not online after the reset, it will
-          # raise a PasitDeviceError.
-          self.dut.reset,
-          policy=retry.RetryPolicy(max_tries=3, delay_seconds=0),
-          exceptions=(base_pasit_device.PasitDeviceError,),
       )
 
   def _check_single_display_screenshot(
