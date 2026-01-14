@@ -53,7 +53,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
   bugreport_policy: pasit_test_config.BugReportPolicy = (
       pasit_test_config.BugReportPolicy.NONE
   )
-  disable_screen_recording = True
+  screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
 
   def teardown_test(self):
     """Handle the teardown for the test."""

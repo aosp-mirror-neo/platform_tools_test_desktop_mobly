@@ -50,7 +50,7 @@ class UcdTestBase(pasit_test.PasitTestClass):
   helper: display_helper.DisplayHelper
   reboot_policy = pasit_test_config.RebootPolicy.ON_TEARDOWN_TEST
 
-  disable_screen_recording = True
+  screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
 
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
