@@ -134,12 +134,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
-    display_count = retry.retry(
-        lambda: len(self.helper.get_stable_display_ids()),
-        until=lambda ids_count: ids_count == expected_display_count,
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-        exceptions=(display_helper.DisplayIDsNotStableError,),
-    )
+    display_count = self.helper.get_display_count(expected_display_count)
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
         display_count,

@@ -61,8 +61,9 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     display_ids = self.display.get_display_ids()
     logging.info('Display IDs before external display plug in: %s', display_ids)
     asserts.assert_equal(len(display_ids), 1, 'Display IDs count is not 1.')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    display_ids = self._get_stable_display_ids(self.EXPECTED_DISPLAY_COUNT)
+    external_display_id = self._plug_in_external_display()
+    logging.info('External display ID: %s', external_display_id)
+    display_ids = self.display.get_display_ids()
     logging.info('Display IDs after external display plug in: %s', display_ids)
     asserts.assert_equal(
         len(display_ids),
@@ -195,22 +196,10 @@ class PasitDisplayTest(pasit_test.PasitTestClass):
     """Plug in external display and return the external display ID."""
     internal_display_id = self.helper.get_internal_display_id()
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_MONITOR)
-    self._get_stable_display_ids(self.EXPECTED_DISPLAY_COUNT)
     external_display_ids = self.helper.get_external_display_ids(
         internal_display_id, 1
     )
     return external_display_ids[0]
-
-  def _get_stable_display_ids(
-      self, expected_display_count: int
-  ) -> list[pasit_display.PasitDisplay.DisplayId]:
-    """Returns the stable display IDs."""
-    return retry.retry(
-        self.helper.get_stable_display_ids,
-        until=lambda ids: len(ids) == expected_display_count,
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-        exceptions=(display_helper.DisplayIDsNotStableError,),
-    )
 
 
 if __name__ == '__main__':
