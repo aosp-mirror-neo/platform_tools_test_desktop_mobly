@@ -496,6 +496,43 @@ class UcdManager(abc.ABC):
     """Disconnects from the UCD via the video tester service."""
     self._vsc.close_video_tester()
 
+  def start_dp_event_capture(
+      self,
+      dprx_config: (
+          video_tester_service_pb2.DpRxEventCaptureConfig | None
+      ) = None,
+      dptx_config: (
+          video_tester_service_pb2.DpTxEventCaptureConfig | None
+      ) = None,
+  ) -> None:
+    """Starts DP event capture.
+
+    Args:
+        dprx_config: Configuration for DP RX event capture.
+        dptx_config: Configuration for DP TX event capture.
+    """
+    if not dprx_config and not dptx_config:
+      return
+
+    if not self._vsc.start_event_capture(
+        dprx_config=dprx_config, dptx_config=dptx_config
+    ):
+      logging.error("Failed to start DP event capture.")
+
+  def stop_dp_event_capture(
+      self, generate_reports: bool = False
+  ) -> tuple[bytes | None, bytes | None]:
+    """Stops DP event capture and returns the reports if generated.
+
+    Args:
+      generate_reports: If True, requests the events capture report.
+
+    Returns:
+        A tuple of (dptx_report, dprx_report).
+    """
+
+    return self._vsc.stop_event_capture(generate_reports=generate_reports)
+
 
 class Ucd500Manager(UcdManager):
   """UCD 500 is the DP Tester Device."""
