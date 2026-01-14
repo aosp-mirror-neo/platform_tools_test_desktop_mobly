@@ -35,6 +35,7 @@ from lib.pasit import pasit_hid
 from lib.pasit import pasit_network
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import pasit_test_config
 from lib.pasit import peripheral_connector
 from lib.pasit import test_policy
 from lib.pasit.passport import utils
@@ -47,6 +48,11 @@ from mobly import test_runner
 class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
+  # this test is use for frequently checking the testbed health so we don't
+  # want to incur the time cost of collecting bugreports on failures.
+  bugreport_policy: pasit_test_config.BugReportPolicy = (
+      pasit_test_config.BugReportPolicy.NONE
+  )
   disable_screen_recording = True
 
   def teardown_test(self):
