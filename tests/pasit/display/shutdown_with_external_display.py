@@ -22,6 +22,9 @@ from pasit.display import display_base_test
 
 
 @DesktopTest(
+    cujs=[
+        'b/471030830',  # Display works after connect/disconnect
+    ],
     manual=[
         'al_connect_disconnect_scenarios.disconnect_display_while_al_device_shutting_down',
         'al_persistence_of_settings.shutdown_al_device_while_display_connected',

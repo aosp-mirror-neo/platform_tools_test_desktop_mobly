@@ -27,7 +27,13 @@ from pasit.display import display_base_test
 
 # CUJs this test covers (full or partial) go/al-traceability
 @DesktopTest(
-    cujs=['b/379291743', 'b/379290750'],
+    cujs=[
+        'b/379291743',  # Displays from dock work on power on
+        'b/379290750',  # Displays from dock work when dock is connected
+        'b/471030768',  # Display works after (sleep/reboot/shutdown)
+        'b/471032844',  # Extend desktop
+        'b/471032860',  # Dock works after boot, suspend, and resume
+    ],
     manual=[
         'al_connect_disconnect_scenarios.boot_al_device_with_new_display_connected',
         'al_dock_and_display.connect_dp_display_with_usb_c_adapter',
