@@ -105,6 +105,17 @@ class UtcBaseTest(base_test.BaseTestClass):
 
   def pre_run(self):
     """Extracts the enabled ports from the tester."""
+
+    # If the PassportHost is not in the contoller configs,
+    # then we are just listing the tests.
+    if 'PassportHost' not in self.controller_configs:
+      logging.warning(
+          'PassportHost is not in the controller configs, skipping port'
+          ' extraction.'
+      )
+      self.enabled_ports = [0, 1]
+      return
+
     self.enabled_ports = []
     passport_config = self.controller_configs['PassportHost']
     topology_config = passport_config[0].get('host_topology')
@@ -120,6 +131,8 @@ class UtcBaseTest(base_test.BaseTestClass):
     for conn in topology.connections:
       if conn.parent_id in devices and conn.parent_port:
         self.enabled_ports.append(int(conn.parent_port))
+
+    logging.info('Enabled ports: %s', self.enabled_ports)
 
   def _set_usb_tester_default_state(self):
     """Sets the USB tester state."""

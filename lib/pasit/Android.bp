@@ -170,10 +170,12 @@ python_library_host {
     srcs: [
         "*/*test.py",
         "*test.py",
+        "pasit_test_config.py",
     ],
     exclude_srcs: [
         "passport/*",
         "pasit_lib_imports_test.py",
+        "pasit_test_test.py",
     ],
     libs: [
         "mobly",
@@ -309,6 +311,21 @@ python_test_host {
     },
     libs: [
         "py-peripheral-connector",
+        "py-desktop-utils",
+    ],
+}
+
+python_test_host {
+    name: "pasit_test_test",
+    team: "trendy_team_desktop_peripherals",
+    srcs: [
+        "pasit_test_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-test",
         "py-desktop-utils",
     ],
 }

@@ -18,6 +18,7 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 from pasit.storage import eject_external_storage
+from pasit.storage import format_external_storage
 from pasit.storage import plug_unplug_external_storage
 
 
@@ -29,6 +30,7 @@ class PasitStorageSuite(base_suite.BaseSuite):
         plug_unplug_external_storage.PlugUnplugExternalStorageTest
     )
     self.add_test_class(eject_external_storage.EjectExternalStorageTest)
+    self.add_test_class(format_external_storage.FormatExternalStorageTest)
 
 
 def main() -> None:
