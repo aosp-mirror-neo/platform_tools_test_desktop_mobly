@@ -29,6 +29,7 @@ from mobly import test_runner
 class PasitTestTest(pasit_test.PasitTestClass):
 
   disable_screen_recording = True
+  bugreport_policy = pasit_test_config.BugReportPolicy.NONE
 
   def setup_class(self):
     super().setup_class()

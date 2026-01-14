@@ -26,3 +26,25 @@ class RebootPolicy(enum.Enum):
   # if set then reboot the DUT during teardown_test (after each test that is
   # executed)
   ON_TEARDOWN_TEST = 2
+
+
+class BugReportPolicy(str, enum.Enum):
+  """Bug report policy for the DUT.
+
+  The string value represents the value used in the test config and allows for
+  overriding the policy via the mobly config at runtime.
+  """
+
+  NONE = 'none'
+  ON_FAIL = 'on_fail'
+  ALL = 'all'
+
+  def should_collect_bugreport(self, test_failed: bool) -> bool:
+    """Returns whether a bug report should be collected."""
+    match self:
+      case BugReportPolicy.ALL:
+        return True
+      case BugReportPolicy.ON_FAIL:
+        return test_failed
+      case BugReportPolicy.NONE:
+        return False
