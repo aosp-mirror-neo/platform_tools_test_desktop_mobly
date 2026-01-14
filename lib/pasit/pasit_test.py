@@ -53,13 +53,15 @@ class PasitTestClass(base_test.BaseTestClass):
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
   disable_screen_recording: bool = False
   failure_pause_seconds: int
-  failure_drop_to_interpreter: bool
   passport_host: passport_host_module.PassportHost
   reboot_policy: pasit_test_config.RebootPolicy = (
       pasit_test_config.RebootPolicy.NONE
   )
   bugreport_policy: pasit_test_config.BugReportPolicy = (
       pasit_test_config.BugReportPolicy.ON_FAIL
+  )
+  failure_policy: pasit_test_config.FailurePolicy = (
+      pasit_test_config.FailurePolicy.CONTINUE
   )
   _test_failed: bool = False
 
@@ -80,9 +82,7 @@ class PasitTestClass(base_test.BaseTestClass):
     self.failure_pause_seconds = int(
         self.user_params.get('on_fail_pause_seconds', '0')
     )
-    self.failure_drop_to_interpreter = bool(
-        self.user_params.get('on_fail_drop_to_interpreter', False)
-    )
+    self._setup_failure_policy()
     self._apply_retry_and_repeat_to_all_tests()
 
     self.dut = pasit_device.create(self)
@@ -101,6 +101,23 @@ class PasitTestClass(base_test.BaseTestClass):
         raise signals.TestError(
             'Invalid bugreport policy in user_params: '
             f'{self.user_params["bugreport"]}'
+        ) from e
+
+  def _setup_failure_policy(self):
+    """Sets up the failure policy based on user parameters and class attributes."""
+    if 'on_fail_drop_to_interpreter' in self.user_params:
+      try:
+        fail_drop_to_interpreter = bool(
+            self.user_params['on_fail_drop_to_interpreter']
+        )
+        if fail_drop_to_interpreter:
+          self.failure_policy = (
+              pasit_test_config.FailurePolicy.DROP_TO_INTERPRETER
+          )
+      except ValueError as e:
+        raise signals.TestError(
+            'Invalid failure policy in user_params: '
+            f'{self.user_params["on_fail_drop_to_interpreter"]}'
         ) from e
 
   def setup_test(self):
@@ -278,7 +295,7 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _debug_on_test_failure(self, e: Exception) -> None:
     """Pauses the test for debugging on test failure."""
-    if self.failure_drop_to_interpreter:
+    if self.failure_policy.should_drop_to_interpreter():
       # must be assigned to a local variable to be accessible from the debugger
       test_instance = self
       logging.error('Dropping to interpreter due to test failure: %s.', e)
