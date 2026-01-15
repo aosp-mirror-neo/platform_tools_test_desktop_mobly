@@ -35,6 +35,7 @@ python_test_host {
     libs: [
         "py-pasit-storage",
         "py-pasit-file",
+        "py-peripheral-connector",
     ],
     pkg_path: "pasit/storage",
 }
