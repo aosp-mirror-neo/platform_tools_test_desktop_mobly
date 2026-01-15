@@ -22,6 +22,7 @@ from typing import Generator
 
 from display.utils import ucd_test_base
 from mobly import asserts
+from mobly import config_parser
 
 
 class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
@@ -39,6 +40,14 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
   _SUSPEND_TIME_BASE = 3.7
   _MAX_OFF_TIME_EXPONENT = 4
   _STRESS_ITERATION_COUNT = 77
+
+  def __init__(
+      self,
+      configs: config_parser.TestRunConfig,
+      enable_stress_tests: bool = False,
+  ):
+    super().__init__(configs)
+    self._enable_stress_tests = enable_stress_tests
 
   class PlugInStage(enum.Enum):
     """Enum for the different phases of the display on/off test."""
@@ -66,42 +75,46 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
 
   def pre_run(self):
     for display_count in range(1, self._MAX_DISPLAYS_TO_TEST + 1):
+      if not self._enable_stress_tests:
+        for stage in self.PlugInStage:
+          self.generate_tests(
+              test_logic=self._display_on_off_with_plug,
+              name_func=self.generate_test_name_display_on_off_with_plugs,
+              arg_sets=[
+                  (i + 1, stage, display_count)
+                  for i in range(self._MAX_OFF_TIME_EXPONENT)
+              ],
+          )
 
-      for stage in self.PlugInStage:
         self.generate_tests(
-            test_logic=self._display_on_off_with_plug,
-            name_func=self.generate_test_name_display_on_off_with_plugs,
+            test_logic=self._display_on_off_with_unplug_during_power_off,
+            name_func=self.generate_test_name_display_on_off_with_unplug_during_power_off,
             arg_sets=[
-                (i + 1, stage, display_count)
+                (i + 1, display_count)
                 for i in range(self._MAX_OFF_TIME_EXPONENT)
             ],
         )
 
-      for stage in self.PlugInStage:
+      # Stress tests
+      else:
+        for stage in self.PlugInStage:
+          self.generate_tests(
+              test_logic=self._display_on_off_with_plug_stress,
+              name_func=self.generate_test_name_display_on_off_with_plugs_stress,
+              arg_sets=[
+                  (i + 1, stage, display_count)
+                  for i in range(self._MAX_OFF_TIME_EXPONENT)
+              ],
+          )
+
         self.generate_tests(
-            test_logic=self._display_on_off_with_plug_stress,
-            name_func=self.generate_test_name_display_on_off_with_plugs_stress,
+            test_logic=self._display_on_off_n_times_while_plugged,
+            name_func=self.generate_test_name_display_on_off_n_times_while_plugged,
             arg_sets=[
-                (i + 1, stage, display_count)
+                (i + 1, display_count)
                 for i in range(self._MAX_OFF_TIME_EXPONENT)
             ],
         )
-
-      self.generate_tests(
-          test_logic=self._display_on_off_n_times_while_plugged,
-          name_func=self.generate_test_name_display_on_off_n_times_while_plugged,
-          arg_sets=[
-              (i + 1, display_count) for i in range(self._MAX_OFF_TIME_EXPONENT)
-          ],
-      )
-
-      self.generate_tests(
-          test_logic=self._display_on_off_with_unplug_during_power_off,
-          name_func=self.generate_test_name_display_on_off_with_unplug_during_power_off,
-          arg_sets=[
-              (i + 1, display_count) for i in range(self._MAX_OFF_TIME_EXPONENT)
-          ],
-      )
 
   def generate_test_name_display_on_off_with_plugs(
       self, exp: int, stage: PlugInStage, display_count: int

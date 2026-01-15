@@ -34,6 +34,13 @@ class SuspendResumeTest(display_on_off_base.DisplayOnOffBase):
   functionality.
   """
 
+  def __init__(
+      self,
+      configs: config_parser.TestRunConfig,
+      enable_stress_tests: bool = False,
+  ):
+    super().__init__(configs, enable_stress_tests=enable_stress_tests)
+
   def setup_class(self):
     super().setup_class(require_servo=True)
 

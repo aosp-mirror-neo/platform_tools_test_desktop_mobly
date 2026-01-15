@@ -31,6 +31,13 @@ from . import display_on_off_base
 class DisplayPowerToggleTest(display_on_off_base.DisplayOnOffBase):
   """Test class for testing the display power toggle functionality."""
 
+  def __init__(
+      self,
+      configs: config_parser.TestRunConfig,
+      enable_stress_tests: bool = False,
+  ):
+    super().__init__(configs, enable_stress_tests=enable_stress_tests)
+
   def setup_class(self):
     """Sets up the class and performs a pre-check on power toggle."""
     super().setup_class()
