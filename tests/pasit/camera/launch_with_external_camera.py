@@ -15,7 +15,9 @@
 """Test launching the camera app with an external camera plugged in."""
 
 from android.platform.test.annotations import DesktopTest
+from lib.pasit import dut_state_manager
 from lib.pasit import test_policy
+from lib.utils import functools
 from lib.utils import image
 from lib.utils import retry
 from mobly import asserts
@@ -33,13 +35,23 @@ from pasit.camera import camera_base_test
         'b/352597365',  # Switch between internal and external cameras
     ],
 )
+@functools.generate_tests
 class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
   """Test launching the camera app with an external camera plugged in."""
 
-  def test_launch_with_external_camera(self):
-    """Test launching the camera app with an external camera plugged in."""
+  @functools.with_variants(
+      shutdown=(dut_state_manager.PowerAction.SHUTDOWN,),
+      suspend=(dut_state_manager.PowerAction.SUSPEND,),
+      reboot=(dut_state_manager.PowerAction.REBOOT,),
+  )
+  def test_launch_with_external_camera_then(
+      self, action_after_plug_camera: dut_state_manager.PowerAction
+  ):
+    """Test launching the camera app with an external camera plugged in when DUT is in different states."""
 
-    self.connect_external_camera()
+    internal_camera_devices, external_camera_devices = (
+        self.connect_external_camera()
+    )
     self.launch_camera_app()
     self.capture_screenshots('camera_app_launched')
 
@@ -50,6 +62,19 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
         'External camera preview (on the internal display) should be showing'
         ' blue color.',
     )
+    dut_state_manager.execute_power_action(self.dut, action_after_plug_camera)
+
+    if action_after_plug_camera == dut_state_manager.PowerAction.SUSPEND:
+      self.verify_camera_app_is_using_any_device(
+          external_camera_devices, 'external camera'
+      )
+    else:
+      self.launch_camera_app()
+      self.verify_camera_app_is_using_any_device(
+          internal_camera_devices, 'internal camera'
+      )
+
+    self.capture_screenshots(f'after_dut_{action_after_plug_camera}')
 
   def _verify_external_camera_captures_color(
       self, color: image.NamedColor, message: str
