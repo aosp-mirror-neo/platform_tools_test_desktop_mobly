@@ -51,7 +51,6 @@ class PasitTestClass(base_test.BaseTestClass):
 
   dut: pasit_device.PasitDevice
   requires_device_type: pasit_host_pb2.PasitHost.Device.Type = None
-  disable_screen_recording: bool = False
   failure_pause_seconds: int
   passport_host: passport_host_module.PassportHost
   reboot_policy: pasit_test_config.RebootPolicy = (
@@ -62,6 +61,9 @@ class PasitTestClass(base_test.BaseTestClass):
   )
   failure_policy: pasit_test_config.FailurePolicy = (
       pasit_test_config.FailurePolicy.CONTINUE
+  )
+  screen_recording_policy: pasit_test_config.ScreenRecordingPolicy = (
+      pasit_test_config.ScreenRecordingPolicy.ENABLED
   )
   _test_failed: bool = False
 
@@ -123,7 +125,7 @@ class PasitTestClass(base_test.BaseTestClass):
   def setup_test(self):
     """Setup steps before each test is executed."""
     super().setup_test()
-    if not self.disable_screen_recording:
+    if self.screen_recording_policy.should_record():
       self.dut.start_screen_recording()
 
   def teardown_test(self):
@@ -227,7 +229,7 @@ class PasitTestClass(base_test.BaseTestClass):
 
   def _stop_screen_recording(self, output_path: str | None = None) -> None:
     """Stops the screen recording and copies the files to the output path."""
-    if not self.disable_screen_recording:
+    if self.screen_recording_policy.should_record():
       self.dut.stop_screen_recording(output_path)
 
   def create(self, module: types.ModuleType) -> Any:

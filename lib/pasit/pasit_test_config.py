@@ -59,3 +59,18 @@ class FailurePolicy(str, enum.Enum):
   def should_drop_to_interpreter(self) -> bool:
     """Returns whether the test should drop to interpreter."""
     return self == FailurePolicy.DROP_TO_INTERPRETER
+
+
+class ScreenRecordingPolicy(enum.Enum):
+  """Screen recording policy for the DUT."""
+
+  ENABLED = 1
+  DISABLED = 0
+
+  def should_record(self) -> bool:
+    """Returns whether the screen should be recorded."""
+    match self:
+      case ScreenRecordingPolicy.ENABLED:
+        return True
+      case ScreenRecordingPolicy.DISABLED:
+        return False
