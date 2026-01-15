@@ -233,22 +233,24 @@ class PassportVideoServiceClient:
         True if the link parameters were set successfully.
     """
     self._ensure_tester_open()
+    link_params = {
+        "mst": mst,
+        "ss_sbm": ss_sbm,
+        "mst_sink_count": mst_sink_count,
+        "scrambler_seed": scrambler_seed,
+        "max_lane": max_lane,
+        "video_spec": video_spec,
+        "dsc": dsc,
+    }
     request = video_tester_service_pb2.SetLinkVideoTesterRequest(
-        id=self._tester_id
+        id=self._tester_id,
+        # Setting only the values that are not None.
+        **{
+            key: value
+            for key, value in link_params.items()
+            if value is not None
+        },
     )
-    request.mst = mst
-    if ss_sbm is not None:
-      request.ss_sbm = ss_sbm
-    if mst_sink_count is not None:
-      request.mst_sink_count = mst_sink_count
-    if scrambler_seed is not None:
-      request.scrambler_seed = scrambler_seed
-    if max_lane is not None:
-      request.max_lane = max_lane
-    if video_spec is not None:
-      request.video_spec.CopyFrom(video_spec)
-    if dsc is not None:
-      request.dsc = dsc
 
     try:
       self._stub.SetLinkVideoTester(request)
