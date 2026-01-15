@@ -27,14 +27,53 @@ class PowerState(enum.Enum):
   SUSPEND = 'suspended'
 
 
+@enum.unique
+class PowerAction(enum.Enum):
+  """Represents power-related actions for the DUT."""
+
+  SUSPEND = 'suspend'
+  SHUTDOWN = 'shutdown'
+  REBOOT = 'reboot'
+
+
 def requires_servo(
-    dut_state: PowerState,
+    state_action: PowerState | PowerAction,
 ) -> bool:
   """Returns True if servo is required for a dut to enter the given state."""
-  return dut_state in [
+  return state_action in [
       PowerState.OFF,
       PowerState.SUSPEND,
+      PowerAction.SHUTDOWN,
+      PowerAction.SUSPEND,
   ]
+
+
+def execute_power_action(dut: pasit_device.PasitDevice, action: PowerAction):
+  """Executes a power transition: shutdown/on, suspend/wakeup, or reboot.
+
+  Args:
+    dut: The PASIT device to manage.
+    action: The action or state transition to perform.
+  """
+  if requires_servo(action) and not dut.is_servo_configured():
+    raise base_pasit_device.ServoNotConfiguredError(
+        f'Servo is not configured, cannot execute {action}.'
+    )
+
+  match action:
+    case PowerAction.SHUTDOWN:
+      logging.info('Executing SHUTDOWN sequence (Power Off -> Power On)')
+      dut.power_off()
+      dut.power_on()
+
+    case PowerAction.SUSPEND:
+      logging.info('Executing SUSPEND sequence (Suspend -> Wakeup)')
+      dut.suspend()
+      dut.wakeup()
+
+    case PowerAction.REBOOT:
+      logging.info('Executing REBOOT sequence')
+      dut.reboot()
 
 
 class EnterStateAndReturnToPowerOn:
