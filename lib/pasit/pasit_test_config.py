@@ -48,3 +48,14 @@ class BugReportPolicy(str, enum.Enum):
         return test_failed
       case BugReportPolicy.NONE:
         return False
+
+
+class FailurePolicy(str, enum.Enum):
+  """Test failure policy for the DUT."""
+
+  CONTINUE = 'continue'
+  DROP_TO_INTERPRETER = 'drop_to_interpreter'
+
+  def should_drop_to_interpreter(self) -> bool:
+    """Returns whether the test should drop to interpreter."""
+    return self == FailurePolicy.DROP_TO_INTERPRETER
