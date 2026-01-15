@@ -161,22 +161,33 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
 
     logging.info('Testing HID device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
-    passport_hid_devices = hid_client.get_hid_devices()
+    passport_hid_devices = retry.retry(
+        hid_client.get_hid_devices,
+        until=lambda emulator: emulator,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+    )
     logging.info('Passport HID devices: %s', passport_hid_devices)
     asserts.assert_true(
         passport_hid_devices,
         'Expected passport to have an HID device after activation.',
     )
-    updated_hid_devices = hid.get_hid_devices()
+    updated_hid_devices = retry.retry(
+        hid.get_hid_devices,
+        until=lambda hid_devices: len(hid_devices)
+        == len(default_hid)
+        + test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
+    )
     new_hid_devices = [
         dev for dev in updated_hid_devices if dev not in default_hid
     ]
     logging.info('New DUT HID devices: %s', new_hid_devices)
     asserts.assert_equal(
         len(new_hid_devices),
-        3,
-        'Expected DUT to have 3 new HID devices after activation of HID'
-        ' emulator.',
+        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        'Expected DUT to have'
+        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} new HID devices'
+        ' after activation of HID emulator.',
     )
 
   def _network_test_logic(self, device_id: str):
@@ -223,7 +234,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         iface_name,
     )
     has_internet = retry.retry(
-        lambda: self. network.is_network_connected_to_internet(iface_name),
+        lambda: self.network.is_network_connected_to_internet(iface_name),
         until=lambda result: result,
         policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_INTERNET_CONNECTED_RETRY_POLICY,
     )

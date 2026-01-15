@@ -79,10 +79,21 @@ class StorageTestPolicy:
 
 
 class HIDTestPolicy:
+  """Test policies for HID tests."""
+
   FIND_NEW_SCREENSHOTS_RETRY_POLICY = retry.RetryPolicy(
       max_tries=10,
       delay_seconds=1,
   )
+  DETECT_HID_EMULATOR_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=5,
+      delay_seconds=2,
+  )
+  DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=5,
+      delay_seconds=2,
+  )
+  NUM_HID_DEVICES_EXPECTED = 3
 
 
 class DeviceTestPolicy:

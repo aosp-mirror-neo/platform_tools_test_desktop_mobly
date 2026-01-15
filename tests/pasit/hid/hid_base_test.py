@@ -19,6 +19,8 @@ import logging
 from lib.pasit import hid_emulator
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
+from lib.utils import retry
 from mobly import asserts
 
 
@@ -38,23 +40,34 @@ class HIDBaseTest(pasit_test.PasitTestClass):
 
     self.plug_in_hid_emulator()
     self.emulator = hid_emulator.HIDEmulator(self.passport_host)
-    self.emulator.initialize()
+    retry.retry(
+        self.emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
 
     self._verify_hid_emulator_is_visible_to_dut(default_hid_devices)
 
   def _verify_hid_emulator_is_visible_to_dut(
       self, default_hid_devices: list[str]
   ) -> None:
-    updated_hid_devices = self.hid.get_hid_devices()
+    updated_hid_devices = retry.retry(
+        self.hid.get_hid_devices,
+        until=lambda hid_devices: len(hid_devices)
+        == len(default_hid_devices)
+        + test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
+    )
     new_hid_devices = [
         dev for dev in updated_hid_devices if dev not in default_hid_devices
     ]
     logging.info('New HID devices seen by DUT: %s', new_hid_devices)
     asserts.assert_equal(
         len(new_hid_devices),
-        3,
-        'Expected DUT to have 3 new HID devices after activation of HID'
-        ' emulator.',
+        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        'Expected DUT to have'
+        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} new HID devices'
+        ' after activation of HID emulator.',
     )
 
   def teardown_class(self):

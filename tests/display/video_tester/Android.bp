@@ -186,3 +186,39 @@ python_test_host {
         "py-display-utils",
     ],
 }
+
+python_test_host {
+    name: "WrappedIgtTest",
+    main: "wrapped_igt_test.py",
+    srcs: [
+        "wrapped_igt_test.py",
+    ],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+    ],
+    device_first_data: [
+        ":IgtKmsAtomicTestCases",
+        ":kms_atomic",
+    ],
+    libs: [
+        "py-display-utils",
+        "py-pasit-test",
+    ],
+    target: {
+        linux: {
+            // Only build for 64 bit targets.
+            enabled: select(soong_config_variable("ANDROID", "TARGET_SUPPORTS_64_BIT_APPS"), {
+                true: true,
+                default: false,
+            }),
+        },
+    },
+}
