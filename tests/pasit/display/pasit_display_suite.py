@@ -21,6 +21,7 @@ from pasit.display import plug_in_external_display
 from pasit.display import shutdown_with_external_display
 from pasit.display import plug_in_two_external_displays
 from pasit.display import unplug_external_display
+from pasit.display import change_external_display_resolution
 
 
 class PasitDisplaySuite(base_suite.BaseSuite):
@@ -32,7 +33,12 @@ class PasitDisplaySuite(base_suite.BaseSuite):
     self.add_test_class(
         shutdown_with_external_display.ShutdownWithExternalDisplayTest
     )
-    self.add_test_class(plug_in_two_external_displays.PlugInTwoExternalDisplaysTest)
+    self.add_test_class(
+        plug_in_two_external_displays.PlugInTwoExternalDisplaysTest
+    )
+    self.add_test_class(
+        change_external_display_resolution.ChangeDisplayResolutionTest
+    )
 
 
 def main() -> None:
