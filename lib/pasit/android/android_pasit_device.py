@@ -473,11 +473,14 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         ('google_play_store_system_component_update_last_user_id', '-1'),
         ('google_ota_automatic_download', '0'),
         ('hide_error_dialogs', '1'),
-        # show seconds on the time for better debugability
-        ('clock_seconds', '1'),
     ]
     for setting, value in settings:
       self.controller.adb.shell(['settings', 'put', 'global', setting, value])
+
+    # show seconds on the time for better debugability
+    self.controller.adb.shell(
+        ['settings', 'put', 'secure', 'clock_seconds', '1']
+    )
 
   def _adb_shell_as_user(self, user_id: int | str, cmd: list[str]) -> bytes:
     """Runs adb as the specified user."""
