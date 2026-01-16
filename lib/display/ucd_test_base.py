@@ -18,6 +18,8 @@ import logging
 import os
 import time
 
+from chromiumos.test.lab.api.passport import video_tester_service_pb2
+from display.utils import interface_types
 from display.utils import modetest_helper
 from display.utils import ucd_manager
 from lib.pasit import display_helper
@@ -50,7 +52,7 @@ class UcdTestBase(pasit_test.PasitTestClass):
   helper: display_helper.DisplayHelper
   reboot_policy = pasit_test_config.RebootPolicy.ON_TEARDOWN_TEST
 
-  disable_screen_recording = True
+  screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
 
   _UCD_ABSOLUTE_MAX_CONNECTED_DISPLAYS = 4  # UCD-500 Ultimate max displays.
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
@@ -99,6 +101,73 @@ class UcdTestBase(pasit_test.PasitTestClass):
     self._ucd_manager.reset_ucd_displays_state_to_default()
     self._ucd_manager.disconnect_ucd()
     super().teardown_class()
+
+  def setup_test(self):
+    super().setup_test()
+
+    # Only DP event capture is supported for now.
+    if self._ucd_manager.interface_type == interface_types.InterfaceType.DP:
+      dprx_config, dptx_config = self.get_dp_event_capture_configs()
+      if dprx_config or dptx_config:
+        self._ucd_manager.start_dp_event_capture(
+            dprx_config=dprx_config, dptx_config=dptx_config
+        )
+
+  def get_dp_event_capture_configs(
+      self,
+  ) -> tuple[
+      video_tester_service_pb2.DpRxEventCaptureConfig | None,
+      video_tester_service_pb2.DpTxEventCaptureConfig | None,
+  ]:
+    """Returns the DP event capture configurations for RX and TX.
+
+    Can be overridden by subclasses.
+    By default, both HPD and AUX events are captured for both RX and TX.
+    """
+    return (
+        video_tester_service_pb2.DpRxEventCaptureConfig(
+            hpd_events=True, aux_events=True
+        ),
+        video_tester_service_pb2.DpTxEventCaptureConfig(
+            hpd_events=True, aux_events=True
+        ),
+    )
+
+  def on_fail(self, record):
+    self._handle_event_capture_end(record, failed=True)
+    super().on_fail(record)
+
+  def on_pass(self, record):
+    self._handle_event_capture_end(record, failed=False)
+    super().on_pass(record)
+
+  def on_skip(self, record):
+    self._handle_event_capture_end(record, failed=False)
+    super().on_skip(record)
+
+  def _handle_event_capture_end(self, record, failed: bool):
+    """Stops event capture and saves report if failed."""
+    if (
+        self._ucd_manager
+        and self._ucd_manager.interface_type == interface_types.InterfaceType.DP
+    ):
+      dptx_report, dprx_report = self._ucd_manager.stop_dp_event_capture(
+          generate_reports=failed
+      )
+
+      if failed:
+        if dprx_report:
+          filename = f"{record.test_name}_dprx_event_capture.html"
+          filepath = os.path.join(self.log_path, filename)
+          with open(filepath, "wb") as f:
+            f.write(dprx_report)
+          logging.info("Saved DP RX event capture report to %s", filepath)
+        if dptx_report:
+          filename = f"{record.test_name}_dptx_event_capture.html"
+          filepath = os.path.join(self.log_path, filename)
+          with open(filepath, "wb") as f:
+            f.write(dptx_report)
+          logging.info("Saved DP TX event capture report to %s", filepath)
 
   def skip_if_display_count_not_supported(self, display_count: int):
     """Skips the test if the display count to test is greater than the maximum supported displays."""

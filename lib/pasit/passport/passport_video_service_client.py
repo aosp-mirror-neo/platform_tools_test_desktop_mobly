@@ -233,22 +233,24 @@ class PassportVideoServiceClient:
         True if the link parameters were set successfully.
     """
     self._ensure_tester_open()
+    link_params = {
+        "mst": mst,
+        "ss_sbm": ss_sbm,
+        "mst_sink_count": mst_sink_count,
+        "scrambler_seed": scrambler_seed,
+        "max_lane": max_lane,
+        "video_spec": video_spec,
+        "dsc": dsc,
+    }
     request = video_tester_service_pb2.SetLinkVideoTesterRequest(
-        id=self._tester_id
+        id=self._tester_id,
+        # Setting only the values that are not None.
+        **{
+            key: value
+            for key, value in link_params.items()
+            if value is not None
+        },
     )
-    request.mst = mst
-    if ss_sbm is not None:
-      request.ss_sbm = ss_sbm
-    if mst_sink_count is not None:
-      request.mst_sink_count = mst_sink_count
-    if scrambler_seed is not None:
-      request.scrambler_seed = scrambler_seed
-    if max_lane is not None:
-      request.max_lane = max_lane
-    if video_spec is not None:
-      request.video_spec = video_spec
-    if dsc is not None:
-      request.dsc = dsc
 
     try:
       self._stub.SetLinkVideoTester(request)
@@ -351,6 +353,62 @@ class PassportVideoServiceClient:
   def is_open(self) -> bool:
     """Returns True if the video tester is open, False otherwise."""
     return self._tester_id is not None
+
+  def start_event_capture(
+      self,
+      dprx_config: (
+          video_tester_service_pb2.DpRxEventCaptureConfig | None
+      ) = None,
+      dptx_config: (
+          video_tester_service_pb2.DpTxEventCaptureConfig | None
+      ) = None,
+  ) -> bool:
+    """Starts event capture with the specified configuration.
+
+    Args:
+        dprx_config: Configuration for DP RX event capture.
+        dptx_config: Configuration for DP TX event capture.
+
+    Returns:
+        True if event capture was started successfully.
+    """
+    self._ensure_tester_open()
+    request = video_tester_service_pb2.StartEventCaptureRequest(
+        id=self._tester_id,
+        dprx_config=dprx_config,
+        dptx_config=dptx_config,
+    )
+
+    try:
+      self._stub.StartEventCapture(request)
+      return True
+    except grpc.RpcError:
+      logging.exception("Error starting event capture")
+      return False
+
+  def stop_event_capture(
+      self,
+      generate_reports: bool = False,
+  ) -> tuple[bytes | None, bytes | None]:
+    """Stops event capture and optionally generates reports.
+
+    Args:
+        generate_reports: If True, generate and return capture reports.
+
+    Returns:
+        A tuple containing (dptx_capture_html, dprx_capture_html).
+        Each element is bytes if report is generated, else None.
+    """
+    self._ensure_tester_open()
+    request = video_tester_service_pb2.StopEventCaptureRequest(
+        id=self._tester_id, generate_reports=generate_reports
+    )
+    try:
+      response = self._stub.StopEventCapture(request)
+      return response.dptx_capture_html, response.dprx_capture_html
+    except grpc.RpcError:
+      logging.exception("Error stopping event capture")
+      return None, None
 
   def __del__(self):
     """Closes the tester (if open) and the gRPC channel."""

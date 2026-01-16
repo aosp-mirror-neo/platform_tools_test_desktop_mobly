@@ -160,12 +160,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   def verify_display_count(self, expected_count: int, event_to_log: str):
     """Verifies that the display count is equal to the expected count."""
     asserts.assert_equal(
-        retry.retry(
-            lambda: len(self.helper.get_stable_display_ids()),
-            until=lambda ids_count: ids_count == expected_count,
-            policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-            exceptions=(display_helper.DisplayIDsNotStableError,),
-        ),
+        self.helper.get_display_count(expected_count),
         expected_count,
         f'Display IDs count is not {expected_count} {event_to_log}.',
     )

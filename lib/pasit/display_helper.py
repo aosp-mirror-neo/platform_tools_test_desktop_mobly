@@ -135,6 +135,36 @@ class DisplayHelper:
     logging.debug('External display ids: %s', external_display_ids)
     return external_display_ids
 
+  def get_display_count(
+      self,
+      expected_display_count: int,
+  ) -> int:
+    """Returns the number of displays detected.
+
+    The function waits for the display IDs to be stable and returns the number
+    of displays. This will retry according to the retry policy if the display
+    count does not match the expected count. The will return the last stable
+    display count, even if it is not the expected count.
+
+    Args:
+      expected_display_count: The expected number of displays.
+
+    Returns:
+      The number of displays detected.
+
+    Raises:
+      DisplayIDsNotStableError: If the display IDs are not stable this error
+      will be raised.
+    """
+
+    display_count = retry.retry(
+        lambda: len(self._get_stable_ids()),
+        until=lambda ids_count: ids_count == expected_display_count,
+        exceptions=(DisplayIDsNotStableError,),
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+    )
+    return display_count
+
   def _get_stable_ids(self) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Returns display IDs if stable, otherwise Raises DisplayIDsNotStableError."""
     start_time = time.time()

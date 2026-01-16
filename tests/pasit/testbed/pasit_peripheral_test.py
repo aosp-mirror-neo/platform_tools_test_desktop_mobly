@@ -35,6 +35,7 @@ from lib.pasit import pasit_hid
 from lib.pasit import pasit_network
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import pasit_test_config
 from lib.pasit import peripheral_connector
 from lib.pasit import test_policy
 from lib.pasit.passport import utils
@@ -47,7 +48,12 @@ from mobly import test_runner
 class PasitPeripheralTest(pasit_test.PasitTestClass):
 
   display: pasit_display.PasitDisplay
-  disable_screen_recording = True
+  # this test is use for frequently checking the testbed health so we don't
+  # want to incur the time cost of collecting bugreports on failures.
+  bugreport_policy: pasit_test_config.BugReportPolicy = (
+      pasit_test_config.BugReportPolicy.NONE
+  )
+  screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
 
   def teardown_test(self):
     """Handle the teardown for the test."""
@@ -134,12 +140,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
-    display_count = retry.retry(
-        lambda: len(self.helper.get_stable_display_ids()),
-        until=lambda ids_count: ids_count == expected_display_count,
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-        exceptions=(display_helper.DisplayIDsNotStableError,),
-    )
+    display_count = self.helper.get_display_count(expected_display_count)
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
         display_count,
