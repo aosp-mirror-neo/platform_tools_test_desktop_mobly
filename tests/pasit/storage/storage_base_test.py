@@ -19,6 +19,7 @@ import logging
 
 from lib.pasit import pasit_storage
 from lib.pasit import pasit_test
+from lib.pasit import peripheral_connector
 from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
@@ -29,25 +30,43 @@ class StorageBaseTest(pasit_test.PasitTestClass):
   """Base test for tests that use external storage."""
 
   storage: pasit_storage.PasitStorage
+  connector: peripheral_connector.PeripheralConnector
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_STORAGE
 
   def setup_class(self):
-    """Handle the setup for the test.
-
-    Create PasitStorage for the interacting with external storage.
-    """
     super().setup_class()
     self.storage = self.create(pasit_storage)
+    self.connector = peripheral_connector.PeripheralConnector(
+        self.passport_host
+    )
 
-  def plug_in_external_storage(self):
+  def plug_in_external_storage(
+      self,
+      connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
+  ):
     """Emulate external storage plug in using passport."""
-    logging.info('Plugging in external storage')
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_STORAGE)
+    path_tag = self.connector.get_peripheral_path_tag(
+        self.DEVICE_TYPE_STORAGE, connection_type
+    )
 
-  def unplug_external_storage(self):
+    logging.info('Plugging in external storage')
+    self.passport_host.activate_device_by_type(
+        self.DEVICE_TYPE_STORAGE, path_tag
+    )
+
+  def unplug_external_storage(
+      self,
+      connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
+  ):
     """Emulate external storage unplug using passport."""
+    path_tag = self.connector.get_peripheral_path_tag(
+        self.DEVICE_TYPE_STORAGE, connection_type
+    )
+
     logging.info('Unplugging external storage')
-    self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_STORAGE)
+    self.passport_host.deactivate_device_by_type(
+        self.DEVICE_TYPE_STORAGE, path_tag
+    )
 
   def verify_external_storage_mounted_or_reformat(self, message: str) -> str:
     """Wait to mount, reformat and retry if failed.

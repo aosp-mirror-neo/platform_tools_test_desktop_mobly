@@ -14,7 +14,6 @@
 
 """Test unplugging an external camera."""
 
-
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import functools
@@ -57,12 +56,15 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
         self.connect_external_camera()
     )
     self.capture_screenshots('after_plug_in_external_camera')
+    self.verify_camera_app_is_using_any_device(
+        internal_camera_devices, 'internal camera'
+    )
 
     self.switch_camera()
+    self.capture_screenshots('after_switch_camera')
     self.verify_camera_app_is_using_any_device(
         external_camera_devices, 'external camera'
     )
-    self.capture_screenshots('after_switch_camera')
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
         self.dut, state_when_unplug_camera
@@ -70,10 +72,10 @@ class UnplugExternalCameraTest(camera_base_test.CameraBaseTest):
       self.unplug_external_camera()
 
     self.launch_camera_app()
+    self.capture_screenshots('after_launch_camera_app_after_unplug')
     self.verify_camera_app_is_using_any_device(
         internal_camera_devices, 'internal camera'
     )
-    self.capture_screenshots('after_unplug_external_camera')
 
 
 if __name__ == '__main__':

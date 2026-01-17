@@ -42,17 +42,21 @@ class PlugInExternalCameraTest(camera_base_test.CameraBaseTest):
     ):
       self.plug_in_external_camera()
 
+    self.capture_screenshots('after_plug_in_external_camera')
     external_camera_devices = self._wait_for_external_camera_devices(
         internal_camera_devices
     )
     self.launch_camera_app()
-    self.switch_camera()
-
+    self.capture_screenshots('camera_app_launched')
     self.verify_camera_app_is_using_any_device(
-        external_camera_devices, "external camera"
+        internal_camera_devices, 'internal camera'
     )
-    self.capture_screenshots("after_plug_in_external_camera")
+    self.switch_camera()
+    self.capture_screenshots('after_switch_to_external_camera')
+    self.verify_camera_app_is_using_any_device(
+        external_camera_devices, 'external camera'
+    )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   test_runner.main()
