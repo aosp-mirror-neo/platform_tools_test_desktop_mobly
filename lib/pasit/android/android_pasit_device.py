@@ -155,6 +155,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._boot_id = None
     self._pause_screen_recording()
     self.controller.reboot()
+    self._user_session.skip_oobe()
     self._restart_screen_recording()
     self._update_boot_id()
     self._bypass_login_screen()
@@ -182,13 +183,14 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._wait_for_boot_completion()
     self._restart_screen_recording()
     self._update_boot_id()
+    self.controller.root_adb()
+    self._user_session.skip_oobe()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     self._user_session.switch_to_login_screen_user()
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
     self._snippets.install_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
-    self.controller.root_adb()
     self._start_services()
     self._bypass_login_screen()
 
