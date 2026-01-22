@@ -45,14 +45,27 @@ class StorageBaseTest(pasit_test.PasitTestClass):
       connection_type: peripheral_connector.ConnectionType = peripheral_connector.ConnectionType.ANY,
   ):
     """Emulate external storage plug in using passport."""
-    path_tag = self.connector.get_peripheral_path_tag(
-        self.DEVICE_TYPE_STORAGE, connection_type
-    )
+    storage_tag = self._get_storage_path_tag(connection_type)
 
     logging.info('Plugging in external storage')
     self.passport_host.activate_device_by_type(
-        self.DEVICE_TYPE_STORAGE, path_tag
+        self.DEVICE_TYPE_STORAGE, storage_tag
     )
+
+  def _get_storage_path_tag(
+      self,
+      connection_type: peripheral_connector.ConnectionType,
+  ) -> peripheral_connector.ConnectionTag | None:
+    """Gets the connection tag for the storage path and skips if not found."""
+    try:
+      return self.connector.get_peripheral_path_tag(
+          self.DEVICE_TYPE_STORAGE, connection_type
+      )
+    except (
+        peripheral_connector.PeripheralNotFoundError,
+        peripheral_connector.PeripheralPathNotFoundError,
+    ) as e:
+      asserts.skip(f'No storage path found: {e}')
 
   def unplug_external_storage(
       self,

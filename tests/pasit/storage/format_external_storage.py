@@ -34,11 +34,9 @@ class FormatExternalStorageTest(
       dockless=(peripheral_connector.ConnectionType.DOCKLESS,),
   )
   def test_format_external_storage(
-      self,
-      connection_type: peripheral_connector.ConnectionType
+      self, connection_type: peripheral_connector.ConnectionType
   ):
     """Test external storage functionality after formatting."""
-
     self.plug_in_external_storage(connection_type)
 
     blkdevs = self._try_get_external_storage_blkdevs()
@@ -46,10 +44,11 @@ class FormatExternalStorageTest(
     asserts.assert_equal(
         len(blkdevs),
         1,
-        f'Expected 1 external storage block device, found {len(blkdevs)}.'
+        f'Expected 1 external storage block device, found {len(blkdevs)}.',
     )
 
     logging.info('Formatting external storage.')
+
     asserts.assert_true(
         self.storage.format_external_storage(),
         'External storage formatting failed.',
