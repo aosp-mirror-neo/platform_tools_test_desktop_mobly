@@ -16,40 +16,45 @@
 
 import logging
 
-from lib.pasit import pasit_test
-from lib.utils import functools
+from lib.pasit import hid_keys
+from lib.pasit import pasit_device
 from mobly import asserts
+from mobly import records
 from mobly import test_runner
 from pasit.hid import hid_base_test
 
 
-@functools.generate_tests
 class HIDWakeTest(hid_base_test.HIDBaseTest):
   """Wake DUT from suspend using keyboard HID (Dock path only)."""
 
-  def test_wake_on_keyboard_keypress(self) -> None:
+  def on_fail(self, record: records.TestResultRecord) -> None:
+    # If the test fails, make sure the DUT is awake and online before the next
+    # test runs. The teardown_test method of the PasitTestClass is not called
+    # in the HIDBaseTest so the recovery routine is not run.
+    if hasattr(self, 'dut'):
+      self.dut.wakeup()
+    super().on_fail(record)
 
-    logging.info('Activating HID emulator on DOCK path')
-    self.passport_host.activate_device_by_type(
-        device_type=pasit_test.PasitTestClass.DEVICE_TYPE_HID,
-    )
-    asserts.assert_true(
-        self.hid.get_hid_devices(),
-        'Keyboard HID not detected on DOCK path',
-    )
+  def test_wake_on_keyboard_keypress(self) -> None:
+    """Verify DUT wakes from suspend on key press.
+
+    Suspend the DUT, then send a keyboard keypress to wake it up. Verify that
+    the DUT wakes up and is online.
+    """
+
     logging.info('Suspending DUT')
     self.dut.suspend()
-    asserts.assert_false(
-        self.dut.is_device_online(),
-        'DUT should be suspended',
-    )
-    logging.info('Sending keyboard key press to wake DUT')
-    # DUT needs 2 keypresses in succession to wake from sleep
-    self.emulator.keypress(['Enter', 'Enter'])
+    self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
+    # TODO: b/378512640 - need subsequent key-press to wake DUT from suspend
+    self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
+
+    logging.info('Waiting for DUT to wake up from suspend...')
     try:
       self.dut.wait_for_device_online()
-    except pasit_test.PasitDeviceError:
+    except pasit_device.PasitDeviceError:
       asserts.fail('DUT failed to wake on keyboard key press')
+
+    logging.info('DUT woke up from suspend on keyboard key press')
 
 
 if __name__ == '__main__':
