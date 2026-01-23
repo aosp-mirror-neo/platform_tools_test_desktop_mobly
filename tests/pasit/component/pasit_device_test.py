@@ -132,6 +132,22 @@ class PasitDeviceTest(base_test.BaseTestClass):
         base_user_tools.SessionStatus.LOGGED_IN,
     )
 
+  def test_guest_mode(self):
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.LOGGED_IN,
+    )
+    self.dut.user_tools.guest_mode()
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.GUEST,
+    )
+    self.dut.user_tools.logout()
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.LOGGED_OUT,
+    )
+
   @functools.with_variants(
       settings=(pasit_device.PasitDevice.UiApplication.SETTINGS,),
       files=(pasit_device.PasitDevice.UiApplication.FILES,),

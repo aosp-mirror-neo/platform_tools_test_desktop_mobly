@@ -15,6 +15,7 @@
 
 """AndroidUserTools provides tools for managing user sessions on an Android device."""
 
+import datetime
 import logging
 
 from lib.pasit.base import base_user_tools
@@ -28,6 +29,9 @@ LOGIN_SCREEN_USER_ID = 0
 
 DETECT_LAUNCHER_PACKAGE_RETRY_POLICY = retry.RetryPolicy(
     max_tries=10, delay_seconds=1
+)
+DETECT_GUEST_MODE_AS_ACTIVE_USER_RETRY_POLICY = retry.RetryPolicy(
+    max_tries=15, delay_seconds=1
 )
 LOCK_UNLOCK_RETRY_POLICY = retry.RetryPolicy(max_tries=10, delay_seconds=1)
 
@@ -73,6 +77,39 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
     """Switches to the login screen user."""
     self._switch_user(LOGIN_SCREEN_USER_ID)
 
+  def guest_mode(self) -> None:
+    """Enters guest mode."""
+    self.logout()
+    self.controller.log.info('Entering guest mode')
+    # Click the "Use as guest" button on the login screen.
+    use_as_guest_button = self.controller.ui(text='Use as guest')
+    if not use_as_guest_button.wait.exists(
+        timeout=datetime.timedelta(seconds=10)
+    ):
+      raise base_user_tools.UserToolsError(
+          'Failed to find "Use as guest" button on the login screen.'
+      )
+    use_as_guest_button.click()
+    # Wait for the user ID to switch to a guest ID.
+    retry.retry(
+        self._is_guest_user,
+        until=lambda is_guest_user: is_guest_user,
+        policy=DETECT_GUEST_MODE_AS_ACTIVE_USER_RETRY_POLICY,
+    )
+    # Wait for the launcher to be active to indicate that guest mode has been
+    # entered.
+    self._verify_launcher_exists()
+    if self.session_status() != base_user_tools.SessionStatus.GUEST:
+      raise base_user_tools.UserToolsError(
+          'Failed to enter guest mode, current status is'
+          f' {self.session_status()} and current user is'
+          f' {self.controller.adb.current_user_id}.'
+      )
+    logging.info(
+        'Guest mode entered, running as Guest user %s.',
+        self.controller.adb.current_user_id,
+    )
+
   def lock(self) -> None:
     if self.session_status() != base_user_tools.SessionStatus.LOGGED_IN:
       raise base_user_tools.UserToolsError(
@@ -116,14 +153,24 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
   def session_status(self) -> base_user_tools.SessionStatus:
     if self._is_locked():
       return base_user_tools.SessionStatus.LOCKED
-    if self.controller.adb.current_user_id == LOGGED_IN_USER_ID:
+    current_user_id = self.controller.adb.current_user_id
+    if current_user_id == LOGGED_IN_USER_ID:
       return base_user_tools.SessionStatus.LOGGED_IN
-    if self.controller.adb.current_user_id == LOGIN_SCREEN_USER_ID:
+    if current_user_id == LOGIN_SCREEN_USER_ID:
       return base_user_tools.SessionStatus.LOGGED_OUT
+    if self._is_guest_user():
+      return base_user_tools.SessionStatus.GUEST
     raise base_user_tools.UserToolsError(
         'Could not determine user session status, current user is'
-        f' {self.controller.adb.current_user_id}.'
+        f' {current_user_id}.'
     )
+
+  def _is_guest_user(self) -> bool:
+    # guest user IDs are dynamically generated so we cannot check for a
+    # specific guest user ID. Instead we check that the user ID is greater
+    # than the logged in user ID since the dynamic gues user ID is always
+    # greater than the logged in user ID.
+    return self.controller.adb.current_user_id > LOGGED_IN_USER_ID
 
   def _ignore_oobe_error(self, e: adb.AdbError) -> bool:
     """Checks if the OOBE error is ignorable."""

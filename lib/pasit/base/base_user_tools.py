@@ -24,6 +24,7 @@ class SessionStatus(enum.Enum):
   LOCKED = 'locked'
   LOGGED_IN = 'logged in'
   LOGGED_OUT = 'logged out'
+  GUEST = 'guest'
 
 
 class UserToolsError(Exception):
@@ -79,4 +80,9 @@ class BaseUserTools(abc.ABC):
     Raises:
       UserToolsError: If the device is not unlocked after the unlock attempt.
     """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def guest_mode(self) -> None:
+    """Enters guest mode."""
     raise NotImplementedError
