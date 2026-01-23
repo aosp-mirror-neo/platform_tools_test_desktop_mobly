@@ -100,6 +100,10 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
           f' {self.controller.adb.current_user_id}.'
       )
     if user_id == LOGGED_IN_USER_ID:
+      # this is a fail safe to work around a known issue where sometimes the
+      # setup wizard does not get properly skipped due to crashes/ANRs, and
+      # as a result the launcher package is not found.
+      self.skip_oobe()
       self._verify_launcher_exists()
 
   def _verify_launcher_exists(self) -> None:
