@@ -103,7 +103,8 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._snippets.install_and_load_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
     self._snippets.register_uiautomator()
     self._ui_watcher.add(self._PROCESS_NOT_RESPONDING_PARAMS)
-    self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS)
+    if self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS):
+      self._user_session.skip_oobe()
     self._bypass_login_screen()
     self._boot_id = None
     self._update_boot_id()
