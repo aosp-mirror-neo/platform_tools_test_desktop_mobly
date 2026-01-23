@@ -21,6 +21,7 @@ import logging
 from typing import Any, Callable
 
 from lib.pasit import test_policy
+from lib.pasit.base import base_user_tools
 from lib.utils import retry
 from lib.utils import servo_client
 
@@ -272,6 +273,12 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def stop_app(self, app: UiApplication):
     """Stops the UI application on the device."""
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def user_tools(self) -> base_user_tools.BaseUserTools:
+    """Returns the user tools instance for the device."""
     raise NotImplementedError
 
   def wait_for_device_online(self):
