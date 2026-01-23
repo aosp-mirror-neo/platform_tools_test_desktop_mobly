@@ -17,6 +17,10 @@
 import abc
 
 
+class UserToolsError(Exception):
+  """UserToolsError is raised when there is an error with a UserTools call."""
+
+
 class BaseUserTools(abc.ABC):
   """Base class for user tools."""
 

@@ -25,13 +25,9 @@ from mobly.controllers.android_device_lib import adb
 LOGGED_IN_USER_ID = 10
 LOGIN_SCREEN_USER_ID = 0
 
-DETECT_LAUNCHER_AS_ACTIVE_PACKAGE_RETRY_POLICY = retry.RetryPolicy(
+DETECT_LAUNCHER_PACKAGE_RETRY_POLICY = retry.RetryPolicy(
     max_tries=10, delay_seconds=1
 )
-
-
-class UserSessionError(Exception):
-  """Raised when there is an error managing user sessions on an Android device."""
 
 
 class UnexpectedActivePackageError(Exception):
@@ -75,13 +71,6 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
       else:
         raise e
 
-  def _ignore_oobe_error(self, e: adb.AdbError) -> bool:
-    """Checks if the OOBE error is ignorable."""
-    return any(
-        error_to_ignore in str(e.stderr)
-        for error_to_ignore in self._IGNORABLE_OOBE_ERRORS
-    )
-
   def login(self) -> None:
     """Switches to the logged in user."""
     self._switch_user(LOGGED_IN_USER_ID)
@@ -90,34 +79,50 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
     """Switches to the login screen user."""
     self._switch_user(LOGIN_SCREEN_USER_ID)
 
+  def _ignore_oobe_error(self, e: adb.AdbError) -> bool:
+    """Checks if the OOBE error is ignorable."""
+    return any(
+        error_to_ignore in str(e.stderr)
+        for error_to_ignore in self._IGNORABLE_OOBE_ERRORS
+    )
+
   def _switch_user(self, user_id: int) -> None:
     """Switches the user on the device."""
-    if user_id == self.controller.adb.current_user_id:
-      logging.debug('Device is already logged in as user %s.', user_id)
-      return
-    self.controller.adb.shell(['am', 'switch-user', '-w', str(user_id)])
-    if user_id == LOGGED_IN_USER_ID:
-      # wait for the launcher to be active before proceeding
-      retry.retry(
-          lambda: self._ui_active_package_is(self._LAUNCHER_PACKAGE_NAME),
-          policy=DETECT_LAUNCHER_AS_ACTIVE_PACKAGE_RETRY_POLICY,
-          exceptions=(UnexpectedActivePackageError,),
-      )
-    # ensure that the user switch was successful
     if user_id != self.controller.adb.current_user_id:
-      raise UserSessionError(
+      logging.debug('Switching user to %s.', user_id)
+      # Only run the switch-user command if the user is not the current user,
+      # but still run the checks to ensure that the user switch was successful
+      # even if the switch-user command was not run.
+      self.controller.adb.shell(['am', 'switch-user', '-w', str(user_id)])
+    if user_id != self.controller.adb.current_user_id:
+      raise base_user_tools.UserToolsError(
           f'Failed to switch user to {user_id}, current user is'
           f' {self.controller.adb.current_user_id}.'
       )
+    if user_id == LOGGED_IN_USER_ID:
+      self._verify_launcher_exists()
 
-  def _ui_active_package_is(self, expected_package: str) -> None:
-    """Checks if the active package is the expected package."""
-    try:
-      if not self.controller.ui(pkg=expected_package):
-        raise UnexpectedActivePackageError(
-            expected_package, self.controller.ui.package_name
-        )
-    except Exception as e:  # pylint: disable=broad-except
-      raise UserSessionError(
-          f'Failed to check if package {expected_package} is active.'
-      ) from e
+  def _verify_launcher_exists(self) -> None:
+    # wait for the launcher to be active before proceeding
+    exists = retry.retry(
+        lambda: self._ui_package_exists(self._LAUNCHER_PACKAGE_NAME),
+        until=lambda exists: exists,
+        policy=DETECT_LAUNCHER_PACKAGE_RETRY_POLICY,
+    )
+    if not exists:
+      raise base_user_tools.UserToolsError(
+          'Failed to find launcher package when logged in'
+          f' {self._LAUNCHER_PACKAGE_NAME} is does not exist.'
+      )
+
+  def _ui_package_exists(self, package_name: str) -> bool:
+    """Checks if a UI element with the given package name exists.
+
+    Args:
+      package_name: The package name to check for.
+
+    Returns:
+      True if a UI element with the given package name exists, False otherwise.
+    """
+    package_info = self.controller.ui(pkg=package_name)
+    return package_info is not None and package_info.exists
