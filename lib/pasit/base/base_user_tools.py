@@ -15,6 +15,15 @@
 """BaseUserTools provides a base class for user tools."""
 
 import abc
+import enum
+
+
+class SessionStatus(enum.Enum):
+  """The user session status."""
+
+  LOCKED = 'locked'
+  LOGGED_IN = 'logged in'
+  LOGGED_OUT = 'logged out'
 
 
 class UserToolsError(Exception):
@@ -23,6 +32,17 @@ class UserToolsError(Exception):
 
 class BaseUserTools(abc.ABC):
   """Base class for user tools."""
+
+  @abc.abstractmethod
+  def session_status(self) -> SessionStatus:
+    """Returns the user session status.
+
+    Returns:
+      The user session status.
+    Raises:
+      UserToolsError: If the user session status cannot be determined.
+    """
+    raise NotImplementedError
 
   @abc.abstractmethod
   def skip_oobe(self) -> None:
@@ -37,4 +57,26 @@ class BaseUserTools(abc.ABC):
   @abc.abstractmethod
   def logout(self) -> None:
     """Logs out the user."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def lock(self) -> None:
+    """Locks the device.
+
+    User must be logged in to lock the device. If this is called when session
+    status is not logged in, a UserSessionError will be raised.
+
+    Raises:
+      UserToolsError: If the device is not locked after the lock attempt or
+      if the device is not logged in when lock is attempted.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def unlock(self) -> None:
+    """Unlocks the device.
+
+    Raises:
+      UserToolsError: If the device is not unlocked after the unlock attempt.
+    """
     raise NotImplementedError

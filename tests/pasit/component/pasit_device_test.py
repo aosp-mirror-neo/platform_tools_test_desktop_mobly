@@ -17,6 +17,7 @@
 import logging
 
 from lib.pasit import pasit_device
+from lib.pasit.base import base_user_tools
 from lib.utils import functools
 from mobly import asserts
 from mobly import base_test
@@ -37,6 +38,7 @@ class PasitDeviceTest(base_test.BaseTestClass):
     if not self.dut.is_powered():
       logging.error('DUT is not powered after test, powering via servo.')
       self.dut.enable_servo_power()
+    self.dut.user_tools.login()
 
   def test_shell(self):
     self.dut.shell(['echo', 'Hello', 'World!'])
@@ -113,6 +115,22 @@ class PasitDeviceTest(base_test.BaseTestClass):
     self.dut.set_lid_open()
     # make sure device is online after setting lid open
     self.dut.wait_for_device_online()
+
+  def test_lock_unlock(self):
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.LOGGED_IN,
+    )
+    self.dut.user_tools.lock()
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.LOCKED,
+    )
+    self.dut.user_tools.unlock()
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        base_user_tools.SessionStatus.LOGGED_IN,
+    )
 
   @functools.with_variants(
       settings=(pasit_device.PasitDevice.UiApplication.SETTINGS,),
