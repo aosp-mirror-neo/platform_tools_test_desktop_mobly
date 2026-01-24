@@ -38,22 +38,27 @@ class UIWatcher:
     self.controller = controller
     self.watchers = []
 
-  def add(self, params: UIWatcherParams) -> None:
+  def add(self, params: UIWatcherParams) -> bool:
     """Adds a watcher to close a window.
+
+    Checks if the window exists and if so closes it. Also adds a watcher to
+    close the window if it appears again during the test. This is to prevent the
+    window from obscuring the view of UI elements.
 
     Args:
       params: The UI watcher parameters.
 
-    Checks if the window exists and if so closes it. Also adds a watcher to
-      close the window if it appears again during the test. This is to prevent
-      the window from obscuring the view of UI elements.
+    Returns:
+      True if the window was detected and closed, False otherwise.
     """
+    window_detected = False
     try:
       if self.controller.ui(text=params.text_to_match).exists:
         self.controller.ui(text=params.text_to_click).click()
         logging.warning(
             "'%s' window detected and closed.", params.text_to_match
         )
+        window_detected = True
 
       self.controller.ui.watcher(params.watcher_name).when(
           text=params.text_to_match
@@ -65,6 +70,7 @@ class UIWatcher:
           params.text_to_match,
           e,
       )
+    return window_detected
 
   def remove_all(self) -> None:
     """Removes all watchers."""

@@ -64,6 +64,7 @@ function usage() {
   echo "  --skip-servo-setup: Skip setting up servod container."
   echo "  --port-offset: An integer to offset all the tunnel ports by."
   echo "  --cros: Run the script to test CrOS devices (default is Android)."
+  echo "  --sfp: Use this if the DUT is Satlab for Partners enrolled."
   echo ""
   echo "Example:"
   echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
@@ -429,6 +430,10 @@ while [[ $# -gt 0 ]]; do
       PORT_OFFSET="$2"
       shift; shift
       ;;
+    --sfp)
+      SFP=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -438,6 +443,12 @@ done
 
 if [[ -z "${DUT_HOSTNAME}" ]]; then
   usage
+fi
+
+if [[ "${SFP}" == true ]]; then
+  export SHIVAS_NAMESPACE=os-partner
+  SKIP_LEASE=true
+  echo "Warning cannot lease or provision DUTs for Satlab for Partners enrolled, skipping these steps."
 fi
 
 if [[ -z "${SATLAB_IP}" ]]; then
@@ -460,7 +471,7 @@ check_dependencies
 # Check SSH access early
 check_ssh_access
 
-if [[ "${SKIP_LEASE}" != true || "${SKIP_SETUP_SERVO}" != true || "${PROVISION}" == true ]]; then
+if [[ "${SKIP_LEASE}" != true || "${PROVISION}" == true ]]; then
   # if we are not doing these steps then we can skip the crosfleet call
   # since we won't need the DUT info for anything else this removes the need
   # for crosfleet and shivas commands

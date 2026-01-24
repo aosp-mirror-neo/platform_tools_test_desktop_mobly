@@ -21,12 +21,13 @@ import logging
 import threading
 import time
 
+from lib.pasit.android import android_user_tools
 from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import ui_watcher
-from lib.pasit.android import user_session_tools
 from lib.pasit.base import base_pasit_device
+from lib.pasit.base import base_user_tools
 from lib.utils import retry
 from lib.utils import servo_client
 from mobly.controllers import android_device
@@ -86,25 +87,26 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     android_device.TAKE_SCREENSHOT_TIMEOUT_SECOND = 20
 
     self._snippets = snippet_tools.SnippetTools(self.controller)
-    self._user_session = user_session_tools.UserSessionTools(self.controller)
     self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
     self._screen_recording_started = False
     self._ui_watcher = ui_watcher.UIWatcher(self.controller)
+    self._user_tools = android_user_tools.AndroidUserTools(self.controller)
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
-    self._user_session.skip_oobe()
+    self._user_tools.skip_oobe()
     # for consistency across all runs
     # and to make sure that mbs is installed under the login screen user
-    self._user_session.switch_to_login_screen_user()
+    self._user_tools.logout()
     self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self._snippets.uninstall_all()
-    self._snippets.install_and_load_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
+    self._snippets.install_and_load_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)
     self._snippets.register_uiautomator()
     self._ui_watcher.add(self._PROCESS_NOT_RESPONDING_PARAMS)
-    self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS)
-    self._bypass_login_screen()
+    if self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS):
+      self._user_session.skip_oobe()
+    self._user_tools.login()
     self._boot_id = None
     self._update_boot_id()
 
@@ -155,9 +157,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._boot_id = None
     self._pause_screen_recording()
     self.controller.reboot()
+    self._user_tools.skip_oobe()
     self._restart_screen_recording()
     self._update_boot_id()
-    self._bypass_login_screen()
+    self._user_tools.login()
 
   def cold_reset(self):
     self._boot_id = None
@@ -182,15 +185,16 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._wait_for_boot_completion()
     self._restart_screen_recording()
     self._update_boot_id()
+    self.controller.root_adb()
+    self._user_tools.skip_oobe()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
-    self._user_session.switch_to_login_screen_user()
+    self._user_tools.logout()
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
-    self._snippets.install_mbs(user_session_tools.LOGIN_SCREEN_USER_ID)
-    self.controller.root_adb()
+    self._snippets.install_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)
     self._start_services()
-    self._bypass_login_screen()
+    self._user_tools.login()
 
   def power_off(self):
     self._pause_screen_recording()
@@ -204,6 +208,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._pause_screen_recording()
     self._stop_services()
     self._suspend()
+
+  @property
+  def user_tools(self) -> base_user_tools.BaseUserTools:
+    return self._user_tools
 
   def _wakeup_attempt(self):
     # This is just one way we could acomplish the retries to deal with ADB
@@ -439,9 +447,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.controller.adb.shell(['cmd', 'power', 'sleep', '--disable-wakelocks'])
     logging.debug('Waiting for device to suspend...')
     self.wait_for_device_offline()
-
-  def _bypass_login_screen(self):
-    self._user_session.switch_to_logged_in_user()
 
   def _set_wakup_timeout(self, wakeup_timeout_seconds: int):
     self._adb_shell_as_user(

@@ -35,9 +35,7 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.hid = self.create(pasit_hid)
 
-  # TODO: b/454896957 - flaky test. Enable this test once the bug is fixed.
-  def _test_initialize_before_plug_in_hid_emulator_raises_error(self) -> None:
-    self.unplug_hid_emulator()
+  def test_initialize_before_plug_in_hid_emulator_raises_error(self) -> None:
     emulator = hid_emulator.HIDEmulator(self.passport_host)
     with asserts.assert_raises(hid_emulator.HIDEmulator.Error):
       emulator.initialize()

@@ -13,10 +13,11 @@
 # limitations under the License.
 
 
-"""UserSessionTools provides tools for managing user sessions on an Android device."""
+"""AndroidUserTools provides tools for managing user sessions on an Android device."""
 
 import logging
 
+from lib.pasit.base import base_user_tools
 from lib.utils import retry
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import adb
@@ -45,8 +46,8 @@ class UnexpectedActivePackageError(Exception):
     self.actual_package = actual_package
 
 
-class UserSessionTools:
-  """UserSessionTools provides tools for managing user sessions on an Android device."""
+class AndroidUserTools(base_user_tools.BaseUserTools):
+  """AndroidUserTools provides tools for managing user sessions on an Android device."""
 
   _IGNORABLE_OOBE_ERRORS = (
       'Activity not started, unable to resolve Intent',
@@ -58,7 +59,7 @@ class UserSessionTools:
   def __init__(self, controller: android_device.AndroidDevice):
     self.controller = controller
 
-  def skip_oobe(self):
+  def skip_oobe(self) -> None:
     """Skips the OOBE flow."""
     # Skip OOBE/Setup Wizard - go/skip-oobe
     try:
@@ -74,20 +75,22 @@ class UserSessionTools:
       else:
         raise e
 
-  def _ignore_oobe_error(self, e: adb.AdbError):
+  def _ignore_oobe_error(self, e: adb.AdbError) -> bool:
     """Checks if the OOBE error is ignorable."""
     return any(
         error_to_ignore in str(e.stderr)
         for error_to_ignore in self._IGNORABLE_OOBE_ERRORS
     )
 
-  def switch_to_login_screen_user(self):
-    self._switch_user(LOGIN_SCREEN_USER_ID)
-
-  def switch_to_logged_in_user(self):
+  def login(self) -> None:
+    """Switches to the logged in user."""
     self._switch_user(LOGGED_IN_USER_ID)
 
-  def _switch_user(self, user_id: int):
+  def logout(self) -> None:
+    """Switches to the login screen user."""
+    self._switch_user(LOGIN_SCREEN_USER_ID)
+
+  def _switch_user(self, user_id: int) -> None:
     """Switches the user on the device."""
     if user_id == self.controller.adb.current_user_id:
       logging.debug('Device is already logged in as user %s.', user_id)
@@ -107,7 +110,7 @@ class UserSessionTools:
           f' {self.controller.adb.current_user_id}.'
       )
 
-  def _ui_active_package_is(self, expected_package: str):
+  def _ui_active_package_is(self, expected_package: str) -> None:
     """Checks if the active package is the expected package."""
     try:
       if not self.controller.ui(pkg=expected_package):
