@@ -152,6 +152,8 @@ class PasitTestClass(base_test.BaseTestClass):
     if unexpected_reboot_detected:
       # don't fail until after the reboot policy is handled
       asserts.fail('DUT unexpectedly rebooted during test.')
+    # 7) ensure that the DUT is logged in and unlocked after each test
+    self.dut.user_tools.login()
     super().teardown_test()
 
   def _reset_passport_host(self):
