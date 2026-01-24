@@ -41,7 +41,10 @@ class ChangeDisplayResolutionTest(display_base_test.DisplayBaseTest):
       one_display_dock=(peripheral_connector.ConnectionType.DOCK, 1),
       one_display_dockless=(peripheral_connector.ConnectionType.DOCKLESS, 1),
       two_displays_dock=(peripheral_connector.ConnectionType.DOCK, 2),
-      two_displays_dockless=(peripheral_connector.ConnectionType.DOCKLESS, 2),
+      two_displays_daisychain=(
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+          2,
+      ),
   )
   def test_external_display_resolution_when_dut(
       self,

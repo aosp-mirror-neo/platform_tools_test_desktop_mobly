@@ -21,14 +21,14 @@ from lib.pasit.base import base_pasit_device
 
 
 @enum.unique
-class PowerState(enum.Enum):
+class PowerState(enum.StrEnum):
   ON = 'on'
   OFF = 'off'
   SUSPEND = 'suspended'
 
 
 @enum.unique
-class PowerAction(enum.Enum):
+class PowerAction(enum.StrEnum):
   """Represents power-related actions for the DUT."""
 
   SUSPEND = 'suspend'
