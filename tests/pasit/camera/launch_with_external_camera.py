@@ -54,27 +54,35 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     )
     self.launch_camera_app()
     self.capture_screenshots('camera_app_launched')
+    self.verify_camera_app_is_using_any_device(
+        internal_camera_devices, 'internal camera'
+    )
 
     self.switch_camera()
     self.capture_screenshots('after_switch_to_external_camera')
+    self.verify_camera_app_is_using_any_device(
+        external_camera_devices, 'external camera'
+    )
+
     self._verify_external_camera_captures_color(
         image.NamedColor.BLUE,
         'External camera preview (on the internal display) should be showing'
         ' blue color.',
     )
+
     dut_state_manager.execute_power_action(self.dut, action_after_plug_camera)
 
     if action_after_plug_camera == dut_state_manager.PowerAction.SUSPEND:
       self.verify_camera_app_is_using_any_device(
           external_camera_devices, 'external camera'
       )
+      self.capture_screenshots('after_dut_woken_up_from_suspend')
     else:
       self.launch_camera_app()
       self.verify_camera_app_is_using_any_device(
           internal_camera_devices, 'internal camera'
       )
-
-    self.capture_screenshots(f'after_dut_{action_after_plug_camera}')
+      self.capture_screenshots('after_dut_powered_on_and_camera_app_launched')
 
   def _verify_external_camera_captures_color(
       self, color: image.NamedColor, message: str

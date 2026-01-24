@@ -104,8 +104,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._snippets.install_and_load_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)
     self._snippets.register_uiautomator()
     self._ui_watcher.add(self._PROCESS_NOT_RESPONDING_PARAMS)
-    if self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS):
-      self._user_session.skip_oobe()
+    self._ui_watcher.add(self._ANDROID_SETUP_KEEPS_STOPPING_PARAMS)
     self._user_tools.login()
     self._boot_id = None
     self._update_boot_id()
@@ -157,7 +156,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._boot_id = None
     self._pause_screen_recording()
     self.controller.reboot()
-    self._user_tools.skip_oobe()
     self._restart_screen_recording()
     self._update_boot_id()
     self._user_tools.login()
@@ -186,7 +184,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._restart_screen_recording()
     self._update_boot_id()
     self.controller.root_adb()
-    self._user_tools.skip_oobe()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     self._user_tools.logout()
