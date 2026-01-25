@@ -39,6 +39,7 @@ python_test_host {
         "py-display-painter",
         "py-display-helper",
         "py-desktop-utils",
+        "py-network-helper",
         "py-pasit-hid",
         "py-pasit-network",
     ],
