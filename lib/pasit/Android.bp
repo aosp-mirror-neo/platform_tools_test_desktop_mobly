@@ -330,3 +330,16 @@ python_test_host {
         "py-desktop-utils",
     ],
 }
+
+python_library_host {
+    name: "py-network-helper",
+    srcs: [
+        "network_helper.py",
+    ],
+    libs: [
+        "mobly",
+        "py-pasit-network",
+        "py-test-policy",
+    ],
+    pkg_path: "lib/pasit",
+}

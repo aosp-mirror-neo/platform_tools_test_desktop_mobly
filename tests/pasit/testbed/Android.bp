@@ -43,6 +43,7 @@ python_test_host {
         "py-display-helper",
         "py-display-painter",
         "py-display-camera-mapper",
+        "py-network-helper",
         "py-peripheral-connector",
     ],
     pkg_path: "pasit/testbed",

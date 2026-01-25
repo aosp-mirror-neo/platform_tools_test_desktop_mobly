@@ -29,6 +29,7 @@ from google.protobuf import json_format
 from lib.pasit import display_camera_mapper
 from lib.pasit import display_helper
 from lib.pasit import display_painter
+from lib.pasit import network_helper
 from lib.pasit import pasit_camera
 from lib.pasit import pasit_display
 from lib.pasit import pasit_hid
@@ -128,7 +129,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         'Display device is not present in the topology.',
     )
     self.display = self.create(pasit_display)
-    self.helper = display_helper.DisplayHelper(self.display)
+    helper = display_helper.DisplayHelper(self.display)
     logging.info(
         'Testing display device: %s with %s path',
         device_id,
@@ -140,7 +141,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
-    display_count = self.helper.get_display_count(expected_display_count)
+    display_count = helper.get_display_count(expected_display_count)
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
         display_count,
@@ -191,22 +192,16 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         ' after activation of HID emulator.',
     )
 
-  def _network_test_logic(self, device_id: str):
+  def _network_test_logic(self, device_id: str) -> None:
     """Tests that we can activate and detect a specific Ethernet device."""
     self.network = self.create(pasit_network)
+    helper = network_helper.NetworkHelper(self.network)
     network_devices_before_activation = self.network.get_network_infos()
     logging.info('Testing Ethernet device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
-    logging.info('Waiting for new network device to be detected...')
-    network_infos_after_activation = retry.retry(
-        self.network.get_network_infos,
-        until=lambda network_infos: network_infos.keys()
-        - network_devices_before_activation.keys(),
-        policy=test_policy.NetworkTestPolicy.DETECT_EXTERNAL_NETWORK_DEVICES_RETRY_POLICY,
-    )
-    new_network_infos = (
-        network_infos_after_activation.keys()
-        - network_devices_before_activation.keys()
+
+    new_network_infos = helper.wait_for_new_network_detected(
+        network_devices_before_activation
     )
     asserts.assert_equal(
         len(new_network_infos),
@@ -218,27 +213,16 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     logging.info(
         'Found new network: %s checking if cable is connected', iface_name
     )
-    # check if cable is connected
-    networks = retry.retry(
-        self.network.get_network_infos,
-        until=lambda networks: _is_network_cable_connected(
-            networks, iface_name
-        ),
-        policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_CABLE_CONNECTED_RETRY_POLICY,
-    )
+    is_cable_connected = helper.wait_for_network_cable_connected(iface_name)
     asserts.assert_true(
-        _is_network_cable_connected(networks, iface_name),
+        is_cable_connected,
         f'Cable is not detected as connected for network {iface_name}.',
     )
     logging.info(
         'Cable is connected for network %s, check if connected to internet',
         iface_name,
     )
-    has_internet = retry.retry(
-        lambda: self.network.is_network_connected_to_internet(iface_name),
-        until=lambda result: result,
-        policy=test_policy.NetworkTestPolicy.DETECT_NETWORK_INTERNET_CONNECTED_RETRY_POLICY,
-    )
+    has_internet = helper.wait_for_network_connected_to_internet(iface_name)
     asserts.assert_true(
         has_internet,
         f'Network {iface_name} is not connected to internet.',

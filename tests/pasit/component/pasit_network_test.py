@@ -16,6 +16,7 @@
 
 import logging
 
+from lib.pasit import network_helper
 from lib.pasit import pasit_network
 from lib.pasit import pasit_test
 from mobly import asserts
@@ -30,10 +31,26 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
   def setup_class(self) -> None:
     super().setup_class()
     self.network = self.create(pasit_network)
+    self.helper = network_helper.NetworkHelper(self.network)
+
+  def setup_test(self) -> None:
+    super().setup_test()
+    networks_before = self.network.get_network_infos()
+    self.plug_in_network_device()
+    new_networks = self.helper.wait_for_new_network_detected(networks_before)
+    asserts.assert_equal(
+        len(new_networks),
+        1,
+        'Expected exactly one new network device to be detected after'
+        f' activation, but got got {len(new_networks)}.',
+    )
 
   def teardown_class(self) -> None:
     super().teardown_class()
-    self.network.cleanup()
+    # network cleanup should be called after passport reset
+    # in super().teardown_class()
+    if hasattr(self, 'network'):
+      self.network.cleanup()
 
   def test_get_network_infos(self) -> None:
     networks = self.network.get_network_infos()
@@ -65,7 +82,12 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
       )
 
   def test_get_network_infos_not_down(self) -> None:
-    networks = self.network.get_network_infos_not_down()
+    networks = self.helper.wait_for_any_not_down_network()
+    asserts.assert_true(
+        networks,
+        'Expected at least one network from get_network_infos_not_down',
+    )
+
     found_lower_up_iface = ''
     for network in networks.values():
       logging.info('Found network: %s', network.name)
@@ -84,7 +106,11 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
     logging.info('Found network with lower_up True: %s', found_lower_up_iface)
 
   def test_is_network_connected_to_internet(self) -> None:
-    networks = self.network.get_network_infos_not_down()
+    networks = self.helper.wait_for_any_not_down_network()
+    asserts.assert_true(
+        networks,
+        'Expected at least one network from get_network_infos_not_down',
+    )
     # try the connected test on the first network found that is not DOWN
     iface = next(iter(networks.values()))
     logging.info(
@@ -98,6 +124,10 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
 
   def test_is_network_connected_to_internet_not_connected(self) -> None:
     networks = self.network.get_network_infos()
+    asserts.assert_true(
+        networks, 'Expected at least one network from get_network_infos'
+    )
+
     iface = None
     # try the connected test on the first network found that is not DOWN
     for network in networks.values():
@@ -119,6 +149,11 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
         self.network.is_network_connected_to_internet(iface.name),
         f'Expected network {iface.name} to be not connected to internet',
     )
+
+  def plug_in_network_device(self) -> None:
+    """Plugs in the network device to the DUT."""
+    logging.info('Plugging in network device to DUT')
+    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_NETWORK)
 
 
 if __name__ == '__main__':
