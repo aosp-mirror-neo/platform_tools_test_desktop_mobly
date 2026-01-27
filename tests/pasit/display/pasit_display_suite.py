@@ -22,6 +22,7 @@ from pasit.display import shutdown_with_external_display
 from pasit.display import plug_in_two_external_displays
 from pasit.display import unplug_external_display
 from pasit.display import change_external_display_resolution
+from pasit.display import night_light
 
 
 class PasitDisplaySuite(base_suite.BaseSuite):
@@ -39,6 +40,7 @@ class PasitDisplaySuite(base_suite.BaseSuite):
     self.add_test_class(
         change_external_display_resolution.ChangeDisplayResolutionTest
     )
+    self.add_test_class(night_light.NightLightTest)
 
 
 def main() -> None:
