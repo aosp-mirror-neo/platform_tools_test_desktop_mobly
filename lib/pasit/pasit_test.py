@@ -413,6 +413,7 @@ class PasitTestClass(base_test.BaseTestClass):
         raise
       except Exception as e:
         self._test_failed = True
+        self._stop_screen_recording()
         self._capture_bugreport(True)
         self._try_capture_screenshots()
         self._try_capture_images_from_all_cameras()
