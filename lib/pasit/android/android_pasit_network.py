@@ -26,6 +26,8 @@ from mobly.controllers.android_device_lib import adb
 class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
   """PasitNetwork implementation for Android devices."""
 
+  AUTOSTART_EHIDE_PROPERTY = 'persist.vendor.ehide.autostart'
+
   def __init__(
       self,
       controller: android_device.AndroidDevice,
@@ -44,13 +46,17 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
     """
     self._stop_ehide()
 
-  def _start_ehide(self):
-    self.controller.adb.shell(['start', 'ehide'])
-    # need a short delay to ensure that ehide is started and the adb connection
-    # glitch has happened before we wait for device and check if ehide is
-    # running.
-    time.sleep(1)
-    self.controller.adb.wait_for_device(timeout=30)
+  def _start_ehide(self) -> None:
+    """Starts ehide on the DUT."""
+
+    # Starts ehide on the DUT, and makes sure that ehide is started after a
+    # reboot. Need a short delay to ensure that ehide is started and the adb
+    # connection glitch has happened before we wait for device and check if
+    # ehide is running.
+    self._execute_adb_command_with_glitch_handling(
+        ['setprop', self.AUTOSTART_EHIDE_PROPERTY, '1'], sleep=1
+    )
+
     result = retry.retry(
         lambda: self.controller.adb.shell(['ehide-cli']),
         until=lambda result: 'stopped' not in result.decode(),
@@ -63,12 +69,29 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
           ' running.'
       )
 
-  def _stop_ehide(self):
+  def _stop_ehide(self) -> None:
+    """Stops ehide on the DUT."""
+
+    self._execute_adb_command_with_glitch_handling(
+        ['setprop', self.AUTOSTART_EHIDE_PROPERTY, '0']
+    )
+    # ignore error since adb will disconnect when ehide is stopped
+    self._execute_adb_command_with_glitch_handling(
+        ['stop', 'ehide'], ignore_error=True
+    )
+
+  def _execute_adb_command_with_glitch_handling(
+      self, command: list[str], sleep: int = 0, ignore_error: bool = False
+  ) -> None:
     try:
-      self.controller.adb.shell(['stop', 'ehide'])
+      self.controller.adb.shell(command)
     except adb.AdbError as e:
-      # ignore error since adb will disconnect when ehide is stopped
-      logging.debug('ehide failed to stop, ignoring error: %s', e)
+      if ignore_error:
+        logging.debug('command failed, ignoring error: %s', e)
+      else:
+        raise e
+    if sleep > 0:
+      time.sleep(sleep)
     self.controller.adb.wait_for_device(timeout=30)
 
   def get_network_infos(self) -> dict[str, base_pasit_network.NetworkInfo]:
