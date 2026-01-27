@@ -59,20 +59,21 @@ def execute_power_action(dut: pasit_device.PasitDevice, action: PowerAction):
     raise base_pasit_device.ServoNotConfiguredError(
         f'Servo is not configured, cannot execute {action}.'
     )
-
   match action:
     case PowerAction.SHUTDOWN:
-      logging.info('Executing SHUTDOWN sequence (Power Off -> Power On)')
+      logging.info('Powering off device...')
       dut.power_off()
+      logging.info('Powering on device...')
       dut.power_on()
 
     case PowerAction.SUSPEND:
-      logging.info('Executing SUSPEND sequence (Suspend -> Wakeup)')
+      logging.info('Suspending device...')
       dut.suspend()
+      logging.info('Resuming device...')
       dut.wakeup()
 
     case PowerAction.REBOOT:
-      logging.info('Executing REBOOT sequence')
+      logging.info('Rebooting device...')
       dut.reboot()
 
 
