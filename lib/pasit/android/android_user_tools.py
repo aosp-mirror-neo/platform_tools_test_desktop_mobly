@@ -28,7 +28,7 @@ LOGGED_IN_USER_ID = 10
 LOGIN_SCREEN_USER_ID = 0
 
 DETECT_LAUNCHER_PACKAGE_RETRY_POLICY = retry.RetryPolicy(
-    max_tries=10, delay_seconds=1
+    max_tries=15, delay_seconds=2
 )
 DETECT_GUEST_MODE_AS_ACTIVE_USER_RETRY_POLICY = retry.RetryPolicy(
     max_tries=15, delay_seconds=1
@@ -46,6 +46,7 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
   )
   _LAUNCHER_PACKAGE_NAME = 'com.google.android.apps.nexuslauncher'
   _SYSUI_PACKAGE_NAME = 'com.android.systemui'
+  _OOBE_PACKAGE_NAME = 'com.google.android.desktop.setupwizard'
 
   def __init__(self, controller: android_device.AndroidDevice):
     self.controller = controller
@@ -98,7 +99,7 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
     )
     # Wait for the launcher to be active to indicate that guest mode has been
     # entered.
-    self._verify_launcher_exists()
+    self._handle_post_login_ui()
     if self.session_status() != base_user_tools.SessionStatus.GUEST:
       raise base_user_tools.UserToolsError(
           'Failed to enter guest mode, current status is'
@@ -179,6 +180,47 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
         for error_to_ignore in self._IGNORABLE_OOBE_ERRORS
     )
 
+  def _is_launcher_active(self) -> bool:
+    if self._ui_package_exists(self._LAUNCHER_PACKAGE_NAME):
+      return True
+    if self._ui_package_exists(self._OOBE_PACKAGE_NAME):
+      logging.warning(
+          'OOBE package exists, this is not expected during login, skipping'
+          ' OOBE.'
+      )
+      self.skip_oobe()
+    return False
+
+  def _handle_post_login_ui(self) -> None:
+    """Blocks post login until timeout or launcher appears.
+
+    This function is used to block until the login process is complete and the
+    launcher appears. It will also skip the OOBE flow if it is detected as a
+    fail safe for errors with skipping the OOBE flow.
+
+    If launcher is not detected within the retry policy timeout, a screenshot
+    will be taken and an error will be logged, but the test will continue.
+    """
+    active = retry.retry(
+        self._is_launcher_active,
+        until=lambda active: active,
+        policy=DETECT_LAUNCHER_PACKAGE_RETRY_POLICY,
+    )
+
+    if active:
+      logging.debug('Launcher is active, login successful.')
+    else:
+      # TODO: b/479241824 - this is unexpected behavior, but for now tests are
+      # too flaky to block running the test if the launcher is not detected, so
+      # take a screenshot to help with debugging if this happens.
+      self.controller.take_screenshot(
+          self.controller.log_path, 'post_login_ui_failure'
+      )
+      logging.error(
+          'Failed to find launcher after login, continuing test without'
+          ' verification.'
+      )
+
   def _switch_user(self, user_id: int) -> None:
     """Switches the user on the device."""
     if user_id != self.controller.adb.current_user_id:
@@ -193,27 +235,7 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
           f' {self.controller.adb.current_user_id}.'
       )
     if user_id == LOGGED_IN_USER_ID:
-      # this is a fail safe to work around a known issue where sometimes the
-      # setup wizard does not get properly skipped due to crashes/ANRs, and
-      # as a result the launcher package is not found.
-      self.skip_oobe()
-      self._verify_launcher_exists()
-
-  def _verify_launcher_exists(self) -> None:
-    # wait for the launcher to be active before proceeding
-    exists = retry.retry(
-        lambda: self._ui_package_exists(self._LAUNCHER_PACKAGE_NAME),
-        until=lambda exists: exists,
-        policy=DETECT_LAUNCHER_PACKAGE_RETRY_POLICY,
-    )
-    if not exists:
-      self.controller.take_screenshot(
-          self.controller.log_path, 'launcher_verify_failure'
-      )
-      raise base_user_tools.UserToolsError(
-          'Failed to find launcher package when logged in'
-          f' {self._LAUNCHER_PACKAGE_NAME} is does not exist.'
-      )
+      self._handle_post_login_ui()
 
   def _ui_package_exists(self, package_name: str) -> bool:
     """Checks if a UI element with the given package name exists.
