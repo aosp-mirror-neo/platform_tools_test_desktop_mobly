@@ -45,6 +45,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   _UI_APPLICATION_PACKAGE_NAME = {
       UiApplication.SETTINGS: 'com.android.settings',
       UiApplication.FILES: 'com.google.android.documentsui',
+      UiApplication.CAMERA: 'com.google.android.desktop.camera',
   }
 
   _WAIT_APP_OPEN_TIMEOUT_SECONDS = 10

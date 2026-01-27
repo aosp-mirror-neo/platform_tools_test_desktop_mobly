@@ -72,6 +72,7 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
 
     SETTINGS = 'Settings'
     FILES = 'Files'
+    CAMERA = 'Camera'
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
