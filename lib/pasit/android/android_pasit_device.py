@@ -94,11 +94,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
+    self._test_settings()
     self._user_tools.skip_oobe()
     # for consistency across all runs
     # and to make sure that mbs is installed under the login screen user
     self._user_tools.logout()
-    self._test_settings()
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
     self._snippets.uninstall_all()
     self._snippets.install_and_load_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)

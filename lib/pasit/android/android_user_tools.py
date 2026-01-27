@@ -207,6 +207,9 @@ class AndroidUserTools(base_user_tools.BaseUserTools):
         policy=DETECT_LAUNCHER_PACKAGE_RETRY_POLICY,
     )
     if not exists:
+      self.controller.take_screenshot(
+          self.controller.log_path, 'launcher_verify_failure'
+      )
       raise base_user_tools.UserToolsError(
           'Failed to find launcher package when logged in'
           f' {self._LAUNCHER_PACKAGE_NAME} is does not exist.'
