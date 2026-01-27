@@ -284,11 +284,15 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       determined.
     """
     try:
-      # Use package name to count the app windows. This matches both
-      # desktop (windowed) and fullscreen instances, and avoids matching
-      # SystemUI decorations or Launcher icons that might contain the
-      # app name in their description.
-      return self.controller.ui(pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME).count
+      # Use the standard Android content view resource ID to count app
+      # windows. This is more reliable than counting all UI elements with the
+      # package name, which can include child views and lead to overcounting.
+      # This approach works for both desktop (windowed) and fullscreen
+      # instances.
+      return self.controller.ui(
+          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
+          resourceId='android:id/content',
+      ).count
     except Exception as e:  # pylint: disable=broad-except
       raise DisplayPainterError(
           'Failed to get color fill test app window count'
