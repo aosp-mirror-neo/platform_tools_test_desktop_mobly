@@ -16,6 +16,7 @@
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.pasit import pasit_device
 from lib.pasit import test_policy
 from lib.utils import functools
 from lib.utils import image
@@ -68,30 +69,39 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
         image.NamedColor.BLUE,
         'External camera preview (on the internal display) should be showing'
         ' blue color.',
+        external_camera_devices,
     )
 
     dut_state_manager.execute_power_action(self.dut, action_after_plug_camera)
 
     if action_after_plug_camera == dut_state_manager.PowerAction.SUSPEND:
+      asserts.assert_true(
+          self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+          'Camera app should remain opened after DUT is woken up from suspend.',
+      )
+      self.capture_screenshots('after_dut_woken_up_from_suspend')
       self.verify_camera_app_is_using_any_device(
           external_camera_devices, 'external camera'
       )
-      self.capture_screenshots('after_dut_woken_up_from_suspend')
     else:
       self.launch_camera_app()
+      self.capture_screenshots('after_dut_powered_on_and_camera_app_launched')
       self.verify_camera_app_is_using_any_device(
           internal_camera_devices, 'internal camera'
       )
-      self.capture_screenshots('after_dut_powered_on_and_camera_app_launched')
 
   def _verify_external_camera_captures_color(
-      self, color: image.NamedColor, message: str
+      self,
+      color: image.NamedColor,
+      message: str,
+      external_camera_devices: list[str],
   ):
     """Verifies that the external camera captures the color on the display.
 
     Args:
       color: The color to capture.
       message: The message to use for the assertion if the verification fails.
+      external_camera_devices: The list of external camera devices.
     """
     # Maximize the camera app window early so that there is no need to wait for
     # it to be maximized later when matching the color using camera mapper.
@@ -100,9 +110,15 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
     # Display-testing camera, pointed at internal display.
     camera_id = self.show_color_for_external_camera_preview(color)
 
+    self.capture_screenshots('external_camera_preview_color')
+    # for some reason the camera app is switching to internal camera at this
+    # point. Check if the external camera is still being used.
+    self.verify_camera_app_is_using_any_device(
+        external_camera_devices, 'external camera'
+    )
+
     # Internal display has the camera app open, showing external (tested) camera
     # capturing color from an external display.
-    self.capture_screenshots('external_camera_preview_color')
     asserts.assert_true(
         retry.retry(
             lambda: self.camera_mapper.try_match_color(
