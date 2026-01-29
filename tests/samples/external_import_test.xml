@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration description="Mobly test with virtualenv setup">
+
+    <!-- Install Snippets -->
+    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">
+        <option name="test-file-name" value="mobly-bundled-snippets.apk" />
+        <option name="cleanup-apks" value="true" />
+    </target_preparer>
+
+    <!-- Install Modules With pip -->
+    <target_preparer class="com.android.tradefed.targetprep.PythonVirtualenvPreparer">
+        <!--
+        mobly-android-screen-recorder already uses mobly as a dependency, added here
+        to be explicit.
+
+        mobly-android-screen-recorder is installed inside mobly
+        package at: mobly/controllers/android_device_lib/services/screen_recorder
+        so we can't use the one bundled in the Android tree otherwise the importer
+        will prefer that one and won't be able to find screen_recorder.
+        -->
+        <option name="dep-module" value="mobly" />
+        <!-- Required for mobly-android-screen-recorder but not included as dependencies -->
+        <option name="dep-module" value="retrying" />
+        <option name="dep-module" value="opencv-python" />
+        <option name="dep-module" value="mobly-android-screen-recorder" />
+    </target_preparer>
+
+    <test class="com.android.tradefed.testtype.mobly.MoblyBinaryHostTest">
+        <option name="mobly-par-file-name" value="ExternalImportTest"/>
+        <option name="no-double-dash" value="true"/>
+    </test>
+</configuration>
