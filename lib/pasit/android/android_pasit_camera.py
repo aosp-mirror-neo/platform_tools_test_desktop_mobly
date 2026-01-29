@@ -64,6 +64,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         '-a',
         self._camera_app_action[mode],
         self._CAMERA_APP_PACKAGE_NAME,
+        '--display 0',  # always launch camera app on internal display
     ])
     try:
       return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
@@ -83,9 +84,11 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
   def get_connected_cameras(self) -> MutableSequence[str]:
     return [
         item
-        for item in self.controller.adb.shell(['ls', '/dev/video*'])
-        .decode('utf-8')
-        .split('\n')
+        for item in (
+            self.controller.adb.shell(['ls', '/dev/video*'])
+            .decode('utf-8')
+            .split('\n')
+        )
         if item
     ]
 

@@ -81,6 +81,8 @@ class HotplugsStressTest(ucd_test_base.UcdTestBase):
           "Expected 0 displays to be active.",
       )
 
+      self.rotate_event_capture()
+
   def hpd_storm_test(self, iteration_count: int, display_count: int):
     """Stress tests by sending continuous HPD signals."""
 

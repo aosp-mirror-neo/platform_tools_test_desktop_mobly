@@ -196,6 +196,8 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
       self._display_on_off_with_plug(exp, stage, display_count)
       self._ucd_manager.unplug_all_displays(wait_for_active=False)
 
+      self.rotate_event_capture()
+
   def _display_on_off_n_times_while_plugged(self, exp: int, display_count: int):
     """Stress tests display on/off with displays constantly connected."""
     off_time = self._generate_off_time(exp)
@@ -218,6 +220,8 @@ class DisplayOnOffBase(ucd_test_base.UcdTestBase, metaclass=abc.ABCMeta):
       )
 
       self._check_for_displays_on(display_count, off_time)
+
+      self.rotate_event_capture()
 
   def _display_on_off_with_unplug_during_power_off(
       self, exp: int, display_count: int

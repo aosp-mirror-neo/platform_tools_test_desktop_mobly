@@ -62,6 +62,7 @@ class NamedColor(enum.Enum):
   GREEN = Color(0, 255, 0, 255)
   BLUE = Color(0, 0, 255, 255)
   BLACK = Color(0, 0, 0, 255)
+  MUTED_BLUE = Color(208, 224, 227, 255)
 
 
 class HSV:

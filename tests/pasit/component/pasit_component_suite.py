@@ -18,10 +18,12 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 from pasit.component import hid_emulator_test
+from pasit.component import pasit_camera_test
 from pasit.component import pasit_device_test
 from pasit.component import pasit_display_test
 from pasit.component import pasit_hid_keyboard_test
 from pasit.component import pasit_network_test
+from pasit.component import pasit_power_test
 from pasit.component import pasit_test_test
 
 
@@ -46,6 +48,12 @@ class PasitComponentSuite(base_suite.BaseSuite):
     )
     self.add_test_class(
         pasit_test_test.PasitTestTest,
+    )
+    self.add_test_class(
+        pasit_power_test.PasitPowerTest,
+    )
+    self.add_test_class(
+        pasit_camera_test.PasitCameraTest,
     )
 
 

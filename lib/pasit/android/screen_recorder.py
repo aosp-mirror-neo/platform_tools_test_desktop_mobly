@@ -101,7 +101,7 @@ class ScreenRecordingProcess:
     Returns:
       The subprocess.Popen object of the screen recording process.
     """
-    _log_debug('Starting screen recording process...')
+    _log_info('Starting screen recording process...')
     return subprocess.Popen(
         [
             'adb',
@@ -131,7 +131,7 @@ class ScreenRecordingProcess:
     if not self._process:
       _log_debug('Screen recording process is not running.')
       return
-    _log_debug('Terminating screen recording process...')
+    _log_info('Terminating screen recording process...')
     self._process.terminate()
     try:
       self._process.wait(timeout_seconds)
@@ -192,7 +192,7 @@ class ScreenRecorder:
       return
 
     # create the watcher thread to maintain the screen recording process
-    _log_info('Starting screen recording...')
+    _log_debug('Starting screen recording...')
     self._controller.adb.shell(['mkdir', '-p', self._DEVICE_PATH])
     self._cancel_event.clear()
     # watcher thread will start the screen recording process and restart it if
@@ -212,9 +212,13 @@ class ScreenRecorder:
     Args:
       output_path: The path to the output directory.
     """
-    _log_info('Stopping screen recording...')
+    _log_debug('Stopping screen recording...')
     self._cancel_and_join_watcher_thread()
     if not output_path:
+      return
+
+    if not self._any_screen_recording_files():
+      _log_debug('No screen recording files found on the device.')
       return
 
     try:
@@ -292,23 +296,31 @@ class ScreenRecorder:
       return False
     return True
 
+  def _get_screen_recording_files(self) -> list[str]:
+    """Gets the screen recording files on the device."""
+    return (
+        self._controller.adb.shell(['ls', self._DEVICE_PATH])
+        .decode('utf-8')
+        .splitlines()
+    )
+
+  def _any_screen_recording_files(self) -> bool:
+    """Checks if there are any screen recording files on the device."""
+    return bool(self._get_screen_recording_files())
+
   def _copy_screen_recording_files(self, output_path: str) -> None:
     """Copies the screen recording files from the device to the output path.
 
     Args:
       output_path: The path to the output directory.
     """
-    _log_debug('Copying screen recording files to %s', output_path)
+    _log_info('Copying screen recording files to %s', output_path)
     if not self._is_device_ready():
       _log_warning('Device is not ready, skipping screen recording copy.')
       return
     # to avoid permission denied errors when copying the file
     self._controller.root_adb()
-    files = (
-        self._controller.adb.shell(['ls', self._DEVICE_PATH])
-        .decode('utf-8')
-        .splitlines()
-    )
+    files = self._get_screen_recording_files()
     _log_debug('Screen recording files: %s', files)
     for file in files:
       file_path = os.path.join(self._DEVICE_PATH, file)

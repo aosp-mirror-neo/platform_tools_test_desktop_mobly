@@ -45,6 +45,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   _UI_APPLICATION_PACKAGE_NAME = {
       UiApplication.SETTINGS: 'com.android.settings',
       UiApplication.FILES: 'com.google.android.documentsui',
+      UiApplication.CAMERA: 'com.google.android.desktop.camera',
   }
 
   _WAIT_APP_OPEN_TIMEOUT_SECONDS = 10
@@ -475,6 +476,10 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         ('google_play_store_system_component_update_last_user_id', '-1'),
         ('google_ota_automatic_download', '0'),
         ('hide_error_dialogs', '1'),
+        # Fail safe way to disable setup wizard, this will ensure that if setup
+        # wizard crashes it will not try to start up again after reboot.
+        ('user_setup_complete', '1'),
+        ('device_provisioned', '1'),
     ]
     for setting, value in settings:
       self.controller.adb.shell(['settings', 'put', 'global', setting, value])

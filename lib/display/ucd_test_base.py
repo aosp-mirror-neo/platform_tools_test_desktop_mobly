@@ -145,6 +145,28 @@ class UcdTestBase(pasit_test.PasitTestClass):
     self._handle_event_capture_end(record, failed=False)
     super().on_skip(record)
 
+  def rotate_event_capture(self):
+    """Rotates the event capture to avoid accumulating too many events.
+
+    This method stops the current event capture (discarding any collected
+    events) and starts a new one. This is useful for stress tests where
+    capturing events for the entire duration of the test would result in too
+    much data.
+    """
+    if (
+        not self._ucd_manager
+        or self._ucd_manager.interface_type != interface_types.InterfaceType.DP
+    ):
+      return
+
+    self._ucd_manager.stop_dp_event_capture(generate_reports=False)
+
+    dprx_config, dptx_config = self.get_dp_event_capture_configs()
+    if dprx_config or dptx_config:
+      self._ucd_manager.start_dp_event_capture(
+          dprx_config=dprx_config, dptx_config=dptx_config
+      )
+
   def _handle_event_capture_end(self, record, failed: bool):
     """Stops event capture and saves report if failed."""
     if (
