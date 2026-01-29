@@ -73,7 +73,12 @@ class BasePasitHID(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def start_key_capture(self) -> None:
-    """Start capturing key events from the DUT."""
+    """Start capturing key events from the DUT.
+
+    Key capturing doesn't persist across DUT restarts. So this needs to be
+    called before doing any key event capturing.
+    """
+
     raise NotImplementedError
 
   @abc.abstractmethod
