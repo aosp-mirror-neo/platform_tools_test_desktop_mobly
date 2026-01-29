@@ -23,7 +23,7 @@ from pasit.dock import plug_in_dock
 class PasitDockSuite(base_suite.BaseSuite):
   """PASIT Dock Suite."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(plug_in_dock.PlugInDockTest)
 
 

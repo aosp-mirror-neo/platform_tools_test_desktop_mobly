@@ -17,8 +17,8 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-from pasit.hid import hid_combo_keys_test
-from pasit.hid import wake_on_keypress
+from pasit.hid import hid_combo_keys
+from pasit.hid import hid_wake
 
 
 class PasitHIDSuite(base_suite.BaseSuite):
@@ -26,10 +26,10 @@ class PasitHIDSuite(base_suite.BaseSuite):
 
   def setup_suite(self, _: config_parser.TestRunConfig) -> None:
     self.add_test_class(
-        hid_combo_keys_test.HIDComboKeysTests,
+        hid_combo_keys.HIDComboKeysTests,
     )
     self.add_test_class(
-        wake_on_keypress.HIDWakeTest,
+        hid_wake.HIDWakeTest,
     )
 
 

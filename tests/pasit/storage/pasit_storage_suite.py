@@ -25,7 +25,7 @@ from pasit.storage import plug_unplug_external_storage
 class PasitStorageSuite(base_suite.BaseSuite):
   """PASIT Storage Suite."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(
         plug_unplug_external_storage.PlugUnplugExternalStorageTest
     )

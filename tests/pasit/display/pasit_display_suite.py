@@ -17,18 +17,18 @@
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-from pasit.display import plug_in_external_display
-from pasit.display import shutdown_with_external_display
-from pasit.display import plug_in_two_external_displays
-from pasit.display import unplug_external_display
-from pasit.display import change_external_display_resolution
+from pasit.display import change_display_resolution
 from pasit.display import night_light
+from pasit.display import plug_in_external_display
+from pasit.display import plug_in_two_external_displays
+from pasit.display import shutdown_with_external_display
+from pasit.display import unplug_external_display
 
 
 class PasitDisplaySuite(base_suite.BaseSuite):
   """PASIT Display Suite."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(unplug_external_display.UnplugExternalDisplayTest)
     self.add_test_class(plug_in_external_display.PlugInExternalDisplayTest)
     self.add_test_class(
@@ -37,9 +37,7 @@ class PasitDisplaySuite(base_suite.BaseSuite):
     self.add_test_class(
         plug_in_two_external_displays.PlugInTwoExternalDisplaysTest
     )
-    self.add_test_class(
-        change_external_display_resolution.ChangeDisplayResolutionTest
-    )
+    self.add_test_class(change_display_resolution.ChangeDisplayResolutionTest)
     self.add_test_class(night_light.NightLightTest)
 
 
