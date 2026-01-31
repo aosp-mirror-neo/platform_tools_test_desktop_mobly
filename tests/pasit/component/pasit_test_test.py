@@ -40,11 +40,26 @@ class PasitTestTest(pasit_test.PasitTestClass):
     # allow tracking of the number of calls to the reset method
     self.dut.reset = mock.MagicMock(wraps=self.real_reset)
 
+  def teardown_test(self):
+    super().teardown_test()
+    asserts.assert_equal(
+        self.dut.user_tools.session_status(),
+        pasit_device.SessionStatus.LOGGED_IN,
+        'DUT is not logged in after test.',
+    )
+    if (
+        self.current_test_info.name
+        == 'test_reboot_behavior_on_teardown_on_success'
+    ):
+      # Validate that the dut was rebooted on teardown.
+      self.dut.reset.assert_called_once()
+      self.reboot_policy = pasit_test_config.RebootPolicy.NONE
+
   def test_unexpected_reboot(self):
     logging.info('Rebooting device...')
     # access protect method to bypass all the setup post reboot and ensure this
     # is detected as unexpected reboot
-    self.dut._servo.cold_reset()
+    self.dut._servo.cold_reset()  # pylint: disable=protected-access
     logging.info('Waiting for device to boot...')
     self.dut.wait_for_device_online()
     logging.info('Checking if reboot was detected rebooted...')
@@ -77,15 +92,17 @@ class PasitTestTest(pasit_test.PasitTestClass):
     # Test succeeds, reboot expected
     asserts.assert_true(True, 'This should not fail')
 
-  def teardown_test(self):
-    super().teardown_test()
-    if (
-        self.current_test_info.name
-        == 'test_reboot_behavior_on_teardown_on_success'
-    ):
-      # Validate that the dut was rebooted on teardown.
-      self.dut.reset.assert_called_once()
-      self.reboot_policy = pasit_test_config.RebootPolicy.NONE
+  def test_dut_logged_out(self):
+    """Test that the DUT is logged in after test."""
+    self.dut.user_tools.logout()
+
+  def test_dut_locked(self):
+    """Test that the DUT is not locked after test."""
+    self.dut.user_tools.lock()
+
+  def test_dut_guest_mode(self):
+    """Test that the DUT is not in guest mode after test."""
+    self.dut.user_tools.guest_mode()
 
 
 if __name__ == '__main__':

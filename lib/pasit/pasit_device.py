@@ -20,6 +20,7 @@ from typing import Any
 
 from lib.pasit.android import android_pasit_device
 from lib.pasit.base import base_pasit_device
+from lib.pasit.base import base_user_tools
 from lib.utils import servo_client
 from mobly import base_test
 from mobly.controllers import android_device
@@ -27,6 +28,7 @@ from mobly.controllers import android_device
 
 PasitDevice = base_pasit_device.BasePasitDevice
 PasitDeviceError = base_pasit_device.PasitDeviceError
+SessionStatus = base_user_tools.SessionStatus
 
 
 def create_controller(

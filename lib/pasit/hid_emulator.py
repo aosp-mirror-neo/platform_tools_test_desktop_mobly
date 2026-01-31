@@ -65,11 +65,13 @@ class HIDEmulator:
     """Emulates a keypress on the HID emulator.
 
     Args:
-      keys: The list of keys to emulate.
+      keys: The list of keys to emulate. If more than one key is provided, they
+        will be pressed as a key combination.
 
     Raises:
       Error: If the emulator is not initialized.
     """
+
     self._ensure_initialized()
     logging.info('Emulating keypress: %s', keys)
     self.passport.hid_client.send_keypress(self.device_id, keys)

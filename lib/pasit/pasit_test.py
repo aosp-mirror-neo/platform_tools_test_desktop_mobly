@@ -127,6 +127,10 @@ class PasitTestClass(base_test.BaseTestClass):
     super().setup_test()
     if self.screen_recording_policy.should_record():
       self.dut.start_screen_recording()
+    # login() will print an error if the launcher does not appear after login
+    # so it is called here to make sure the error is visible within the test in
+    # case missing launcher is causing any issues with the test
+    self.dut.user_tools.login()
 
   def teardown_test(self):
     """Teardown steps after each test is executed."""

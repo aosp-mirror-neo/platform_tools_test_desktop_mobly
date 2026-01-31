@@ -29,7 +29,7 @@ class PasitTestbedSuite(base_suite.BaseSuite):
   to identify issues with the testbed setup.
   """
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(
         passport_host_test.PassportHostTest,
     )

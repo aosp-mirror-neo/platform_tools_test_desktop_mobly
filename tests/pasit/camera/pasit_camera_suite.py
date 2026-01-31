@@ -26,7 +26,7 @@ from pasit.camera import unplug_external_camera
 class PasitCameraSuite(base_suite.BaseSuite):
   """PASIT Camera Suite."""
 
-  def setup_suite(self, config: config_parser.TestRunConfig):
+  def setup_suite(self, _: config_parser.TestRunConfig):
     self.add_test_class(
         unplug_external_camera.UnplugExternalCameraTest,
     )
