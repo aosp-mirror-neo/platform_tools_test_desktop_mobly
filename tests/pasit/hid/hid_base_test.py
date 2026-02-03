@@ -85,3 +85,13 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     """Plugs in the HID emulator to the DUT."""
     logging.info('Plugging in HID emulator to DUT')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
+
+  def verify_all_keys_captured(
+      self, emulator: hid_emulator.HIDEmulator, keys: list[str]
+  ) -> None:
+    """Iterates through keys and asserts they are captured by the DUT."""
+    for key in keys:
+      emulator.keypress([key])
+      captured = self.hid.get_captured_key_events()
+      expected = self.hid.get_expected_key_events(key)
+      asserts.assert_equal(captured, expected, f'Key events mismatch for {key}')
