@@ -15,6 +15,7 @@
 """Verify DUT wakes from suspend on keyboard HID key press (Dock only)."""
 
 import logging
+import time
 
 from lib.pasit import hid_keys
 from lib.pasit import pasit_device
@@ -46,6 +47,7 @@ class HIDWakeTest(hid_base_test.HIDBaseTest):
     self.dut.suspend()
     self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
     # TODO: b/378512640 - need subsequent key-press to wake DUT from suspend
+    time.sleep(2)
     self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
 
     logging.info('Waiting for DUT to wake up from suspend...')
