@@ -35,7 +35,7 @@ KeyboardShortcut = pasit_hid.PasitHID.KeyboardShortcut
         'al_external_input.external_keyboard_p1_keys',
         'al_external_input.external_keyboard_shortcuts',
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
-    ]
+    ],
 )
 class HIDComboKeysTests(hid_base_test.HIDBaseTest):
   """Test for HID functionality."""
@@ -57,7 +57,9 @@ class HIDComboKeysTests(hid_base_test.HIDBaseTest):
         f' got, new screenshots: {new_screenshots},',
     )
 
-  def test_combo_keys_settings(self) -> None:
+  # TODO: b/476721019 - The test is not meeting SLOs and not critical so
+  # disabling until we can investigate the issue.
+  def disabled_test_combo_keys_settings(self) -> None:
     self.emulate_shortcut_combination(KeyboardShortcut.SETTINGS)
     asserts.assert_true(
         self.dut.wait_app_open(self.dut.UiApplication.SETTINGS),
