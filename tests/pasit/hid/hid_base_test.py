@@ -95,3 +95,8 @@ class HIDBaseTest(pasit_test.PasitTestClass):
       captured = self.hid.get_captured_key_events()
       expected = self.hid.get_expected_key_events(key)
       asserts.assert_equal(captured, expected, f'Key events mismatch for {key}')
+
+  def unplug_hid_emulator(self) -> None:
+    """Un-plugs the HID emulator from the DUT."""
+    logging.info('Unplugging HID')
+    self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_HID)
