@@ -34,7 +34,7 @@ class PasitHIDSuite(base_suite.BaseSuite):
         hid_wake.HIDWakeTest,
     )
     self.add_test_class(
-        hid_lock_unlock_test.HidKeyboardAfterLockUnlockTest,
+        hid_lock_unlock_test.HIDLockUnlockTest,
     )
     self.add_test_class(
         plug_in_hid.PlugInHIDTest,

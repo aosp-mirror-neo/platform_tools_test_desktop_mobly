@@ -21,7 +21,7 @@ from mobly import test_runner
 from pasit.hid import hid_base_test
 
 
-class HidKeyboardAfterLockUnlockTest(hid_base_test.HIDBaseTest):
+class HIDLockUnlockTest(hid_base_test.HIDBaseTest):
   """Test external keyboard functionality after lock/unlock."""
 
   def teardown_test(self):
