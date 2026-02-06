@@ -22,8 +22,91 @@ from lib.utils import functools
 class FunctoolsTest(unittest.TestCase):
   """Test class for the functools module."""
 
-  def test_simple_test_class_has_expected_test_methods(self):
-    """Test class with a single method and functools decorators.
+  def test_no_method_decorator_with_class_decorator(self):
+    """Test class with a single method and missing method decorators.
+
+    Verify that the original test method is not replaced.
+    """
+
+    @functools.generate_tests
+    class NoMethodDecoratorTestClass:
+      """Class with a single method and missing method decorator."""
+
+      def test_method(slf):  # pylint: disable=no-self-argument
+        pass
+
+    self.assertIn('test_method', dir(NoMethodDecoratorTestClass))
+    NoMethodDecoratorTestClass().test_method()
+
+  def test_no_generate_tests_class(self):
+    """Test class with multiple methods and missing generate_tests decorator.
+
+    Verify that the original test methods are not replaced.
+    """
+
+    class NoGenerateTestsClass:
+      """Class with multiple methods and missing generate_tests decorator."""
+
+      @functools.with_variants(
+          variant_1=(1,),
+          variant_2=(4,),
+      )
+      def test_method_variants(slf, param):  # pylint: disable=no-self-argument
+        pass
+
+      @functools.with_dimensions(variant_1=1, variant_2=2)
+      @functools.with_dimensions(param_a='a', param_b='b')
+      def test_method_matrix(slf, variant, param):  # pylint: disable=no-self-argument
+        pass
+
+      def test_another_method(slf):  # pylint: disable=no-self-argument
+        pass
+
+      def non_test_method(slf):  # pylint: disable=no-self-argument
+        pass
+
+    self.assertIn('test_method_variants', dir(NoGenerateTestsClass))
+    self.assertRaisesRegex(
+        TypeError,
+        r"missing 1 required positional argument: 'param'",
+        NoGenerateTestsClass().test_method_variants,
+    )
+    self.assertIn('test_method_matrix', dir(NoGenerateTestsClass))
+    self.assertRaisesRegex(
+        TypeError,
+        r"missing 2 required positional arguments: 'variant' and 'param'",
+        NoGenerateTestsClass().test_method_matrix,
+    )
+    self.assertIn('test_another_method', dir(NoGenerateTestsClass))
+    NoGenerateTestsClass().test_another_method()
+    self.assertIn('non_test_method', dir(NoGenerateTestsClass))
+    NoGenerateTestsClass().non_test_method()
+
+    self.assertNotIn(
+        'test_method_variants_variant_1', dir(NoGenerateTestsClass)
+    )
+    self.assertNotIn(
+        'test_method_variants_variant_2', dir(NoGenerateTestsClass)
+    )
+    self.assertNotIn(
+        'test_method_matrix_variant_1_param_a', dir(NoGenerateTestsClass)
+    )
+    self.assertNotIn(
+        'test_method_matrix_variant_1_param_b', dir(NoGenerateTestsClass)
+    )
+    self.assertNotIn(
+        'test_method_matrix_variant_2_param_a', dir(NoGenerateTestsClass)
+    )
+    self.assertNotIn(
+        'test_method_matrix_variant_2_param_b', dir(NoGenerateTestsClass)
+    )
+
+
+class WithVariantsTest(unittest.TestCase):
+  """Test class for the with_variants decorator."""
+
+  def test_simple_variants(self):
+    """Test class with a single method and with_variants decorator.
 
     Verify that the original test method is replaced by the generated tests.
     Verify that the generated tests have the correct parameters and are
@@ -40,7 +123,7 @@ class FunctoolsTest(unittest.TestCase):
           variant_1=(1,),
           variant_2=(4,),
       )
-      def test_method(slf, param):
+      def test_method(slf, param):  # pylint: disable=no-self-argument
         self.assertEqual(param, expected_param_value)
 
     self.assertNotIn('test_method', dir(SimpleTestClass))
@@ -51,7 +134,7 @@ class FunctoolsTest(unittest.TestCase):
     expected_param_value = 4
     SimpleTestClass().test_method_variant_2()
 
-  def test_complex_test_class_has_expected_test_methods(self):
+  def test_complex_variants(self):
     """Test class with multiple methods and functools decorators.
 
     Verify that the methods with functools decorators are replaced by the
@@ -71,21 +154,21 @@ class FunctoolsTest(unittest.TestCase):
           variant_1=(1,),
           variant_2=(4,),
       )
-      def test_method_single_param(slf, param):
+      def test_method_single_param(slf, param):  # pylint: disable=no-self-argument
         self.assertEqual(param, expected_param_values[0])
 
       @functools.with_variants(
           variant_a=(1, 2),
           variant_b=(3, 4),
       )
-      def non_test_method_multiple_params(slf, param1, param2):
+      def non_test_method_multiple_params(slf, param1, param2):  # pylint: disable=no-self-argument
         self.assertEqual(param1, expected_param_values[0])
         self.assertEqual(param2, expected_param_values[1])
 
-      def test_another_method(slf):
+      def test_another_method(slf):  # pylint: disable=no-self-argument
         pass
 
-      def non_test_another_method(slf):
+      def non_test_another_method(slf):  # pylint: disable=no-self-argument
         pass
 
     self.assertNotIn('test_method_single_param', dir(ComplexTestClass))
@@ -114,58 +197,7 @@ class FunctoolsTest(unittest.TestCase):
     self.assertIn('non_test_another_method', dir(ComplexTestClass))
     ComplexTestClass().non_test_another_method()
 
-  def test_no_variant_test_class_has_expected_test_methods(self):
-    """Test class with a single method and missing with_variants decorator.
-
-    Verify that the original test method is not replaced.
-    """
-
-    @functools.generate_tests
-    class NoVariantTestClass:
-      """Class with a single method and missing with_variants decorator."""
-
-      def test_method(slf):
-        pass
-
-    self.assertIn('test_method', dir(NoVariantTestClass))
-    NoVariantTestClass().test_method()
-
-  def test_no_generate_tests_class_has_expected_test_methods(self):
-    """Test class with multiple methods and missing generate_tests decorator.
-
-    Verify that the original test methods are not replaced.
-    """
-
-    class NoGenerateTestsClass:
-      """Class with multiple methods and missing generate_tests decorator."""
-
-      @functools.with_variants(
-          variant_1=(1,),
-          variant_2=(4,),
-      )
-      def test_method(slf, param):
-        pass
-
-      def test_another_method(slf):
-        pass
-
-      def non_test_method(slf):
-        pass
-
-    self.assertIn('test_method', dir(NoGenerateTestsClass))
-    self.assertRaisesRegex(
-        TypeError,
-        r"missing 1 required positional argument: 'param'",
-        NoGenerateTestsClass().test_method,
-    )
-    self.assertIn('test_another_method', dir(NoGenerateTestsClass))
-    NoGenerateTestsClass().test_another_method()
-    self.assertIn('non_test_method', dir(NoGenerateTestsClass))
-    NoGenerateTestsClass().non_test_method()
-    self.assertNotIn('test_method_variant_1', dir(NoGenerateTestsClass))
-    self.assertNotIn('test_method_variant_2', dir(NoGenerateTestsClass))
-
-  def test_parameter_mismatch_test_class_has_expected_test_methods(self):
+  def test_parameter_mismatch(self):
     """Test class with functools decorators that have mismatched parameters.
 
     Verify that the original test method without parameters is replaced but
@@ -177,19 +209,19 @@ class FunctoolsTest(unittest.TestCase):
       """Class with functools decorators that have mismatched parameters."""
 
       @functools.with_variants(variant_1=(1,))
-      def test_method_no_params(slf):
+      def test_method_no_params(slf):  # pylint: disable=no-self-argument
         pass
 
       @functools.with_variants(variant_1=(1,))
-      def test_method_too_many_params(slf, param1, param2):
+      def test_method_too_many_params(slf, param1, param2):  # pylint: disable=no-self-argument
         pass
 
       @functools.with_variants(variant_1=(1, 2))
-      def test_method_too_few_params(slf, param):
+      def test_method_too_few_params(slf, param):  # pylint: disable=no-self-argument
         pass
 
       @functools.with_variants(variant_1=('abc', 'def'))
-      def test_method_type_mismatch(slf, param1: int, param2: int):
+      def test_method_type_mismatch(slf, param1: int, param2: int):  # pylint: disable=no-self-argument
         self.assertEqual(param1, 'abc')
         self.assertEqual(param2, 'def')
 
@@ -228,6 +260,81 @@ class FunctoolsTest(unittest.TestCase):
         'test_method_type_mismatch_variant_1', dir(ParamMismatchTestClass)
     )
     ParamMismatchTestClass().test_method_type_mismatch_variant_1()
+
+
+class WithDimensionsTest(unittest.TestCase):
+  """Test class for the with_dimensions decorator."""
+
+  def test_simple_dimensions(self):
+    """Test class with a single method and with_dimensions decorator.
+
+    Verify that the original test method is replaced by the generated tests.
+    Verify that the generated tests have the correct parameters and are
+    callable.
+    """
+
+    expected_param_value: str
+
+    @functools.generate_tests
+    class SimpleTestClass:
+      """Class with a single method and with_dimensions decorator."""
+
+      @functools.with_dimensions(param_a='a', param_b='b')
+      def test_method(slf, param: str):  # pylint: disable=no-self-argument
+        self.assertEqual(param, expected_param_value)
+
+    self.assertNotIn('test_method', dir(SimpleTestClass))
+
+    self.assertIn('test_method_param_a', dir(SimpleTestClass))
+    expected_param_value = 'a'
+    SimpleTestClass().test_method_param_a()
+
+    self.assertIn('test_method_param_b', dir(SimpleTestClass))
+    expected_param_value = 'b'
+    SimpleTestClass().test_method_param_b()
+
+  def test_complex_dimensions(self):
+    """Test class with multiple with_dimensions decorators.
+
+    Verify that the original test method is replaced by the generated tests.
+    Verify that the generated tests have the correct parameters and are
+    callable.
+    """
+
+    expected_num_displays: int
+    expected_param_value: str
+
+    @functools.generate_tests
+    class ComplexTestClass:
+      """Class with a single method and with_dimensions decorator."""
+
+      @functools.with_dimensions(one_display=1, two_displays=2)
+      @functools.with_dimensions(param_a='a', param_b='b')
+      def test_method(slf, num_displays: int, param: str):  # pylint: disable=no-self-argument
+        self.assertEqual(num_displays, expected_num_displays)
+        self.assertEqual(param, expected_param_value)
+
+    self.assertNotIn('test_method', dir(ComplexTestClass))
+
+    self.assertIn('test_method_one_display_param_a', dir(ComplexTestClass))
+    expected_num_displays = 1
+    expected_param_value = 'a'
+    ComplexTestClass().test_method_one_display_param_a()
+
+    self.assertIn('test_method_one_display_param_b', dir(ComplexTestClass))
+    expected_num_displays = 1
+    expected_param_value = 'b'
+    ComplexTestClass().test_method_one_display_param_b()
+
+    self.assertIn('test_method_two_displays_param_a', dir(ComplexTestClass))
+    expected_num_displays = 2
+    expected_param_value = 'a'
+    ComplexTestClass().test_method_two_displays_param_a()
+
+    self.assertIn('test_method_two_displays_param_b', dir(ComplexTestClass))
+    expected_num_displays = 2
+    expected_param_value = 'b'
+    ComplexTestClass().test_method_two_displays_param_b()
 
 
 if __name__ == '__main__':
