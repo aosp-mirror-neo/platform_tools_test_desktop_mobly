@@ -24,6 +24,7 @@ from typing import Sequence
 from display.utils import connected_display_manager
 from display.utils import modetest_helper
 from lib.pasit import pasit_test
+from lib.pasit.base import base_pasit_device
 from mobly import asserts
 from mobly import base_instrumentation_test
 from mobly import records
@@ -50,8 +51,7 @@ class WrappedDisplayBaseTest(
 
   apks: Sequence[str] = []
   native_modules: Sequence[str] = []
-
-  passport_optional: bool = True
+  stop_services: Sequence[str] = []
 
   def setup_class(self):
     super().setup_class()
@@ -107,10 +107,23 @@ class WrappedDisplayBaseTest(
       logging.info('Connecting %d display(s).', self.num_default_displays)
       self.display_manager.ConnectDisplays(self.num_default_displays)
 
+    for service in self.stop_services:
+      try:
+        self.dut.shell(['stop', service])
+      except base_pasit_device.ShellError as e:
+        logging.warning('failed to stop service: %s: %s', service, e)
+
   def teardown_test(self):
     if self.display_manager:
       logging.info('Resetting display manager.')
       self.display_manager.Reset()
+
+    for service in self.stop_services:
+      try:
+        self.dut.shell(['start', service])
+      except base_pasit_device.ShellError as e:
+        logging.warning('failed to start service: %s: %s', service, e)
+
     super().teardown_test()
 
   def get_resource_path(self, resource_name: str, extension: str = '') -> str:

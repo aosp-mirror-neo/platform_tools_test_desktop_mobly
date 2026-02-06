@@ -487,6 +487,20 @@ class PassportHost:
         switches.
     """
     self.switch_client.reset_all_switches()
+    for device in self.topology.devices:
+      if (
+          device.type == pasit_host_pb2.PasitHost.Device.Type.SWITCH_FIXTURE
+          and device.switch_fixture_details is not None
+          and device.switch_fixture_details.initial_state_enabled
+      ):
+        port_id = device.switch_fixture_details.initial_port
+        self.log.info(
+            'Setting switch %s %sto enabled on reset',
+            device.id,
+            f'port {port_id} ' if port_id else '',
+        )
+        self.switch_client.enable_switch(device.id, port_id)
+
     if self.usb_tester_client.is_open():
       self.usb_tester_client.replug()
     for ip_power_client in self._ip_power_clients.values():

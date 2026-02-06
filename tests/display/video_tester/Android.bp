@@ -263,7 +263,7 @@ python_test_host {
     name: "WrappedIgtTest",
     main: "wrapped_igt_test.py",
     srcs: [
-        "wrapped_igt_test.py",
+        "*_igt_test.py",
     ],
     defaults: ["PASIT-defaults"],
     test_options: {
@@ -293,4 +293,5 @@ python_test_host {
             }),
         },
     },
+    pkg_path: "pasit/display/videotester",
 }
