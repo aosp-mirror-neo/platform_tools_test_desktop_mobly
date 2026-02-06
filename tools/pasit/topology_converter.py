@@ -344,7 +344,8 @@ def main():
   )
   convert_parser.add_argument(
       '--ignore-unknown-fields',
-      action='store_true',
+      action=argparse.BooleanOptionalAction,
+      default=True,
       help='Ignore unknown fields during protobuf parsing.',
   )
 
@@ -358,7 +359,8 @@ def main():
   )
   graph_parser.add_argument(
       '--ignore-unknown-fields',
-      action='store_true',
+      action=argparse.BooleanOptionalAction,
+      default=True,
       help='Ignore unknown fields during protobuf parsing.',
   )
 

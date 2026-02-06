@@ -34,14 +34,19 @@ if [[ -n "${last_arg}" ]] && [[ "${last_arg}" != "push" ]]; then
   TAG="${last_arg}"
 fi
 
-echo "Building Docker image with tag: ${TAG}..."
+CODENAME="$(get_build_var PLATFORM_VERSION_CODENAME)"
+FULL_TAG="${TAG}-${CODENAME}"
+
+echo "Building Docker image with tag: ${FULL_TAG}..."
 
 if ! m DesktopPASITTestbedTests topology_converter; then
   echo "Failed to build the suite and topology converter binaries."
   exit 1
 fi
 
-if ! docker build -t "us-docker.pkg.dev/cros-passport/testbed/android:${TAG}" \
+pushd "$(cd "$(dirname "$0")" && pwd)"
+
+if ! docker build -t "us-docker.pkg.dev/cros-passport/testbed/android:${FULL_TAG}" \
   --build-context suite=${ANDROID_HOST_OUT_TESTCASES}/DesktopPASITTestbedTests/x86_64 \
   --build-context host_bin=${ANDROID_HOST_OUT}/bin \
   .; then
@@ -50,5 +55,7 @@ if ! docker build -t "us-docker.pkg.dev/cros-passport/testbed/android:${TAG}" \
 fi
 
 if [[ "${1}" == "push" ]]; then
-  docker push "us-docker.pkg.dev/cros-passport/testbed/android:${TAG}"
+  docker push "us-docker.pkg.dev/cros-passport/testbed/android:${FULL_TAG}"
 fi
+
+popd

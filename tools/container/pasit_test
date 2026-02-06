@@ -63,7 +63,7 @@ usage() {
 PASSPORT_DOCKER_REGISTRY="${PASSPORT_DOCKER_REGISTRY:-us-docker.pkg.dev/cros-passport}"
 PASSPORT_INTERNAL_DOCKER_REGISTRY="${PASSPORT_INTERNAL_DOCKER_REGISTRY:-us-docker.pkg.dev/cros-passport-internal}"
 PASIT_TAG="${PASIT_TAG:-latest}"
-PASIT_ANDROID_IMAGE="${PASIT_ANDROID_IMAGE:-${PASSPORT_DOCKER_REGISTRY}/testbed/android:${PASIT_TAG}}"
+PASIT_ANDROID_IMAGE_PATH="${PASIT_ANDROID_IMAGE:-${PASSPORT_DOCKER_REGISTRY}/testbed/android}"
 PASIT_CROS_IMAGE="${PASIT_CROS_IMAGE:-${PASSPORT_INTERNAL_DOCKER_REGISTRY}/testbed/cros:${PASIT_TAG}}"
 PASIT_VOLUME_NAME="pasit_volume"
 PASIT_PERSISTENT_CONTAINER_NAME="pasit_persistent_container"
@@ -286,8 +286,15 @@ determine_cros_or_android() {
       log_color ERROR "Failed to connect to ADB on ${DUT_IP}:${android_port}."
       exit 1
     fi
-    log_color GOOD "Found an Android device (ADB) listening on ${DUT_IP}:${android_port}."
     DEVICE_TYPE="android"
+    FINGERPRINT="$(adb shell getprop ro.build.fingerprint)"
+    CODENAME="$(adb shell getprop ro.build.version.codename)"
+    if [[ -z "${FINGERPRINT}" || -z "${CODENAME}" ]]; then
+      log_color ERROR "Failed to get fingerprint or codename from ADB for ${DUT_IP}."
+      exit 1
+    fi
+    PASIT_ANDROID_IMAGE="${PASIT_ANDROID_IMAGE_PATH}:${PASIT_TAG}-${CODENAME}"
+    log_color GOOD "Found an Android device (ADB) listening on ${DUT_IP}:${android_port}, running ${CODENAME} with fingerprint ${FINGERPRINT}."
     return
   fi
   if nc -z -w 1 "${DUT_IP}" "${cros_port}" &> /dev/null; then
@@ -565,8 +572,8 @@ if [[ "${QUICK_MODE}" -ne 1 ]]; then
   fi
   log_color GOOD "Setting up for DUT: ${DUT_ID}"
   setup_docker_credentials
-  pull_pasit_testbed_containers
   determine_cros_or_android
+  pull_pasit_testbed_containers
   start_passport
   start_servod
   generate_pasit_config
