@@ -19,6 +19,7 @@ parameterized test cases for.
 """
 
 import functools
+import itertools
 
 
 def with_variants(**kwargs):
@@ -42,6 +43,75 @@ def with_variants(**kwargs):
     # Attach the variants to the function object itself for later processing.
     setattr(func, '_variants', kwargs)
     return func
+
+  return decorator
+
+
+def with_dimensions(**dim_kwargs):
+  """Combines multiple dimensions into a single flat set of variants.
+
+  Usage:
+    @with_dimensions(on=PowerState.ON, off=PowerState.OFF),
+    @with_dimensions(dock=ConnectionType.DOCK, dockless=ConnectionType.DOCKLESS)
+    def test_something(self, power_state, connection_type):
+      # ... test logic ...
+
+  Translates to:
+      @with_variants(
+          on_dock=(PowerState.ON, ConnectionType.DOCK),
+          on_dockless=(PowerState.ON, ConnectionType.DOCKLESS),
+          off_dock=(PowerState.OFF, ConnectionType.DOCK),
+          off_dockless=(PowerState.OFF, ConnectionType.DOCKLESS),
+      )
+      def test_something(self, power_state, connection_type):
+          # ... test logic ...
+
+  Args:
+      **dim_kwargs: Each keyword argument represents a dimension. The key is
+        used as a name prefix for the generated test. The value is a tuple or
+        list of arguments for the test method.
+
+  Returns:
+      A decorator that combines the dimensions into a single set of variants.
+  """
+
+  def decorator(func):
+    # Check if we are already building a matrix from a previous decorator.
+    # We store the pending matrix in a hidden attribute on the function
+    if not hasattr(func, '_pending_variants'):
+      # Base case: start with one empty variant
+      current_variants = {'': ()}
+    else:
+      current_variants = func._pending_variants  # pylint: disable=protected-access
+
+    result_variants = {}
+    for (suffix, args), (dim_key, dim_val) in itertools.product(
+        current_variants.items(), dim_kwargs.items()
+    ):
+      # Build the suffix from the dimension name and the current suffix.
+      # For example, the first time, it will be "on", but the
+      # second time it will be "on_dock"
+      # Note: decorators are applied bottom-up, so the first decorator will
+      # be the last one applied.
+      new_suffix = f'{dim_key}_{suffix}'.strip('_')
+
+      # Ensure the dimension value is a tuple.
+      val_as_tuple = dim_val if isinstance(dim_val, tuple) else (dim_val,)
+      # Combine the current variants with the new dimension.
+      result_variants[new_suffix] = val_as_tuple + args
+
+    # Store the progress back on the function
+    func._pending_variants = result_variants  # pylint: disable=protected-access
+
+    # If this is the 'top' decorator, it calls with_variants.
+    # However, to make stacking easy, we can wrap the final call.
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+      return func(*args, **kwargs)
+
+    # Trigger the original with_variants only when
+    # the framework actually looks for the method.
+    return with_variants(**result_variants)(func)
 
   return decorator
 

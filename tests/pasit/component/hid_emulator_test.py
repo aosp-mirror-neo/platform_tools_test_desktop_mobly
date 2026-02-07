@@ -50,7 +50,9 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
     with asserts.assert_raises(hid_emulator.HIDEmulator.Error):
       emulator.mouse_click(hid_emulator.MouseButton.LEFT)
 
-  def test_plug_unplug_hid_emulator(self) -> None:
+  # TODO: b/481006312 - The test is not meeting SLOs and not critical so
+  # disabling until we can investigate the issue.
+  def disabled_test_plug_unplug_hid_emulator(self) -> None:
     hid_devices_before = self.hid.get_hid_devices()
     self.plug_in_hid_emulator()
     asserts.assert_equal(

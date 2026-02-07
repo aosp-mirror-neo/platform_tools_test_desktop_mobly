@@ -1,0 +1,26 @@
+TestBeds:
+- Name: DynamicVideoTester
+  Controllers:
+    AndroidDevice: '*'
+    PassportHost:
+    - service_host: localhost
+      service_port: 2202
+      host_topology:
+        devices:
+        - id: my-dut
+          type: DUT
+        - id: '2001901'
+          type: SWITCH_FIXTURE
+          switchFixtureDetails:
+            initialStateEnabled: true
+            initialPort: A
+        - id: my-video-tester
+          type: VIDEO_TESTER
+        connections:
+        - parentId: my-dut
+          childId: '2001901'
+          type: USBC
+        - parentId: '2001901'
+          childId: my-video-tester
+          parentPort: B
+          type: HDMI
