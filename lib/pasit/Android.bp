@@ -249,6 +249,7 @@ python_test_host {
     data: [
         "android/testdata/dumpsys_display_internal.txt",
         "android/testdata/dumpsys_display_external.txt",
+        "android/testdata/dumpsys_display_lid_closed.txt",
     ],
     test_options: {
         unit_test: true,
@@ -268,6 +269,7 @@ python_test_host {
     data: [
         "android/testdata/dumpsys_surfaceflinger_internal.txt",
         "android/testdata/dumpsys_surfaceflinger_external.txt",
+        "android/testdata/dumpsys_surfaceflinger_negative_id.txt",
     ],
     test_options: {
         unit_test: true,

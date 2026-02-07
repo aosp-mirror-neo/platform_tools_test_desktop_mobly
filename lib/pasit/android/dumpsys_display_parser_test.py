@@ -42,6 +42,16 @@ class DumpsysDisplayParserTest(unittest.TestCase):
       unique_id='-3244557860248354816',
       human_readable_id='HDMI Screen',
   )
+  _LID_CLOSED_INTERNAL_DISPLAY_ID = DisplayId(
+      display_id='6',
+      unique_id='4614471246939239936',
+      human_readable_id='Built-in Screen',
+  )
+  _LID_CLOSED_EXTERNAL_DISPLAY_ID = DisplayId(
+      display_id='0',
+      unique_id='-5113623805080084878',
+      human_readable_id='DELL P2214H',
+  )
   _INTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1200)
   _EXTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1080)
 
@@ -51,6 +61,9 @@ class DumpsysDisplayParserTest(unittest.TestCase):
     ).splitlines()
     self.external_display_lines = self._get_test_data(
         'dumpsys_display_external.txt'
+    ).splitlines()
+    self.lid_closed_display_lines = self._get_test_data(
+        'dumpsys_display_lid_closed.txt'
     ).splitlines()
 
   def test_get_display_ids_internal_display(self):
@@ -69,6 +82,16 @@ class DumpsysDisplayParserTest(unittest.TestCase):
         [
             self._INTERNAL_DISPLAY_ID,
             self._EXTERNAL_DISPLAY_ID,
+        ],
+    )
+
+  def test_get_display_ids_lid_closed(self):
+    self.parser = self._get_parser(self.lid_closed_display_lines)
+    self.assertEqual(
+        self.parser.get_display_ids(),
+        [
+            self._LID_CLOSED_EXTERNAL_DISPLAY_ID,
+            self._LID_CLOSED_INTERNAL_DISPLAY_ID,
         ],
     )
 

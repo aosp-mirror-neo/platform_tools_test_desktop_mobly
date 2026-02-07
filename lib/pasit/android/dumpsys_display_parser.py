@@ -103,9 +103,8 @@ class DumpsysDisplayParser:
       self, display_info_line: str
   ) -> DisplayId:
     match_id = re.search(r'displayId (\d+)', display_info_line)
-    # TODO: b/442566979 - Remove the `-*` in the regex once the bug is fixed.
     match_unique_id = re.search(
-        r'uniqueId \"local:(-*\d+)\"', display_info_line
+        r'uniqueId \"local:(-?\d+)\"', display_info_line
     )
     match_human_readable_id = re.search(
         r'DisplayInfo\{"([^"]+)"', display_info_line
