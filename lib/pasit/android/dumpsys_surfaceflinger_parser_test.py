@@ -38,6 +38,9 @@ class DumpsysSurfaceFlingerParserTest(unittest.TestCase):
   _EXTERNAL_DISPLAY_ID = DisplayId(
       display_id='6', unique_id='4616379764323906308'
   )
+  _NEGATIVE_UNIQUE_ID_DISPLAY_ID = DisplayId(
+      display_id='0', unique_id='-5113623805080084878'
+  )
   _INTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1200)
   _EXTERNAL_DISPLAY_RESOLUTION = DisplayResolution(width=1920, height=1080)
 
@@ -47,6 +50,9 @@ class DumpsysSurfaceFlingerParserTest(unittest.TestCase):
     ).splitlines()
     self.external_display_lines = self._get_test_data(
         'dumpsys_surfaceflinger_external.txt'
+    ).splitlines()
+    self.negative_unique_id_display_lines = self._get_test_data(
+        'dumpsys_surfaceflinger_negative_id.txt'
     ).splitlines()
 
   def test_get_display_resolution_internal_display(self):
@@ -60,6 +66,13 @@ class DumpsysSurfaceFlingerParserTest(unittest.TestCase):
     self.parser = self._get_parser(self.external_display_lines)
     self.assertEqual(
         self.parser.get_display_resolution(self._EXTERNAL_DISPLAY_ID),
+        ('0', self._EXTERNAL_DISPLAY_RESOLUTION),
+    )
+
+  def test_get_display_resolution_negative_unique_id_display(self):
+    self.parser = self._get_parser(self.negative_unique_id_display_lines)
+    self.assertEqual(
+        self.parser.get_display_resolution(self._NEGATIVE_UNIQUE_ID_DISPLAY_ID),
         ('0', self._EXTERNAL_DISPLAY_RESOLUTION),
     )
 

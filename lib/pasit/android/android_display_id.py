@@ -60,9 +60,7 @@ class AndroidDisplayId(DisplayId):
 
   def unique_id_unsigned(self) -> str:
     """Returns the unique ID converted to from a signed to unsigned integer."""
-    # TODO: b/442566979 - Remove this method once the bug is fixed. We can
-    # likely just revert the entire CL that added this method when the bug is
-    # fixed.
+
     id_int = int(self._unique_id)
     unsigned_id_int = ctypes.c_uint64(id_int).value
     return str(unsigned_id_int)
