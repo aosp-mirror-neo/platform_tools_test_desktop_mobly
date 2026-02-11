@@ -14,7 +14,10 @@
 
 """Test that verifies HID detection and functionality."""
 
+import logging
+
 from lib.pasit import dut_state_manager
+from lib.pasit import hid_keys
 from lib.utils import functools
 from mobly import test_runner
 from pasit.hid import hid_base_test
@@ -27,7 +30,6 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
   def setup_test(self):
     super().setup_test()
     self.unplug_hid_emulator()
-    self.hid.start_key_capture()
 
   def teardown_test(self):
     self.hid.stop_key_capture()
@@ -36,7 +38,7 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
   @functools.with_variants(
       on=(dut_state_manager.PowerState.ON,),
       off=(dut_state_manager.PowerState.OFF,),
-      suspend=(dut_state_manager.PowerState.SUSPEND,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
   )
   def test_plug_in_hid_when_dut(
       self, target_state: dut_state_manager.PowerState
@@ -49,13 +51,21 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(self.dut, target_state):
       self.plug_in_hid_emulator()
-
-    self.verify_all_keys_captured(self.emulator, ['A'])
+    self.emulator.initialize()
+    self.hid.start_key_capture()
+    logging.info('Verifying Top Row keys')
+    self.verify_all_keys_captured(
+        self.emulator, [key for key in hid_keys.Function]
+    )
+    logging.info('Verifying Alphanumeric keys')
+    self.verify_all_keys_captured(
+        self.emulator, [key for key in hid_keys.Alphanumeric]
+    )
 
   @functools.with_variants(
-      off=(dut_state_manager.PowerAction.SHUTDOWN,),
+      shutdown=(dut_state_manager.PowerAction.SHUTDOWN,),
       suspend=(dut_state_manager.PowerAction.SUSPEND,),
-      reboot=(dut_state_manager.PowerAction.REBOOT),
+      reboot=(dut_state_manager.PowerAction.REBOOT,),
   )
   def test_plug_in_hid_then(
       self, target_action: dut_state_manager.PowerAction
@@ -68,7 +78,9 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
 
     self.plug_in_hid_emulator()
     dut_state_manager.execute_power_action(self.dut, target_action)
-    self.verify_all_keys_captured(self.emulator, ['A'])
+    self.emulator.initialize()
+    self.hid.start_key_capture()
+    self.verify_all_keys_captured(self.emulator, [hid_keys.Alphanumeric.KEY_A])
 
 
 if __name__ == '__main__':

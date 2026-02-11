@@ -98,5 +98,5 @@ class HIDBaseTest(pasit_test.PasitTestClass):
 
   def unplug_hid_emulator(self) -> None:
     """Un-plugs the HID emulator from the DUT."""
-    logging.info('Unplugging HID')
+    logging.info('Unplugging HID emulator from DUT')
     self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_HID)
