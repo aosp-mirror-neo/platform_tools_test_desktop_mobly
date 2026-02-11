@@ -87,7 +87,7 @@ class PeripheralPathNotFoundError(Exception):
 
   def __init__(self, connection_type: ConnectionType):
     super().__init__(
-        f'Peripheral path {connection_type} not found in topology.'
+        f'Peripheral path {connection_type.name} not found in topology.'
     )
     self.connection_type = connection_type
 
@@ -150,15 +150,16 @@ class PeripheralConnector:
     # dock. If there are different paths (some with dock, some without) in the
     # topology, then raise an error.
     all_paths = self.passport_host.get_paths_by_type(peripheral_type, None)
-    dock_paths_count = sum(self._is_dock_path(path) for path in all_paths)
+    path_types = {self._is_dock_path(path) for path in all_paths}
+    if len(path_types) != 1:
+      raise PeripheralPathNotFoundError(connection_type)
 
-    if connection_type == ConnectionType.DOCK and dock_paths_count == len(
-        all_paths
-    ):
+    is_dock_path = path_types.pop()
+    if connection_type == ConnectionType.DOCK and is_dock_path:
       # using no tag is the same as using the DOCK tag if all paths contain a
       # dock.
       return None
-    if connection_type == ConnectionType.DOCKLESS and dock_paths_count == 0:
+    if connection_type == ConnectionType.DOCKLESS and not is_dock_path:
       # using no tag is the same as using the DOCKLESS tag if no paths contain
       # a dock.
       return None
@@ -174,6 +175,27 @@ class PeripheralConnector:
       ):
         return True
     return False
+
+  def get_peripheral_ids(
+      self,
+      peripheral_type: pasit_host_pb2.PasitHost.Device.Type,
+      connection_tag: ConnectionTag | None,
+  ) -> list[str]:
+    """Get the unique peripheral IDs for the given peripheral type and tag.
+
+    Args:
+      peripheral_type: The type of peripheral to get the IDs for.
+      connection_tag: The connection tag to use for the peripherals.
+
+    Returns:
+      A sorted list of unique peripheral IDs.
+    """
+    paths = self.passport_host.get_paths_by_type(
+        peripheral_type, connection_tag
+    )
+    # The number of unique peripherals is the number of unique endpoints in the
+    # paths.
+    return sorted(list(set({path[-1] for path in paths if path})))
 
   def _determine_peripheral_count(
       self,
@@ -194,20 +216,7 @@ class PeripheralConnector:
     Returns:
       The number of peripherals in the topology that have the given tag.
     """
-    peripheral_ids = self.passport_host.get_device_ids_by_type(peripheral_type)
-    paths = self.passport_host.get_paths_by_type(
-        peripheral_type, connection_tag
-    )
-    # Filter so only peripherals that are in the list of paths are included.
-    # This is to ensure we have the correct number of peripherals for the a
-    # given path tag. If the peripheral device ID is anywhere in the path, then
-    # it is considered to be reachable for enabling/disabling by the path tag.
-    valid_peripherals = [
-        peripheral_id
-        for peripheral_id in peripheral_ids
-        if any(peripheral_id in path for path in paths)
-    ]
-    return len(valid_peripherals)
+    return len(self.get_peripheral_ids(peripheral_type, connection_tag))
 
   def get_peripheral_path_tag(
       self,
