@@ -18,6 +18,7 @@ import logging
 
 from lib.pasit import dut_state_manager
 from lib.pasit import hid_keys
+from lib.pasit import pasit_hid
 from lib.utils import functools
 from mobly import test_runner
 from pasit.hid import hid_base_test
@@ -81,6 +82,29 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
     self.emulator.initialize()
     self.hid.start_key_capture()
     self.verify_all_keys_captured(self.emulator, [hid_keys.Alphanumeric.KEY_A])
+
+  def test_keyboard_in_guest_mode(self) -> None:
+    """Verifies top row and character keys in Guest Mode."""
+
+    self.hid.cleanup()
+    self.plug_in_hid_emulator()
+
+    self.dut.user_tools.guest_mode()
+
+    self.hid = self.create(pasit_hid)
+    self.emulator.initialize()
+    self.hid.start_key_capture()
+    self.capture_screenshots('key_capture_started')
+
+    logging.info('Verifying Top Row keys.')
+    self.verify_all_keys_captured(
+        self.emulator, [key for key in hid_keys.Function]
+    )
+
+    logging.info('Verifying Alphanumeric keys.')
+    self.verify_all_keys_captured(
+        self.emulator, [key for key in hid_keys.Alphanumeric]
+    )
 
 
 if __name__ == '__main__':
