@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from chromiumos.test.lab.api import pasit_host_pb2
 from lib.pasit import display_helper
 from lib.pasit import dut_state_manager
@@ -31,6 +32,13 @@ from mobly import asserts
 from mobly import test_runner
 
 
+@DesktopTest(
+    cujs=[
+        'b/378774075',  # Ethernet interface provided by docking station
+        'b/471032860',  # Dock/peripherals work after boot/reboot/suspend/resume
+        'b/471033476',  # Common peripherals function through dock
+    ],
+)
 @functools.generate_tests
 class PlugInDockTest(pasit_test.PasitTestClass):
   """Tests functionality when attaching a dock with connected peripherals."""
