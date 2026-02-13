@@ -53,7 +53,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
       self, default_hid_devices: list[str]
   ) -> None:
     updated_hid_devices = retry.retry(
-        self.hid.get_hid_devices,
+        self.hid.get_hid_emulator_devices,
         until=lambda hid_devices: len(hid_devices)
         == len(default_hid_devices)
         + test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,

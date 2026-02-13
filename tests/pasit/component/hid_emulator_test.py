@@ -53,17 +53,16 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
   # TODO: b/481006312 - The test is not meeting SLOs and not critical so
   # disabling until we can investigate the issue.
   def disabled_test_plug_unplug_hid_emulator(self) -> None:
-    hid_devices_before = self.hid.get_hid_devices()
     self.plug_in_hid_emulator()
     asserts.assert_equal(
-        len(self.hid.get_hid_devices()) - len(hid_devices_before),
+        len(self.hid.get_hid_emulator_devices()),
         3,
         'Expected to find 3 new HIDs after plugging in HID emulator.',
     )
 
     self.unplug_hid_emulator()
     asserts.assert_equal(
-        len(self.hid.get_hid_devices()) - len(hid_devices_before),
+        len(self.hid.get_hid_emulator_devices()),
         0,
         'Expected to find no new HIDs after unplugging HID emulator.',
     )
