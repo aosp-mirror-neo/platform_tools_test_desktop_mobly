@@ -91,6 +91,11 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def get_internal_display_id(self) -> DisplayId:
+    """Returns the internal display ID."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def get_display_resolution(
       self, display_id: DisplayId | None = None
   ) -> tuple[str, DisplayResolution]:
