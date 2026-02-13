@@ -23,7 +23,8 @@
         android:value="com.google.android.hiddevicesnippet.HIDDeviceSnippet"/>
         <activity android:name=".KeyCaptureActivity"
                   android:exported="true"
-                  android:screenOrientation="portrait">
+                  android:screenOrientation="portrait"
+                  android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

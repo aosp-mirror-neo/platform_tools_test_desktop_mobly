@@ -95,6 +95,57 @@ class PeripheralConnectorTest(unittest.TestCase):
   @functools.with_variants(
       pasit_box_dock=(
           'pasit-box.yaml',
+          peripheral_connector.ConnectionTag.DOCK,
+          pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+          ['monitor_1', 'monitor_2'],
+      ),
+      pasit_box_dockless=(
+          'pasit-box.yaml',
+          peripheral_connector.ConnectionTag.DOCKLESS,
+          pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+          ['monitor_1'],
+      ),
+      pasit_box_daisy_chain=(
+          'pasit-box.yaml',
+          peripheral_connector.ConnectionTag.DAISY_CHAIN,
+          pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+          ['monitor_1', 'monitor_2'],
+      ),
+      pasit_box_any=(
+          'pasit-box.yaml',
+          None,
+          pasit_host_pb2.PasitHost.Device.Type.MONITOR,
+          ['monitor_1', 'monitor_2'],
+      ),
+      pasit_box_storage_dock=(
+          'pasit-box.yaml',
+          peripheral_connector.ConnectionTag.DOCK,
+          pasit_host_pb2.PasitHost.Device.Type.STORAGE,
+          ['storage_1'],
+      ),
+      pasit_box_storage_dockless=(
+          'pasit-box.yaml',
+          peripheral_connector.ConnectionTag.DOCKLESS,
+          pasit_host_pb2.PasitHost.Device.Type.STORAGE,
+          ['storage_2'],
+      ),
+  )
+  def test_get_peripheral_ids(
+      self,
+      filename: str,
+      connection_tag: peripheral_connector.ConnectionTag | None,
+      peripheral_type: pasit_host_pb2.PasitHost.Device.Type,
+      expected_ids: list[str],
+  ):
+    connector = self._create_peripheral_connector(filename)
+    peripheral_ids = connector.get_peripheral_ids(
+        peripheral_type, connection_tag
+    )
+    self.assertEqual(peripheral_ids, expected_ids)
+
+  @functools.with_variants(
+      pasit_box_dock=(
+          'pasit-box.yaml',
           peripheral_connector.ConnectionType.DOCK,
           peripheral_connector.ConnectionTag.DOCK,
           1,

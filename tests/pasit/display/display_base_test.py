@@ -35,6 +35,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   painter: display_painter.DisplayPainter
   helper: display_helper.DisplayHelper
   camera_mapper: display_camera_mapper.DisplayCameraMapper
+  peripheral_connector: peripheral_connector.PeripheralConnector
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
   reboot_policy = test_policy.DisplayTestPolicy.REBOOT_POLICY
 
@@ -46,6 +47,9 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.display = self.create(pasit_display)
     self.painter = self.create(display_painter)
+    self.peripheral_connector = peripheral_connector.PeripheralConnector(
+        self.passport_host
+    )
 
   def setup_test(self):
     """Handle the setup for the test."""
@@ -88,9 +92,7 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       The connection tag to use for the display.
     """
     try:
-      return peripheral_connector.PeripheralConnector(
-          self.passport_host
-      ).get_peripheral_path_tag(
+      return self.peripheral_connector.get_peripheral_path_tag(
           self.DEVICE_TYPE_MONITOR, connection_type, min_display_count
       )
     except (
@@ -118,17 +120,13 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       external_display_count: The number of external displays to plug in.
       connection_type: The type of connection to use for the displays.
     """
-    monitor_ids = self.passport_host.get_device_ids_by_type(
-        self.DEVICE_TYPE_MONITOR
-    )
-    asserts.skip_if(
-        len(monitor_ids) < external_display_count,
-        f'Expected at least {external_display_count} monitors, but'
-        f' found {len(monitor_ids)}.',
-    )
     display_path_tag = self._get_display_path_tag(
         connection_type, external_display_count
     )
+    monitor_ids = self.peripheral_connector.get_peripheral_ids(
+        self.DEVICE_TYPE_MONITOR, display_path_tag
+    )
+
     for monitor_id in monitor_ids[:external_display_count]:
       logging.info('Plugging in external display %s', monitor_id)
       self.passport_host.activate_device_by_id(monitor_id, display_path_tag)
