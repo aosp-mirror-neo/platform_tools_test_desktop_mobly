@@ -26,7 +26,7 @@ class HIDLockUnlockTest(hid_base_test.HIDBaseTest):
 
   def teardown_test(self):
     self.hid.stop_key_capture()
-    super().teardown_test()
+    super().teardown_test()  # pylint: disable=attribute-error
 
   def test_keyboard_after_lock_unlock(self):
     self.dut.user_tools.lock()
