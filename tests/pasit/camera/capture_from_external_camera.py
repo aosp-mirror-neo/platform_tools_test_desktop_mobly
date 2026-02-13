@@ -39,6 +39,7 @@ from pasit.camera import camera_base_test
         'b/471031460',  # Record video from external camera
         'b/352598161',  # Use external USB webcam
         'b/352597365',  # Switch between internal and external cameras
+        'b/471033476',  # Common peripherals (webcam) function through dock
     ],
 )
 @functools.generate_tests
