@@ -21,10 +21,10 @@ from lib.pasit import pasit_device
 from mobly import asserts
 from mobly import records
 from mobly import test_runner
-from pasit.hid import hid_base_test
+from pasit.hid import persistent_hid_base_test
 
 
-class HIDWakeTest(hid_base_test.HIDBaseTest):
+class HIDWakeTest(persistent_hid_base_test.PersistentHIDBaseTest):
   """Wake DUT from suspend using keyboard HID (Dock path only)."""
 
   def on_fail(self, record: records.TestResultRecord) -> None:
