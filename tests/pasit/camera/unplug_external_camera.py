@@ -30,6 +30,7 @@ from pasit.camera import camera_base_test
         'b/352598161',  # Use external USB webcam
         'b/471032478',  # Switch to internal camera on unplug
         'b/352597365',  # Switch between internal and external cameras
+        'b/471032860',  # Dock and peripherals work after reboot/suspend
     ],
 )
 @functools.generate_tests
