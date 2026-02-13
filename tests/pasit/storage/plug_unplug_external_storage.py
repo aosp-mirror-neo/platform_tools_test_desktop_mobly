@@ -24,6 +24,10 @@ from pasit.storage import write_to_storage_base_test
 @DesktopTest(
     cujs=[
         'b/379290617',  # Transfer and delete files
+        # TODO: b/484385020 - Map to new CUJs once variants are added.
+        # 'b/378754273',  # Transfer data via dock
+        # 'b/471032860',  # Dock and peripherals work after reboot/suspend
+        # 'b/471033476',  # Common peripherals (storage) function through dock
     ],
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
@@ -31,7 +35,7 @@ from pasit.storage import write_to_storage_base_test
         'al_external_storage.plug_external_media_while_suspend',
         'al_external_storage.suspend_resume_with_media_connected',
         'al_external_storage.transfer_and_delete_files',
-    ]
+    ],
 )
 @functools.generate_tests
 class PlugUnplugExternalStorageTest(

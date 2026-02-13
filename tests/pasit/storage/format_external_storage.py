@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import peripheral_connector
 from lib.utils import functools
 from mobly import asserts
@@ -23,6 +24,11 @@ from mobly import test_runner
 from pasit.storage import write_to_storage_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/471033340',  # Format external storage
+    ],
+)
 @functools.generate_tests
 class FormatExternalStorageTest(
     write_to_storage_base_test.WriteToStorageBaseTest
