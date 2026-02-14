@@ -31,9 +31,7 @@ _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 # plug_in_external_display.py.
 @DesktopTest(
     cujs=[
-        'b/471032363',  # Two external displays in extended mode
-        'b/471032281',  # Daisy-chain configuration
-        'b/471030768',  # Display works after (sleep/reboot/shutdown)
+        'b/471032860',  # Dock and peripherals work after reboot/suspend
     ],
     manual=[
         'al_connect_disconnect_scenarios.boot_al_device_with_new_display_connected',

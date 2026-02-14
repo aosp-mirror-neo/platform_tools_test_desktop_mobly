@@ -23,7 +23,7 @@ from pasit.display import display_base_test
 
 @DesktopTest(
     cujs=[
-        'b/471030830',  # Display works after connect/disconnect
+        'b/471032860',  # Dock and peripherals work after reboot/shutdown
     ],
     manual=[
         'al_connect_disconnect_scenarios.disconnect_display_while_al_device_shutting_down',
