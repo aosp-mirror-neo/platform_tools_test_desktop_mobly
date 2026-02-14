@@ -17,6 +17,7 @@
 import logging
 
 from lib.pasit import hid_emulator
+from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
 from lib.pasit import test_policy
@@ -100,3 +101,16 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     """Un-plugs the HID emulator from the DUT."""
     logging.info('Unplugging HID emulator from DUT')
     self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_HID)
+
+  def _validate_keyboard_input(
+      self, emulator: hid_emulator.HIDEmulator
+  ) -> None:
+    """Validates keyboard input for function and alphanumeric keys."""
+    logging.info('Validating keyboard input...')
+    logging.info('Verifying function keys...')
+    self.verify_all_keys_captured(emulator, [key for key in hid_keys.Function])
+    logging.info('Verifying alphanumeric keys...')
+    self.verify_all_keys_captured(
+        self.emulator, [key for key in hid_keys.Alphanumeric]
+    )
+    logging.info('Keyboard input validation complete.')

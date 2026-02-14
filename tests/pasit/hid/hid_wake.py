@@ -15,7 +15,6 @@
 """Verify DUT wakes from suspend on keyboard HID key press (Dock only)."""
 
 import logging
-import time
 
 from lib.pasit import hid_keys
 from lib.pasit import pasit_device
@@ -34,7 +33,7 @@ class HIDWakeTest(hid_base_test.HIDBaseTest):
     # in the HIDBaseTest so the recovery routine is not run.
     if hasattr(self, 'dut'):
       self.dut.wakeup()
-    super().on_fail(record)
+    super().on_fail(record)  # pylint: disable=attribute-error
 
   def test_wake_on_keyboard_keypress(self) -> None:
     """Verify DUT wakes from suspend on key press.
@@ -45,10 +44,11 @@ class HIDWakeTest(hid_base_test.HIDBaseTest):
 
     logging.info('Suspending DUT')
     self.dut.suspend()
-    self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
+    self.emulator.keypress([hid_keys.ArrowPad.ARROW_RIGHT])
     # TODO: b/378512640 - need subsequent key-press to wake DUT from suspend
-    time.sleep(2)
-    self.emulator.keypress([hid_keys.Alphanumeric.ENTER])
+    self.emulator.keypress([hid_keys.ArrowPad.ARROW_DOWN])
+    self.emulator.keypress([hid_keys.ArrowPad.ARROW_LEFT])
+    self.emulator.keypress([hid_keys.ArrowPad.ARROW_UP])
 
     logging.info('Waiting for DUT to wake up from suspend...')
     try:
