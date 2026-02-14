@@ -14,8 +14,8 @@
 
 """Base class for HID tests."""
 
+import enum
 import logging
-
 from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
@@ -26,9 +26,13 @@ from mobly import asserts
 
 
 class HIDBaseTest(pasit_test.PasitTestClass):
-  """Test for HID functionality."""
+  """Test for HID functionality.
 
-  hid: pasit_hid.PasitHID
+  Doesn't plug in or unplug the HID emulator, only provides helper methods for
+  tests that do.
+  Creates the emulator in setup_class.
+  """
+
   emulator: hid_emulator.HIDEmulator
 
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_HID
@@ -36,24 +40,21 @@ class HIDBaseTest(pasit_test.PasitTestClass):
   def setup_class(self):
     """Handle the setup for the test."""
     super().setup_class()
-    self.hid = self.create(pasit_hid)
-    default_hid_devices = self.hid.get_hid_devices()
+    self.emulator = hid_emulator.HIDEmulator(self.passport_host)
+
+  def plug_in_hid_emulator_and_verify(self, hid: pasit_hid.PasitHID) -> None:
+    """Plugs in the HID emulator to the DUT and initializes it."""
+    default_hid_devices = hid.get_hid_devices()
 
     self.plug_in_hid_emulator()
-    self.emulator = hid_emulator.HIDEmulator(self.passport_host)
     retry.retry(
         self.emulator.initialize,
         policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
         exceptions=(hid_emulator.HIDEmulator.Error,),
     )
 
-    self._verify_hid_emulator_is_visible_to_dut(default_hid_devices)
-
-  def _verify_hid_emulator_is_visible_to_dut(
-      self, default_hid_devices: list[str]
-  ) -> None:
     updated_hid_devices = retry.retry(
-        self.hid.get_hid_devices,
+        hid.get_hid_emulator_devices,
         until=lambda hid_devices: len(hid_devices)
         == len(default_hid_devices)
         + test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
@@ -71,30 +72,19 @@ class HIDBaseTest(pasit_test.PasitTestClass):
         ' after activation of HID emulator.',
     )
 
-  def teardown_class(self):
-    """Handle the teardown for the class."""
-    if hasattr(self, 'hid'):
-      self.hid.cleanup()
-    super().teardown_class()
-
-  def teardown_test(self):
-    # ensure that switches are not disabled between tests by not calling the
-    # super class teardown_test.
-    pass
-
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
     logging.info('Plugging in HID emulator to DUT')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
 
-  def verify_all_keys_captured(
-      self, emulator: hid_emulator.HIDEmulator, keys: list[str]
+  def _verify_all_keys_captured(
+      self, hid: pasit_hid.PasitHID, keys: enum.StrEnum
   ) -> None:
     """Iterates through keys and asserts they are captured by the DUT."""
     for key in keys:
-      emulator.keypress([key])
-      captured = self.hid.get_captured_key_events()
-      expected = self.hid.get_expected_key_events(key)
+      self.emulator.keypress([key])
+      captured = hid.get_captured_key_events()
+      expected = hid.get_expected_key_events(key)
       asserts.assert_equal(captured, expected, f'Key events mismatch for {key}')
 
   def unplug_hid_emulator(self) -> None:
@@ -102,15 +92,15 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     logging.info('Unplugging HID emulator from DUT')
     self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_HID)
 
-  def _validate_keyboard_input(
-      self, emulator: hid_emulator.HIDEmulator
-  ) -> None:
+  def validate_keyboard_input(self, hid: pasit_hid.PasitHID) -> None:
     """Validates keyboard input for function and alphanumeric keys."""
+    self.hid.start_key_capture()
+    self.capture_screenshots('key_capture_started')
+
     logging.info('Validating keyboard input...')
-    logging.info('Verifying function keys...')
-    self.verify_all_keys_captured(emulator, [key for key in hid_keys.Function])
-    logging.info('Verifying alphanumeric keys...')
-    self.verify_all_keys_captured(
-        self.emulator, [key for key in hid_keys.Alphanumeric]
-    )
+    for key_enum in (hid_keys.Function, hid_keys.Alphanumeric):
+      logging.info('Verifying %s keys...', key_enum.__name__)
+      self._verify_all_keys_captured(hid, key_enum)
     logging.info('Keyboard input validation complete.')
+
+    self.hid.stop_key_capture()

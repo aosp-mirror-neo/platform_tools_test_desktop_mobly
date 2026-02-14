@@ -22,7 +22,7 @@ from lib.pasit import pasit_hid
 from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
-from pasit.hid import hid_base_test
+from pasit.hid import persistent_hid_base_test
 
 KeyboardShortcut = pasit_hid.PasitHID.KeyboardShortcut
 
@@ -37,13 +37,13 @@ KeyboardShortcut = pasit_hid.PasitHID.KeyboardShortcut
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
     ],
 )
-class HIDComboKeysTests(hid_base_test.HIDBaseTest):
+class HIDComboKeysTests(persistent_hid_base_test.PersistentHIDBaseTest):
   """Test for HID functionality."""
 
   file: pasit_file.PasitFile
 
   def setup_class(self):
-    super().setup_class()
+    super().setup_class()  # pylint: disable=attribute-error
     self.file = self.create(pasit_file)
 
   def test_combo_keys_screenshot(self) -> None:

@@ -26,11 +26,7 @@ from pasit.display import display_base_test
 
 @DesktopTest(
     cujs=[
-        'b/379291743',  # Displays from dock work on power on
-        'b/379290750',  # Displays from dock work when dock is connected
-        'b/471033273',  # Intelligent window management
-        'b/471030830',  # Disconnect and reconnect display
-        'b/471031118',  # Save and restore display settings
+        'b/471032860',  # Dock and peripherals work after reboot/suspend
     ],
     manual=[
         'al_connect_disconnect_scenarios.disconnect_display_while_al_device_suspended',

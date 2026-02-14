@@ -159,7 +159,6 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
     if hid_client is None:
       raise signals.TestError('Passport does not have a HID client.')
     hid = self.create(pasit_hid)
-    default_hid = hid.get_hid_devices()
 
     logging.info('Testing HID device: %s', device_id)
     self.passport_host.activate_device_by_id(device_id)
@@ -173,23 +172,19 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         passport_hid_devices,
         'Expected passport to have an HID device after activation.',
     )
-    updated_hid_devices = retry.retry(
-        hid.get_hid_devices,
+    hid_emulator_devices = retry.retry(
+        hid.get_hid_emulator_devices,
         until=lambda hid_devices: len(hid_devices)
-        == len(default_hid)
-        + test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
         policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
     )
-    new_hid_devices = [
-        dev for dev in updated_hid_devices if dev not in default_hid
-    ]
-    logging.info('New DUT HID devices: %s', new_hid_devices)
+    logging.info('DUT HID emulator devices: %s', hid_emulator_devices)
     asserts.assert_equal(
-        len(new_hid_devices),
+        len(hid_emulator_devices),
         test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
         'Expected DUT to have'
-        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} new HID devices'
-        ' after activation of HID emulator.',
+        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} HID emulator'
+        ' devices after activation of HID emulator.',
     )
 
   def _network_test_logic(self, device_id: str) -> None:

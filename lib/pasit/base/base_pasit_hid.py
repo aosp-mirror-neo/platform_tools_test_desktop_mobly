@@ -23,6 +23,8 @@ from typing import Any, List
 class BasePasitHID(metaclass=abc.ABCMeta):
   """Interface for HID operations for PASIT testing."""
 
+  _HID_EMULATOR_PREFIX = 'WWW.WCH.CN WCH UART TO'
+
   class Error(Exception):
     """Error when performing an action on a PASIT HID."""
 
@@ -53,8 +55,29 @@ class BasePasitHID(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_hid_devices(self) -> List[DeviceInfo]:
-    """Returns a list of connected HID devices."""
+    """Returns a list of all connected HID devices.
+
+    Returns:
+      A list of connected HID devices.
+    """
     raise NotImplementedError
+
+  def get_hid_emulator_devices(self) -> List[DeviceInfo]:
+    """Returns a list of connected HID emulator devices.
+
+    This filters the list of connected HID devices to only include those that
+    are Known PASIT compatible HID emulators.  This allows filtering out of
+    other HID devices that may be connected to the DUT such as docks that have
+    an HID device for button functionality on the dock.
+
+    Returns:
+      A list of connected PASIT compatible HID emulator devices.
+    """
+    return [
+        device
+        for device in self.get_hid_devices()
+        if self._is_hid_emulator(device)
+    ]
 
   @abc.abstractmethod
   def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
@@ -94,3 +117,7 @@ class BasePasitHID(metaclass=abc.ABCMeta):
   def get_expected_key_events(self, key: str) -> List[str]:
     """Returns the expected key events for the given key."""
     raise NotImplementedError
+
+  def _is_hid_emulator(self, device: DeviceInfo) -> bool:
+    """Returns True if the device is the expected HID emulator."""
+    return self._HID_EMULATOR_PREFIX in device.name

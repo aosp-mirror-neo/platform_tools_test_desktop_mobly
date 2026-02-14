@@ -14,12 +14,22 @@
 
 """Tests plugging in an external camera while the DUT is in a power state."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.utils import functools
 from mobly import test_runner
 from pasit.camera import camera_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/352598161',  # Use external USB webcam
+        'b/379290043',  # Connect USB webcam to dock and have it just work
+        'b/471032852',  # External webcam continues functioning after reboot
+        'b/471032836',  # External webcam works after suspend and resumed
+        'b/471032860',  # Dock and peripherals work after reboot/suspend
+    ],
+)
 @functools.generate_tests
 class PlugInExternalCameraTest(camera_base_test.CameraBaseTest):
   """Tests plugging in an external camera while the device is in different power states (ON, OFF, SUSPEND)."""
