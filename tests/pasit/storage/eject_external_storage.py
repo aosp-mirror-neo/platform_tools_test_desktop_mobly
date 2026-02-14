@@ -26,6 +26,8 @@ from pasit.storage import storage_base_test
 @DesktopTest(
     cujs=[
         'b/471033936',  # Eject external storage
+        # TODO: b/484385020 - Map to new CUJ once variants are added.
+        # 'b/471032860',  # Dock and peripherals work after reboot/suspend
     ],
     manual=[
         'al_external_input.test_all_the_peripherals_connected_to_basic_usb_hub',
