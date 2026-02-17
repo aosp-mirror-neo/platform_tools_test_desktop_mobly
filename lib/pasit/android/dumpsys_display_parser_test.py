@@ -157,11 +157,25 @@ class DumpsysDisplayParserTest(unittest.TestCase):
         },
     )
 
-  def test_get_internal_display_id(self):
+  def test_get_internal_display_id_internal_display(self):
     self.parser = self._get_parser(self.internal_display_lines)
     self.assertEqual(
         self.parser.get_internal_display_id(),
         self._INTERNAL_DISPLAY_ID,
+    )
+
+  def test_get_internal_display_id_external_display(self):
+    self.parser = self._get_parser(self.external_display_lines)
+    self.assertEqual(
+        self.parser.get_internal_display_id(),
+        self._INTERNAL_DISPLAY_ID,
+    )
+
+  def test_get_internal_display_id_lid_closed(self):
+    self.parser = self._get_parser(self.lid_closed_display_lines)
+    self.assertEqual(
+        self.parser.get_internal_display_id(),
+        self._LID_CLOSED_INTERNAL_DISPLAY_ID,
     )
 
   def _get_parser(self, display_lines):
