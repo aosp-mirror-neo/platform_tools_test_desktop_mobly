@@ -18,6 +18,7 @@ from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
 from pasit.display import change_display_resolution
+from pasit.display import docked_mode_external_display
 from pasit.display import night_light
 from pasit.display import plug_in_external_display
 from pasit.display import plug_in_two_external_displays
@@ -39,6 +40,9 @@ class PasitDisplaySuite(base_suite.BaseSuite):
     )
     self.add_test_class(change_display_resolution.ChangeDisplayResolutionTest)
     self.add_test_class(night_light.NightLightTest)
+    self.add_test_class(
+        docked_mode_external_display.DockedModeExternalDisplayTest
+    )
 
 
 def main() -> None:
