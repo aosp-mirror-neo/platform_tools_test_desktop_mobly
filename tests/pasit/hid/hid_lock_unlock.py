@@ -14,10 +14,17 @@
 
 """Verify external keyboard functionality after lock/unlock on DUT."""
 
+from android.platform.test.annotations import DesktopTest
 from mobly import test_runner
 from pasit.hid import persistent_hid_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/471031829',  # Keyboard/mouse work after lock/unlock
+        'b/355527363',  # F{n} keys
+    ],
+)
 class HIDLockUnlockTest(persistent_hid_base_test.PersistentHIDBaseTest):
   """Test external keyboard functionality after lock/unlock."""
 
