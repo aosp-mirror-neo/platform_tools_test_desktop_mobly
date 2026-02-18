@@ -14,7 +14,6 @@
 
 """AndroidPasitDisplay handles display operations for PASIT testing on Android devices."""
 
-
 import os
 import typing
 
@@ -76,6 +75,11 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
     return dumpsys_display_parser.DumpsysDisplayParser(
         self.controller
     ).get_display_ids()
+
+  def get_internal_display_id(self) -> DisplayId:
+    return dumpsys_display_parser.DumpsysDisplayParser(
+        self.controller
+    ).get_internal_display_id()
 
   def get_display_resolution(
       self, display_id: DisplayId | None = None

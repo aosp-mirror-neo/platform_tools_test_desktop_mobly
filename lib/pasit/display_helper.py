@@ -65,26 +65,9 @@ class DisplayHelper:
     return self._get_stable_ids()
 
   def get_internal_display_id(self) -> pasit_display.PasitDisplay.DisplayId:
-    """Returns the internal display ID.
+    """Returns the internal display ID."""
 
-    This function assumes that there is only one display plugged in.
-
-    Raises:
-      UnexpectedDisplayCountError: If the DUT has more than one display plugged
-      in.
-    """
-    display_ids = retry.retry(
-        self.display.get_display_ids,
-        until=lambda display_ids: len(display_ids) == 1,
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-    )
-    if len(display_ids) > 1:
-      raise UnexpectedDisplayCountError(
-          'This method should be called when there is only one display'
-          ' plugged in.'
-      )
-    logging.debug('Internal display id: %s', display_ids[0])
-    return display_ids[0]
+    return self.display.get_internal_display_id()
 
   def get_external_display_ids(
       self,
