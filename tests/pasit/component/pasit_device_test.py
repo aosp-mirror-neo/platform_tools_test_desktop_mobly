@@ -51,14 +51,29 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Cold resetting device...')
     self.dut.cold_reset()
 
-  def test_power_on_off_via_servo(self):
+  @functools.with_variants(
+      with_login=(True,),
+      without_login=(False,),
+  )
+  def test_power_on_off_via_servo(self, login: bool):
     asserts.skip_if(
         not self.dut.is_servo_configured(), 'Servo is not configured.'
     )
     logging.info('Powering off device...')
     self.dut.power_off()
     logging.info('Powering on device...')
-    self.dut.power_on()
+    self.dut.power_on(login=login)
+    if login:
+      asserts.assert_equal(
+          self.dut.user_tools.session_status(),
+          base_user_tools.SessionStatus.LOGGED_IN,
+      )
+    else:
+      asserts.assert_equal(
+          self.dut.user_tools.session_status(),
+          base_user_tools.SessionStatus.LOGGED_OUT,
+      )
+      self.dut.user_tools.login()
 
   def test_suspend(self):
     asserts.skip_if(
