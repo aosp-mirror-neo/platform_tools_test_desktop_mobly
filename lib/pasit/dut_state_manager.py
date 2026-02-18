@@ -48,12 +48,17 @@ def requires_servo(
   ]
 
 
-def execute_power_action(dut: pasit_device.PasitDevice, action: PowerAction):
+def execute_power_action(
+    dut: pasit_device.PasitDevice,
+    action: PowerAction,
+    login_on_power_on: bool = True,
+):
   """Executes a power transition: shutdown/on, suspend/wakeup, or reboot.
 
   Args:
     dut: The PASIT device to manage.
     action: The action or state transition to perform.
+    login_on_power_on: Whether to log in the device after powering it on.
   """
   if requires_servo(action) and not dut.is_servo_configured():
     raise base_pasit_device.ServoNotConfiguredError(
@@ -64,7 +69,7 @@ def execute_power_action(dut: pasit_device.PasitDevice, action: PowerAction):
       logging.info('Powering off device...')
       dut.power_off()
       logging.info('Powering on device...')
-      dut.power_on()
+      dut.power_on(login=login_on_power_on)
 
     case PowerAction.SUSPEND:
       logging.info('Suspending device...')
@@ -85,15 +90,22 @@ class EnterStateAndReturnToPowerOn:
   during the context execution will be re-raised.
   """
 
-  def __init__(self, dut: pasit_device.PasitDevice, desired_state: PowerState):
+  def __init__(
+      self,
+      dut: pasit_device.PasitDevice,
+      desired_state: PowerState,
+      login_on_power_on: bool = True,
+  ):
     """Initializes the context manager based on the DUT and desired state.
 
     Args:
       dut: The PASIT device to manage.
       desired_state: The desired state to enter.
+      login_on_power_on: Whether to log in the device after powering it on.
     """
     self._dut = dut
     self._desired_state = desired_state
+    self._login_on_power_on = login_on_power_on
 
   def __enter__(self):
     if (
@@ -114,7 +126,7 @@ class EnterStateAndReturnToPowerOn:
   def __exit__(self, exc_type, exc_val, exc_tb):
     if self._desired_state == PowerState.OFF:
       logging.info('Powering on DUT')
-      self._dut.power_on()
+      self._dut.power_on(login=self._login_on_power_on)
     elif self._desired_state == PowerState.SUSPEND:
       logging.info('Waking up DUT from suspend')
       self._dut.wakeup()

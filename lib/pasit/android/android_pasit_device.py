@@ -172,27 +172,30 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self.wait_for_device_online()
     self._power_on_routine()
 
-  def power_on(self):
+  def power_on(self, login: bool = True):
     self.request_power_on()
     # TODO: b/414995167 - better way to reduce falkiness
     time.sleep(2)
-    self._power_on_routine()
+    self._power_on_routine(login)
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
 
-  def _power_on_routine(self):
+  def _power_on_routine(self, login: bool = True):
     self._wait_for_boot_completion()
     self._restart_screen_recording()
     self._update_boot_id()
     self.controller.root_adb()
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
-    self._user_tools.logout()
+    # TODO: b/nobug - check if logout is still needed here
+    if login:
+      self._user_tools.logout()
     # need to re-install mbs after power cycle because the stop() for the mbs
     # service uninstalls the mbs apk.
     self._snippets.install_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)
     self._start_services()
-    self._user_tools.login()
+    if login:
+      self._user_tools.login()
 
   def power_off(self):
     self._pause_screen_recording()
