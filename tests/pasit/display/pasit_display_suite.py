@@ -14,6 +14,7 @@
 
 """PASIT Display Suite."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -29,19 +30,27 @@ from pasit.display import unplug_external_display
 class PasitDisplaySuite(base_suite.BaseSuite):
   """PASIT Display Suite."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
-    self.add_test_class(unplug_external_display.UnplugExternalDisplayTest)
-    self.add_test_class(plug_in_external_display.PlugInExternalDisplayTest)
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
     self.add_test_class(
-        shutdown_with_external_display.ShutdownWithExternalDisplayTest
+        unplug_external_display.UnplugExternalDisplayTest, config
     )
     self.add_test_class(
-        plug_in_two_external_displays.PlugInTwoExternalDisplaysTest
+        plug_in_external_display.PlugInExternalDisplayTest, config
     )
-    self.add_test_class(change_display_resolution.ChangeDisplayResolutionTest)
-    self.add_test_class(night_light.NightLightTest)
     self.add_test_class(
-        docked_mode_external_display.DockedModeExternalDisplayTest
+        shutdown_with_external_display.ShutdownWithExternalDisplayTest, config
+    )
+    self.add_test_class(
+        plug_in_two_external_displays.PlugInTwoExternalDisplaysTest, config
+    )
+    self.add_test_class(
+        change_display_resolution.ChangeDisplayResolutionTest, config
+    )
+    self.add_test_class(night_light.NightLightTest, config)
+    self.add_test_class(
+        docked_mode_external_display.DockedModeExternalDisplayTest, config
     )
 
 

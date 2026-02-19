@@ -14,6 +14,7 @@
 
 """PASIT Storage Suite."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -25,12 +26,16 @@ from pasit.storage import plug_unplug_external_storage
 class PasitStorageSuite(base_suite.BaseSuite):
   """PASIT Storage Suite."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
     self.add_test_class(
-        plug_unplug_external_storage.PlugUnplugExternalStorageTest
+        plug_unplug_external_storage.PlugUnplugExternalStorageTest, config
     )
-    self.add_test_class(eject_external_storage.EjectExternalStorageTest)
-    self.add_test_class(format_external_storage.FormatExternalStorageTest)
+    self.add_test_class(eject_external_storage.EjectExternalStorageTest, config)
+    self.add_test_class(
+        format_external_storage.FormatExternalStorageTest, config
+    )
 
 
 def main() -> None:

@@ -14,6 +14,7 @@
 
 """PASIT Dock Suite."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -23,8 +24,10 @@ from pasit.dock import plug_in_dock
 class PasitDockSuite(base_suite.BaseSuite):
   """PASIT Dock Suite."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
-    self.add_test_class(plug_in_dock.PlugInDockTest)
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(plug_in_dock.PlugInDockTest, config)
 
 
 def main() -> None:

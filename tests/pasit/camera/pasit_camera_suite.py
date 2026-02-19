@@ -14,6 +14,7 @@
 
 """PASIT Camera Suite."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -26,18 +27,18 @@ from pasit.camera import unplug_external_camera
 class PasitCameraSuite(base_suite.BaseSuite):
   """PASIT Camera Suite."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(unplug_external_camera.UnplugExternalCameraTest, config)
     self.add_test_class(
-        unplug_external_camera.UnplugExternalCameraTest,
+        plug_in_external_camera.PlugInExternalCameraTest, config
     )
     self.add_test_class(
-        plug_in_external_camera.PlugInExternalCameraTest,
+        launch_with_external_camera.LaunchWithExternalCameraTest, config
     )
     self.add_test_class(
-        launch_with_external_camera.LaunchWithExternalCameraTest,
-    )
-    self.add_test_class(
-        capture_from_external_camera.CaptureFromExternalCameraTest,
+        capture_from_external_camera.CaptureFromExternalCameraTest, config
     )
 
 
