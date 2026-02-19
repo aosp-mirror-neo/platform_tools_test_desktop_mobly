@@ -192,7 +192,9 @@ class DesktopInternalEthernetBulkTestCasesSuite(base_suite.BaseSuite):
   """Test suite for the Ethernet bulk tests."""
 
   def setup_suite(self, _config: config_parser.TestRunConfig):
-    self.add_test_class(DesktopInternalEthernetBulkTestCases)
+    passport_host.update_passport_host_config(_config)
+
+    self.add_test_class(DesktopInternalEthernetBulkTestCases, _config)
 
 
 def main() -> None:
