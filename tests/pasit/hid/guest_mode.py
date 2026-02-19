@@ -14,12 +14,18 @@
 
 """Test that verifies HID detection and functionality."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from mobly import test_runner
 from pasit.hid import hid_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/471032970',  # Keyboard/mouse work in guest mode
+    ],
+)
 class GuestModeTest(hid_base_test.HIDBaseTest):
   """Test for HID detection and basic functionality in Guest Mode."""
 

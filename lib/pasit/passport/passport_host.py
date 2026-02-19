@@ -31,12 +31,40 @@ from lib.pasit.passport import passport_camera_service_client
 from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
-from lib.utils import image
 from lib.utils import constants
+from lib.utils import image
+from mobly import config_parser
 from mobly import logger as mobly_logger
 
 
 MOBLY_CONTROLLER_CONFIG_NAME = 'PassportHost'
+
+
+def update_passport_host_config(config: config_parser.TestRunConfig):
+  """Updates the Passport host config in the test run config."""
+  user_param_host = 'passport_host'
+  user_param_port = 'passport_port'
+
+  if (
+      user_param_host not in config.user_params
+      or user_param_port not in config.user_params
+  ):
+    return
+
+  host = config.user_params[user_param_host]
+  port = config.user_params[user_param_port]
+
+  logging.info(
+      'Configuring Passport host address from user params: %s:%s',
+      host,
+      port,
+  )
+  passport_host_configs = config.controller_configs[
+      MOBLY_CONTROLLER_CONFIG_NAME
+  ]
+  for passport_host_config in passport_host_configs:
+    passport_host_config['service_host'] = host
+    passport_host_config['service_port'] = port
 
 
 def create(configs: list[dict[str, Any]]) -> list['PassportHost']:

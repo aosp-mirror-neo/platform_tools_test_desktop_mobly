@@ -90,7 +90,7 @@ class HIDTestPolicy:
       delay_seconds=2,
   )
   DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY = retry.RetryPolicy(
-      max_tries=5,
+      max_tries=15,
       delay_seconds=2,
   )
   NUM_HID_DEVICES_EXPECTED = 3

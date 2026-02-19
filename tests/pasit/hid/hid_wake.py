@@ -16,6 +16,7 @@
 
 import logging
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import hid_keys
 from lib.pasit import pasit_device
 from mobly import asserts
@@ -24,6 +25,12 @@ from mobly import test_runner
 from pasit.hid import persistent_hid_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/352597856',  # Wake DUT from basic USB hub
+        'b/471033230',  # Keyboard/mouse work after suspend/resume
+    ],
+)
 class HIDWakeTest(persistent_hid_base_test.PersistentHIDBaseTest):
   """Wake DUT from suspend using keyboard HID (Dock path only)."""
 

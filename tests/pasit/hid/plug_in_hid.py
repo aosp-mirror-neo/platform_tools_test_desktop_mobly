@@ -14,6 +14,7 @@
 
 """Test that verifies HID keyboard functionality across DUT power states."""
 
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_hid
 from lib.utils import functools
@@ -21,6 +22,15 @@ from mobly import test_runner
 from pasit.hid import hid_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/352597009',  # External HID mouse recognized
+        'b/379290543',  # USB HID Device (mouse, keyboard) to dock works
+        'b/471032780',  # Keyboard/mouse functional after reboot
+        'b/471033230',  # Keyboard/mouse work after suspend/resume
+        'b/471032468',  # Keyboard/mouse work after unplug/plug back in
+    ],
+)
 @functools.generate_tests
 class PlugInHIDTest(hid_base_test.HIDBaseTest):
   """Verifies top row and character keys persist through power cycles."""
