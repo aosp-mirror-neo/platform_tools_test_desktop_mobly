@@ -28,6 +28,7 @@ from lib.pasit.passport import hid_service_client
 from lib.pasit.passport import ip_9850
 from lib.pasit.passport import ip_power
 from lib.pasit.passport import passport_camera_service_client
+from lib.pasit.passport import passport_container_manager
 from lib.pasit.passport import passport_switch_service_client
 from lib.pasit.passport import passport_usb_service_client
 from lib.pasit.passport import passport_video_service_client
@@ -138,7 +139,6 @@ class PassportHost:
     )
 
   def __init__(self, config):
-
     self._dut_id = ''
     self._devices = {}
     self._connections = {}
@@ -153,6 +153,11 @@ class PassportHost:
             )
         },
     )
+
+    self._container_manager = (
+        passport_container_manager.PassportContainerManager(self.log)
+    )
+    self._container_manager.launch_container(self._config)
 
     self._initialize_topology()
     self._connect_to_service()
@@ -551,6 +556,8 @@ class PassportHost:
 
     if self.video_tester_client.is_open():
       self.video_tester_client.close_video_tester()
+
+    self._container_manager.teardown()
 
   def activate_device_by_type(
       self,
