@@ -18,6 +18,7 @@ import contextlib
 from typing import Generator
 
 from lib.pasit import dut_state_manager
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -65,11 +66,14 @@ class SuspendResumeTestSuite(base_suite.BaseSuite):
   """Test suite for testing the suspend and resume functionality."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(SuspendResumeTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(SuspendResumeTest, config)
 
 
 def main() -> None:
   suite_runner.run_suite_class()
+
 
 if __name__ == '__main__':
   main()

@@ -21,6 +21,7 @@ from display.utils import interface_types
 from display.utils import platform_info_helper
 from display.utils import ucd_compliance_tests_lists
 from display.utils import ucd_test_base
+from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
@@ -165,7 +166,9 @@ class ComplianceTestSuite(base_suite.BaseSuite):
   """Compliance Test Suite."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(ComplianceTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(ComplianceTest, config)
 
 
 def main() -> None:

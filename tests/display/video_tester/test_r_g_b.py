@@ -18,6 +18,7 @@ import time
 from display.utils import ucd_test_base
 from lib.pasit import display_painter
 from lib.pasit import pasit_display
+from lib.pasit.passport import passport_host
 from lib.utils import image
 from mobly import base_suite
 from mobly import config_parser
@@ -91,8 +92,10 @@ class RGBTest(ucd_test_base.UcdTestBase):
 class RGBTestSuite(base_suite.BaseSuite):
   """Test suite for testing displays with different colors."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
-    self.add_test_class(RGBTest)
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(RGBTest, config)
 
 
 if __name__ == "__main__":

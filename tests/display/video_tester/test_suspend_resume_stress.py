@@ -14,6 +14,7 @@
 
 """Testing the suspend and resume functionality (stress tests)."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -32,7 +33,9 @@ class SuspendResumeStressTestSuite(base_suite.BaseSuite):
   """Test suite for testing the suspend and resume functionality (stress)."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(SuspendResumeStressTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(SuspendResumeStressTest, config)
 
 
 def main() -> None:

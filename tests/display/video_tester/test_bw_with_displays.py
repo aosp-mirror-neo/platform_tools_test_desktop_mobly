@@ -14,12 +14,12 @@
 
 """Testing the System Bandwidth in supporting displays."""
 
-
 from display.utils import board_capabilities
 from display.utils import interface_types
 from display.utils import modetest_helper
 from display.utils import platform_info_helper
 from display.utils import ucd_test_base
+from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
@@ -117,8 +117,10 @@ class BwWithDisplaysTest(ucd_test_base.UcdTestBase):
 class BwWithDisplaysTestSuite(base_suite.BaseSuite):
   """Test suite for testing the system bandwidth with displays."""
 
-  def setup_suite(self, _config: config_parser.TestRunConfig):
-    self.add_test_class(BwWithDisplaysTest)
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(BwWithDisplaysTest, config)
 
 
 def main() -> None:

@@ -14,10 +14,10 @@
 
 """Wrapped IGT Test."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
-
 from pasit.display.videotester import wrapped_dynamic_igt_test
 from pasit.display.videotester import wrapped_static_igt_test
 
@@ -26,8 +26,10 @@ class WrappedIgtTestSuite(base_suite.BaseSuite):
   """Wrapped IGT tests that change the UCD500 path."""
 
   def setup_suite(self, config: config_parser.TestRunConfig) -> None:
-    self.add_test_class(wrapped_dynamic_igt_test.WrappedDynamicIgtTest)
-    self.add_test_class(wrapped_static_igt_test.WrappedStaticIgtTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(wrapped_dynamic_igt_test.WrappedDynamicIgtTest, config)
+    self.add_test_class(wrapped_static_igt_test.WrappedStaticIgtTest, config)
 
 
 def main() -> None:
