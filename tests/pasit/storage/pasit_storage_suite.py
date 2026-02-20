@@ -21,6 +21,7 @@ from mobly import suite_runner
 from pasit.storage import eject_external_storage
 from pasit.storage import format_external_storage
 from pasit.storage import plug_unplug_external_storage
+from pasit.storage import usb_auth_tests
 
 
 class PasitStorageSuite(base_suite.BaseSuite):
@@ -36,6 +37,7 @@ class PasitStorageSuite(base_suite.BaseSuite):
     self.add_test_class(
         format_external_storage.FormatExternalStorageTest, config
     )
+    self.add_test_class(usb_auth_tests.USBAuthTests, config)
 
 
 def main() -> None:
