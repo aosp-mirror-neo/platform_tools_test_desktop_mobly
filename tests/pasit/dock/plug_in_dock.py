@@ -109,9 +109,19 @@ class PlugInDockTest(pasit_test.PasitTestClass):
       self, device_type: pasit_host_pb2.PasitHost.Device.Type
   ):
     """Finds and activates a specific device type on the dock."""
-    tag = self.connector.get_peripheral_path_tag(
-        device_type, peripheral_connector.ConnectionType.DOCK
-    )
+    try:
+      tag = self.connector.get_peripheral_path_tag(
+          device_type, peripheral_connector.ConnectionType.DOCK
+      )
+
+    except (
+        peripheral_connector.PeripheralNotFoundError,
+        peripheral_connector.PeripheralPathNotFoundError,
+    ) as e:
+      device_name = pasit_test.get_device_type_name(device_type)
+      asserts.skip(
+          f'Skipping test: No {device_name} path found on dock. Error: {e}'
+      )
     logging.info(
         'Plugging in device via dock: %s',
         pasit_test.get_device_type_name(device_type),
