@@ -456,37 +456,40 @@ class PassportHost:
       device_type: pasit_host_pb2.PasitHost.Device.Type,
       enable: bool,
       tag: str | None,
+      set_power: bool = True,
   ) -> None:
     """Activates or deactivates the device with the given device type."""
     connections = self._connections_to_device_by_type(device_type, tag)
-    self._set_device_enabled_state_by_path(connections, enable)
+    self._set_device_enabled_state_by_path(connections, enable, set_power)
 
   def _set_device_enabled_state_by_path(
-      self, connections: MutableSequence[Any], enable: bool
+      self,
+      connections: MutableSequence[Any],
+      enable: bool,
+      set_power: bool = True,
   ) -> None:
     """Activates or deactivates the device with the given connection path."""
     if not connections:
-      self.log.warning(
-          'No connections found, skipping setting enabled state.'
-      )
+      self.log.warning('No connections found, skipping setting enabled state.')
       return
     device_path = [connection.parent_id for connection in connections]
     device_path.append(connections[-1].child_id)
     self.log.info(
         f'{"Activating" if enable else "Deactivating"}:  path: {device_path}',
     )
-    ip_power_set = False
-    for device_id in device_path:
-      # TODO: b/442614713 - decide if this change should be permanent or if we
-      # may eventually want to support variants with different order of
-      # operations, to catch bugs related to that.
-      if self._ip_power_clients.get(device_id):
-        self._ip_power_clients[device_id].set_ip_power_state(
-            ip_power.PowerState.from_bool(enable)
-        )
-        ip_power_set = True
-    if ip_power_set:
-      time.sleep(1)
+    if set_power:
+      ip_power_set = False
+      for device_id in device_path:
+        # TODO: b/442614713 - decide if this change should be permanent or if we
+        # may eventually want to support variants with different order of
+        # operations, to catch bugs related to that.
+        if self._ip_power_clients.get(device_id):
+          self._ip_power_clients[device_id].set_ip_power_state(
+              ip_power.PowerState.from_bool(enable)
+          )
+          ip_power_set = True
+      if ip_power_set:
+        time.sleep(1)
     for connection in connections:
       device_id = connection.parent_id
       port_id = connection.parent_port
@@ -559,10 +562,58 @@ class PassportHost:
 
     self._container_manager.teardown()
 
+  def change_power_state_for_device_by_type(
+      self,
+      device_type: pasit_host_pb2.PasitHost.Device.Type,
+      enable_power: bool,
+  ) -> None:
+    """Turns on or off the power for the devices with the given device type.
+
+    Args:
+      device_type: The device type to change the power for.
+      enable_power: Whether to turn on the power or not.
+    """
+    device_ids = self.get_device_ids_by_type(device_type)
+
+    if not device_ids:
+      raise errors.DeviceNotFoundError(
+          'No devices found for device type'
+          f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)}.',
+      )
+
+    power_state_changed = False
+    for device_id in device_ids:
+      if not self._ip_power_clients.get(device_id):
+        self.log.debug(
+            'No IP power client found for device %s, skipping power on.',
+            device_id,
+        )
+        continue
+      power_state_changed = True
+
+      self._ip_power_clients[device_id].set_ip_power_state(
+          ip_power.PowerState.from_bool(enable_power)
+      )
+      self.log.info(
+          'Turned %s power for device %s',
+          'on' if enable_power else 'off',
+          device_id,
+      )
+    if not power_state_changed:
+      raise errors.IPPowerNotFoundError(
+          'No IP power clients found for device type'
+          f' {pasit_host_pb2.PasitHost.Device.Type.Name(device_type)}.',
+      )
+    # delay to allow time for the IP power switches to turn on and any
+    # capacitors in chargers to charge, without this flaky behavior may occur
+    # with docks
+    time.sleep(2)
+
   def activate_device_by_type(
       self,
       device_type: pasit_host_pb2.PasitHost.Device.Type,
       tag: str | None = None,
+      set_power: bool = True,
   ) -> None:
     """Activates the device with the given device type.
 
@@ -570,6 +621,7 @@ class PassportHost:
       device_type: The device type to activate.
       tag: Optional tag to filter the device path by, will only consider paths
         where every connection in the path has this tag.
+      set_power: Whether to set the IP power state or not.
 
     Raises:
       DevicePathNotFoundError: If the Passport was unable to find the device
@@ -578,7 +630,7 @@ class PassportHost:
         switch state.
       PassportSwitchError: If the Passport was unable to set the switch state.
     """
-    self._set_device_enabled_state_by_type(device_type, True, tag)
+    self._set_device_enabled_state_by_type(device_type, True, tag, set_power)
 
   def deactivate_device_by_type(
       self,
