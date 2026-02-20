@@ -14,6 +14,7 @@
 
 """A suite of tests that exercise PASIT component tests."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -30,31 +31,17 @@ from pasit.component import pasit_test_test
 class PasitComponentSuite(base_suite.BaseSuite):
   """A suite of tests that exercise PASIT component tests."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
-    self.add_test_class(
-        pasit_device_test.PasitDeviceTest,
-    )
-    self.add_test_class(
-        pasit_display_test.PasitDisplayTest,
-    )
-    self.add_test_class(
-        hid_emulator_test.HIDEmulatorTest,
-    )
-    self.add_test_class(
-        pasit_hid_keyboard_test.PasitHIDKeyboardTest,
-    )
-    self.add_test_class(
-        pasit_network_test.PasitNetworkTest,
-    )
-    self.add_test_class(
-        pasit_test_test.PasitTestTest,
-    )
-    self.add_test_class(
-        pasit_power_test.PasitPowerTest,
-    )
-    self.add_test_class(
-        pasit_camera_test.PasitCameraTest,
-    )
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(pasit_device_test.PasitDeviceTest, config)
+    self.add_test_class(pasit_display_test.PasitDisplayTest, config)
+    self.add_test_class(hid_emulator_test.HIDEmulatorTest, config)
+    self.add_test_class(pasit_hid_keyboard_test.PasitHIDKeyboardTest, config)
+    self.add_test_class(pasit_network_test.PasitNetworkTest, config)
+    self.add_test_class(pasit_test_test.PasitTestTest, config)
+    self.add_test_class(pasit_power_test.PasitPowerTest, config)
+    self.add_test_class(pasit_camera_test.PasitCameraTest, config)
 
 
 def main() -> None:

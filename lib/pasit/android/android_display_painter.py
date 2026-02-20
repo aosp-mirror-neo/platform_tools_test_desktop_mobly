@@ -128,7 +128,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         policy=START_COLOR_FILL_TEST_APP_RETRY_POLICY,
     )
     # maximize the window that shows custom background color
-    self._maximize_color_fill_test_app_window()
+    self.maximize_color_window()
 
   def clean_color_on_display(self):
     """Cleans up the color on the display.
@@ -298,7 +298,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           'Failed to get color fill test app window count'
       ) from e
 
-  def _maximize_color_fill_test_app_window(self) -> None:
+  def maximize_color_window(self) -> None:
     """Maximizes the window that shows custom background color.
 
     Raises:

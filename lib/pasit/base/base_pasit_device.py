@@ -118,8 +118,12 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def power_on(self):
-    """Powers on the device."""
+  def power_on(self, login: bool = True):
+    """Powers on the device.
+
+    Args:
+      login: Whether to log in the device after powering it on.
+    """
     raise NotImplementedError
 
   @abc.abstractmethod

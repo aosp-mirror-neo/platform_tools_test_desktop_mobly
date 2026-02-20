@@ -20,6 +20,7 @@ import time
 from typing import Generator
 
 from display.utils import modetest_helper
+from lib.pasit.passport import passport_host
 from mobly import asserts
 from mobly import base_suite
 from mobly import config_parser
@@ -173,7 +174,9 @@ class DisplayPowerToggleTestSuite(base_suite.BaseSuite):
   """Test suite for testing the display power toggle functionality."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(DisplayPowerToggleTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(DisplayPowerToggleTest, config)
 
 
 def main() -> None:

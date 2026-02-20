@@ -15,6 +15,7 @@
 """Testing the most basic operation of a DUT with UCD: Sanity Check."""
 
 from display.utils import ucd_test_base
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -45,7 +46,9 @@ class BasicTestSuite(base_suite.BaseSuite):
   """Test suite for testing the most basic operations of a DUT with UCD."""
 
   def setup_suite(self, config: config_parser.TestRunConfig):
-    self.add_test_class(BasicTest)
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(BasicTest, config)
 
 
 def main() -> None:

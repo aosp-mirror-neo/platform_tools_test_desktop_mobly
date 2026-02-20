@@ -14,6 +14,7 @@
 
 """A suite of tests that exercise PASIT testbed setup."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -29,16 +30,12 @@ class PasitTestbedSuite(base_suite.BaseSuite):
   to identify issues with the testbed setup.
   """
 
-  def setup_suite(self, _: config_parser.TestRunConfig):
-    self.add_test_class(
-        passport_host_test.PassportHostTest,
-    )
-    self.add_test_class(
-        pasit_servo_test.ServoTest,
-    )
-    self.add_test_class(
-        pasit_peripheral_test.PasitPeripheralTest,
-    )
+  def setup_suite(self, config: config_parser.TestRunConfig):
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(passport_host_test.PassportHostTest, config)
+    self.add_test_class(pasit_servo_test.ServoTest, config)
+    self.add_test_class(pasit_peripheral_test.PasitPeripheralTest, config)
 
 
 def main() -> None:

@@ -14,6 +14,7 @@
 
 """PASIT HID Suite."""
 
+from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
@@ -27,22 +28,14 @@ from pasit.hid import plug_in_hid
 class PasitHIDSuite(base_suite.BaseSuite):
   """PASIT HID Suite, contains all HID tests for PASIT."""
 
-  def setup_suite(self, _: config_parser.TestRunConfig) -> None:
-    self.add_test_class(
-        hid_combo_keys.HIDComboKeysTests,
-    )
-    self.add_test_class(
-        hid_wake.HIDWakeTest,
-    )
-    self.add_test_class(
-        hid_lock_unlock.HIDLockUnlockTest,
-    )
-    self.add_test_class(
-        plug_in_hid.PlugInHIDTest,
-    )
-    self.add_test_class(
-        guest_mode.GuestModeTest,
-    )
+  def setup_suite(self, config: config_parser.TestRunConfig) -> None:
+    passport_host.update_passport_host_config(config)
+
+    self.add_test_class(hid_combo_keys.HIDComboKeysTests, config)
+    self.add_test_class(hid_wake.HIDWakeTest, config)
+    self.add_test_class(hid_lock_unlock.HIDLockUnlockTest, config)
+    self.add_test_class(plug_in_hid.PlugInHIDTest, config)
+    self.add_test_class(guest_mode.GuestModeTest, config)
 
 
 def main() -> None:
