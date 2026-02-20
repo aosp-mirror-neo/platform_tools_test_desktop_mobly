@@ -82,6 +82,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   ):
     super().__init__(controller, servo)
     self._override_boot_completion_timeout()
+    self._wait_for_boot_completion()
 
     # Override the screenshot timeout from Mobly default values to prevent
     # screenshot failures due to timeout, when screen recording is enabled.
@@ -430,6 +431,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           timeout=self._BOOT_COMPLETION_TIMEOUT_SECONDS
       )
     except android_device.DeviceError as e:
+      if self.is_device_online():
+        raise PasitDeviceError(
+            'Device is online but did not boot completely within'
+            f' {self._BOOT_COMPLETION_TIMEOUT_SECONDS} seconds.'
+        ) from e
       raise PasitDeviceError(
           'Device not online after timeout'
           f' {self._BOOT_COMPLETION_TIMEOUT_SECONDS} seconds.'
