@@ -191,9 +191,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # TODO: b/nobug - check if logout is still needed here
     if login:
       self._user_tools.logout()
-    # need to re-install mbs after power cycle because the stop() for the mbs
-    # service uninstalls the mbs apk.
-    self._snippets.install_mbs(android_user_tools.LOGIN_SCREEN_USER_ID)
     self._start_services()
     if login:
       self._user_tools.login()
