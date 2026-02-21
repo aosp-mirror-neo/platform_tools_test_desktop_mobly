@@ -16,6 +16,7 @@
 
 import enum
 import logging
+
 from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
@@ -45,25 +46,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
   def plug_in_hid_emulator_and_verify(self, hid: pasit_hid.PasitHID) -> None:
     """Plugs in the HID emulator to the DUT and initializes it."""
     self.plug_in_hid_emulator()
-    retry.retry(
-        self.emulator.initialize,
-        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
-        exceptions=(hid_emulator.HIDEmulator.Error,),
-    )
-    hid_emulator_devices = retry.retry(
-        hid.get_hid_emulator_devices,
-        until=lambda hid_devices: len(hid_devices)
-        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
-    )
-    logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
-    asserts.assert_equal(
-        len(hid_emulator_devices),
-        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-        'Expected DUT to have'
-        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} HID emulator'
-        ' devices after activation of HID emulator.',
-    )
+    self.initialize_and_verify_hid_emulator(hid)
 
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
@@ -97,3 +80,30 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     logging.info('Keyboard input validation complete.')
 
     self.hid.stop_key_capture()
+
+  def initialize_and_verify_hid_emulator(self, hid: pasit_hid.PasitHID) -> None:
+    """Initializes and verifies the HID emulator."""
+
+    self._initialize_hid_emulator()
+    hid_emulator_devices = retry.retry(
+        hid.get_hid_emulator_devices,
+        until=lambda hid_devices: len(hid_devices)
+        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
+    )
+    logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
+    asserts.assert_equal(
+        len(hid_emulator_devices),
+        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        'Expected DUT to have'
+        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} HID emulator'
+        ' devices after activation of HID emulator.',
+    )
+
+  def _initialize_hid_emulator(self):
+    """Helper function to initialize the HID emulator."""
+    retry.retry(
+        self.emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )

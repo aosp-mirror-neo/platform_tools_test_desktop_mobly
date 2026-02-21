@@ -22,6 +22,14 @@ class DevicePathNotFoundError(PassportBaseError):
   """Error when trying to look up the path to a device."""
 
 
+class DeviceNotFoundError(PassportBaseError):
+  """Error when trying to look up a device (by ID, type, or tag)."""
+
+
+class IPPowerNotFoundError(PassportBaseError):
+  """Error when trying to find an IP power client for a device."""
+
+
 class PassportConfigError(PassportBaseError):
   """Error class for the PassportHost controller configuration."""
 
