@@ -37,7 +37,7 @@ class GuestModeTest(hid_base_test.HIDBaseTest):
     """
     super().setup_test()  # pylint: disable=attribute-error
     self.plug_in_hid_emulator()
-    self.emulator.initialize()
+    self._initialize_hid_emulator()
 
   def teardown_test(self):
     """Unplugs the HID emulator and unloads the HID snippet."""
