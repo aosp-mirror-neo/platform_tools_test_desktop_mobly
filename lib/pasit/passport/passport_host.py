@@ -891,3 +891,50 @@ class PassportHost:
     except Exception as e:
       # Don't fail the test if we can't save the image.
       self.log.exception(e)
+
+  def get_warmth_score(
+      self,
+      camera_id: str,
+      log_dir: str = '',
+      image_name_suffix: str = '',
+      exposure_time_us: int = 0,
+  ) -> float:
+    """Calculates a warmth score for the image captured by the camera.
+
+    The warmth score is calculated by comparing the percentage of pixels that
+    fall into 'warm' color ranges (red, orange, yellow) versus 'cold' color
+    ranges (blue, cyan).
+
+    Args:
+      camera_id: The unique ID of the camera to capture an image and
+        calculate warmth score.
+      log_dir: The directory to save the image to, should be the mobly log
+        directory or a subdirectory of it.  Must be specified if
+        image_name_suffix is specified.
+      image_name_suffix: The suffix of the image name to use for the image. If
+        specified, the image will be saved to logs directory with the timestamp
+        followed by the suffix.
+      exposure_time_us: The exposure time in microseconds to use for the camera.
+        If 0, the auto exposure setting will be used.
+
+    Returns:
+      A warmth score, where positive values indicate a warmer image and
+      negative values indicate a colder image. The score is the difference
+      between the percentage of warm pixels and cold pixels (0 to 100).
+    """
+    warm_masks = {
+        'warm': image.HSVMask(
+            image.HSV(h=330, s=0.3, v=0.3), image.HSV(h=60, s=1.0, v=1.0)
+        ),
+        'cold': image.HSVMask(
+            image.HSV(h=165, s=0.3, v=0.3), image.HSV(h=270, s=1.0, v=1.0)
+        ),
+    }
+    results = self.analyze_hsv(
+        camera_id, warm_masks, log_dir, image_name_suffix, exposure_time_us
+    )
+    logging.debug('Warm values for %s : %s', image_name_suffix,
+                  results.get('warm', 0.0))
+    logging.debug('Cold values for %s : %s', image_name_suffix,
+                  results.get('cold', 0.0))
+    return results.get('warm', 0.0) - results.get('cold', 0.0)
