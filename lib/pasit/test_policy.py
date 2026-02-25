@@ -86,8 +86,8 @@ class HIDTestPolicy:
       delay_seconds=1,
   )
   DETECT_HID_EMULATOR_RETRY_POLICY = retry.RetryPolicy(
-      max_tries=5,
-      delay_seconds=2,
+      max_tries=20,
+      delay_seconds=3,
   )
   DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY = retry.RetryPolicy(
       max_tries=30,
