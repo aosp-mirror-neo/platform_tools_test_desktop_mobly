@@ -306,13 +306,11 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       maximized.
     """
     try:
-      button = self.controller.ui(
-          desc=f'Maximize {self.COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION}'
-      )
-      if button.exists:
+      button = self.controller.ui(res='com.android.systemui:id/maximize_window')
+      if button.wait.exists(timeout=datetime.timedelta(seconds=5)):
         button.click()
       else:
-        logging.debug(
+        logging.warning(
             'Maximize button not found for color fill test app window, skipping'
             ' window maximization.'
         )

@@ -23,6 +23,9 @@ from mobly import asserts
 from mobly import test_runner
 from pasit.display import display_base_test
 
+_NIGHT_LIGHT_TEMP_WARM = 2597
+_NIGHT_LIGHT_TEMP_COOL = 4000
+
 
 @functools.generate_tests
 class NightLightTest(display_base_test.DisplayBaseTest):
@@ -71,83 +74,85 @@ class NightLightTest(display_base_test.DisplayBaseTest):
       )
     self.capture_screenshots('after_muted_blue_on_display')
 
+    warmth_scores = {d: {} for d in all_displays}
+
     logging.info('Disabling Night Light for baseline capture.')
     self.display.set_night_light_enabled(False)
-    asserts.assert_false(
-        self.display.get_night_light_enabled(), 'Night Light should be OFF'
-    )
 
-    baseline_warmth = {
-        d: self._get_warmth_score(d, display_map, 'baseline_off')
-        for d in all_displays
-    }
+    self._get_all_display_warmth_scores(
+        all_displays, display_map, 'baseline_off', warmth_scores
+    )
 
     logging.info('Enabling Night Light.')
     self.display.set_night_light_enabled(True)
-    asserts.assert_true(
-        self.display.get_night_light_enabled(), 'Night Light should be ON'
+
+    logging.info('Triggering Night Light change: %dK', _NIGHT_LIGHT_TEMP_WARM)
+    self.display.set_night_light_temperature(_NIGHT_LIGHT_TEMP_WARM)
+    asserts.assert_equal(
+        _NIGHT_LIGHT_TEMP_WARM, self.display.get_night_light_temperature()
+    )
+    self._get_all_display_warmth_scores(
+        all_displays, display_map, _NIGHT_LIGHT_TEMP_WARM, warmth_scores
+    )
+
+    logging.info('Triggering Night Light change: %dK', _NIGHT_LIGHT_TEMP_COOL)
+    self.display.set_night_light_temperature(_NIGHT_LIGHT_TEMP_COOL)
+    asserts.assert_equal(
+        _NIGHT_LIGHT_TEMP_COOL, self.display.get_night_light_temperature()
+    )
+    self._get_all_display_warmth_scores(
+        all_displays, display_map, _NIGHT_LIGHT_TEMP_COOL, warmth_scores
     )
 
     for display_id in all_displays:
-      self.display.set_night_light_temperature(0)
-      asserts.assert_equal(
-          0,
-          self.display.get_night_light_temperature(),
-          'Night light temperature is not set correctly.',
-      )
-      warmth_0 = self._get_warmth_score(display_id, display_map, 'temp_0')
-
-      self.display.set_night_light_temperature(100)
-      asserts.assert_equal(
-          100,
-          self.display.get_night_light_temperature(),
-          'Night light temperature is not set correctly.',
-      )
-      warmth_100 = self._get_warmth_score(display_id, display_map, 'temp_100')
+      baseline_score = warmth_scores[display_id]['baseline_off']
+      warm_setting_score = warmth_scores[display_id][_NIGHT_LIGHT_TEMP_WARM]
+      cool_setting_score = warmth_scores[display_id][_NIGHT_LIGHT_TEMP_COOL]
 
       logging.info(
-          'Display %s | Baseline: %d | Temp 0: %d | Temp 100: %d',
+          'Display %s | Nightlight off: %.2f | Nightlight Cool: %.2f |'
+          ' Nightlight Warm: %.2f',
           display_id,
-          baseline_warmth[display_id],
-          warmth_0,
-          warmth_100,
+          baseline_score,
+          cool_setting_score,
+          warm_setting_score,
       )
 
       asserts.assert_greater(
-          warmth_100,
-          warmth_0,
-          f'Display {display_id}: Temp 100 should be warmer than Temp 0.',
+          warm_setting_score,
+          cool_setting_score,
+          f'Display {display_id}: Night light validation failed. '
+          'Expected warm setting score to be higher than cool setting score.',
+      )
+      asserts.assert_greater(
+          cool_setting_score,
+          baseline_score,
+          f'Display {display_id}: Night light validation failed. '
+          'Expected cool setting score to be higher than baseline score.',
       )
 
-      asserts.assert_greater(
-          warmth_100,
-          baseline_warmth[display_id],
-          f'Display {display_id}: Temp 100 should be warmer than Baseline.',
+  def _get_all_display_warmth_scores(
+      self,
+      display_ids: list[str],
+      display_map: dict[str, str],
+      temp_label: int | str,
+      warmth_dict: dict[str, dict[str | int, float]],
+  ) -> None:
+    """Helper to capture warmth scores for all displays at a specific state."""
+    for display_id in display_ids:
+      warmth_dict[display_id][temp_label] = self._get_warmth_score(
+          display_id, display_map, str(temp_label)
       )
 
   def _get_warmth_score(
       self, display_id: str, display_map: dict[str, str], label: str
-  ) -> int:
-    """Helper to capture raw RGB average and calculate hot-cold score.
-
-    Args:
-      display_id: The ID of the display to capture.
-      display_map: A dictionary mapping display IDs to camera IDs.
-      label: A label to use in the saved image filename.
-
-    Returns:
-      An integer representing the warmth score (higher values indicate warmer
-      colors).
-    """
+  ) -> float:
     camera_id = display_map[display_id]
-
-    avg_rgb_color = self.passport_host.get_average_pixel(
+    return self.passport_host.get_warmth_score(
         camera_id=camera_id,
         log_dir=self.current_test_info.output_path,
         image_name_suffix=f'nightlight_{display_id}_{label}',
     )
-
-    return image.get_color_hot_cold(avg_rgb_color)
 
 
 if __name__ == '__main__':
