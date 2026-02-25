@@ -19,6 +19,8 @@ from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 
@@ -36,7 +38,11 @@ class PasitHIDKeyboardTest(pasit_test.PasitTestClass):
     self.hid = self.create(pasit_hid)
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
     self.emulator = hid_emulator.HIDEmulator(self.passport_host)
-    self.emulator.initialize()
+    retry.retry(
+        self.emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
 
   def setup_test(self):
     """Handle the setup for the test."""

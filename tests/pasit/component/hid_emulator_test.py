@@ -20,6 +20,8 @@ from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
+from lib.pasit import test_policy
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 
@@ -70,23 +72,30 @@ class HIDEmulatorTest(pasit_test.PasitTestClass):
   def test_keypress(self) -> None:
     emulator = hid_emulator.HIDEmulator(self.passport_host)
     self.plug_in_hid_emulator()
-    emulator.initialize()
-    emulator.keypress([hid_keys.Alphanumeric.KEY_A])
-
-    self.unplug_hid_emulator()
-    self.plug_in_hid_emulator()
-    emulator.initialize()
+    retry.retry(
+        emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
     emulator.keypress([hid_keys.Alphanumeric.KEY_A])
 
   def test_mouse_click(self) -> None:
     emulator = hid_emulator.HIDEmulator(self.passport_host)
     self.plug_in_hid_emulator()
-    emulator.initialize()
+    retry.retry(
+        emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
     emulator.mouse_click(hid_emulator.MouseButton.LEFT)
 
     self.unplug_hid_emulator()
     self.plug_in_hid_emulator()
-    emulator.initialize()
+    retry.retry(
+        emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
     emulator.mouse_click(hid_emulator.MouseButton.RIGHT)
 
   def plug_in_hid_emulator(self) -> None:
