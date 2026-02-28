@@ -38,6 +38,11 @@ class USBAuthTests(hid_base_test.HIDBaseTest):
 
   hid: pasit_hid.PasitHID
 
+  def setup_class(self) -> None:
+    """Setup for the test class."""
+    super().setup_class()
+    self.hid = self.create(pasit_hid)
+
   def teardown_class(self):
     """Handle the teardown for the class."""
     if hasattr(self, 'hid'):
@@ -50,20 +55,16 @@ class USBAuthTests(hid_base_test.HIDBaseTest):
     self.skip_if_servo_needed_and_not_configured(
         dut_state_manager.PowerState.OFF
     )
-
     with dut_state_manager.EnterStateAndReturnToPowerOn(
-        self.dut, dut_state_manager.PowerState.OFF,
-        login_on_power_on=False
+        self.dut, dut_state_manager.PowerState.OFF, login_on_power_on=False
     ):
       self.plug_in_hid_emulator()
 
-    self.hid = self.create(pasit_hid)
     self.initialize_and_verify_hid_emulator(self.hid)
 
   def test_hid_on_lock_screen(self) -> None:
     """Verify HID is detected on lock screen."""
 
-    self.hid = self.create(pasit_hid)
     self.dut.user_tools.lock()
     self.plug_in_hid_emulator_and_verify(self.hid)
 
