@@ -64,7 +64,7 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
     with dut_state_manager.EnterStateAndReturnToPowerOn(self.dut, target_state):
       self.plug_in_hid_emulator()
 
-    self.emulator.initialize()
+    self.initialize_and_verify_hid_emulator(self.hid)
     self.validate_keyboard_input(self.hid)
 
   @functools.with_variants(
@@ -81,7 +81,7 @@ class PlugInHIDTest(hid_base_test.HIDBaseTest):
     self.plug_in_hid_emulator()
     dut_state_manager.execute_power_action(self.dut, target_action)
 
-    self.emulator.initialize()
+    self.initialize_and_verify_hid_emulator(self.hid)
     self.validate_keyboard_input(self.hid)
 
 

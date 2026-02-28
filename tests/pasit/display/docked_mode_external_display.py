@@ -15,6 +15,8 @@
 """Test that plugs in an external display with lid closed when DUT is in different states."""
 
 import logging
+
+from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_display
 from lib.pasit import peripheral_connector
@@ -27,6 +29,11 @@ from mobly import test_runner
 from pasit.display import display_base_test
 
 
+@DesktopTest(
+    cujs=[
+        'b/476200925',  # External display(s) work when clamshell lid is shut
+    ],
+)
 @functools.generate_tests
 class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that external displays remain active with lid closed when DUT is in different states."""
