@@ -41,31 +41,14 @@ from pasit.display import display_base_test
 class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that plugs in an external display when DUT is in different states."""
 
-  @functools.with_variants(
-      on_dock=(
-          dut_state_manager.PowerState.ON,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      on_dockless=(
-          dut_state_manager.PowerState.ON,
-          peripheral_connector.ConnectionType.DOCKLESS,
-      ),
-      off_dock=(
-          dut_state_manager.PowerState.OFF,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      off_dockless=(
-          dut_state_manager.PowerState.OFF,
-          peripheral_connector.ConnectionType.DOCKLESS,
-      ),
-      suspended_dock=(
-          dut_state_manager.PowerState.SUSPEND,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      suspended_dockless=(
-          dut_state_manager.PowerState.SUSPEND,
-          peripheral_connector.ConnectionType.DOCKLESS,
-      ),
+  @functools.with_dimensions(
+      on=(dut_state_manager.PowerState.ON,),
+      off=(dut_state_manager.PowerState.OFF,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  @functools.with_dimensions(
+      dock=(peripheral_connector.ConnectionType.DOCK,),
+      dockless=(peripheral_connector.ConnectionType.DOCKLESS,),
   )
   def test_plug_in_display_when_dut(
       self,

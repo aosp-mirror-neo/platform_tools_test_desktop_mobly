@@ -43,31 +43,14 @@ _EXTERNAL_DISPLAY_COUNT_AFTER_PLUG_IN = 2
 class PlugInTwoExternalDisplaysTest(display_base_test.DisplayBaseTest):
   """Test that plugs in two external displays when DUT is in different states."""
 
-  @functools.with_variants(
-      on_dock=(
-          dut_state_manager.PowerState.ON,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      on_daisychain=(
-          dut_state_manager.PowerState.ON,
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-      ),
-      off_dock=(
-          dut_state_manager.PowerState.OFF,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      off_daisychain=(
-          dut_state_manager.PowerState.OFF,
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-      ),
-      suspended_dock=(
-          dut_state_manager.PowerState.SUSPEND,
-          peripheral_connector.ConnectionType.DOCK,
-      ),
-      suspended_daisychain=(
-          dut_state_manager.PowerState.SUSPEND,
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-      ),
+  @functools.with_dimensions(
+      on=(dut_state_manager.PowerState.ON,),
+      off=(dut_state_manager.PowerState.OFF,),
+      suspended=(dut_state_manager.PowerState.SUSPEND,),
+  )
+  @functools.with_dimensions(
+      dock=(peripheral_connector.ConnectionType.DOCK,),
+      daisychain=(peripheral_connector.ConnectionType.DAISY_CHAIN,),
   )
   def test_plug_in_two_displays_when_dut(
       self,
