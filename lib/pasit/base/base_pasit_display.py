@@ -96,6 +96,19 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def is_display_on(self, display_id: DisplayId | None = None) -> bool:
+    """Returns True if the display is ON, False otherwise.
+
+    Args:
+      display_id: The display ID to get the state of. If not specified, the
+        state of the internal display will be checked.
+
+    Returns:
+      True if the display is ON, False otherwise.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def get_display_resolution(
       self, display_id: DisplayId | None = None
   ) -> tuple[str, DisplayResolution]:

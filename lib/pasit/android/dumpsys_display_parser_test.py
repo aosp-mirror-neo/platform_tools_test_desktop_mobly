@@ -178,6 +178,21 @@ class DumpsysDisplayParserTest(unittest.TestCase):
         self._LID_CLOSED_INTERNAL_DISPLAY_ID,
     )
 
+  def test_is_display_on(self):
+    self.parser = self._get_parser(self.external_display_lines)
+    self.assertTrue(self.parser.is_display_on())
+    self.assertTrue(self.parser.is_display_on(self._INTERNAL_DISPLAY_ID))
+    self.assertTrue(self.parser.is_display_on(self._EXTERNAL_DISPLAY_ID))
+
+  def test_is_display_on_lid_closed(self):
+    self.parser = self._get_parser(self.lid_closed_display_lines)
+    self.assertFalse(
+        self.parser.is_display_on(self._LID_CLOSED_INTERNAL_DISPLAY_ID)
+    )
+    self.assertTrue(
+        self.parser.is_display_on(self._LID_CLOSED_EXTERNAL_DISPLAY_ID)
+    )
+
   def _get_parser(self, display_lines):
     controller = mock.MagicMock()
     controller.adb.shell.return_value = '\n'.join(display_lines).encode('utf-8')

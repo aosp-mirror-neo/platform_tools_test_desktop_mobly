@@ -90,6 +90,25 @@ class DumpsysDisplayParser:
     display_info_line = self._get_display_info_line()
     return self._get_display_id_from_display_info_line(display_info_line)
 
+  def is_display_on(self, display_id: DisplayId | None = None) -> bool:
+    """Returns True if the display is ON, False otherwise."""
+    if not display_id:
+      display_id = self.get_internal_display_id()
+
+    # The 'Display States' section lists displays as:
+    #   Display Id=0
+    #   Display State=ON
+    content = '\n'.join(self.dumpsys_display_lines)
+    match = re.search(
+        rf'Display Id={display_id.id}\s+Display State=(\w+)', content
+    )
+    if match:
+      return match.group(1) == 'ON'
+
+    raise InfoNotFoundError(
+        f'Failed to get display state for display id "{display_id}".'
+    )
+
   def _get_base_display_info(self) -> list[str]:
     # example line:
     # mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0...
