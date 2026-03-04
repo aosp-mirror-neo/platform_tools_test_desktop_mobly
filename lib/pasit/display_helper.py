@@ -30,6 +30,10 @@ class DisplayIDsNotStableError(Exception):
   """Error when the display ID is not stable."""
 
 
+class DisplayStateMismatchError(Exception):
+  """Error when the display state is not as expected."""
+
+
 class DisplayHelper:
   """Helper class for display testing tools for PASIT tests.
 
@@ -118,19 +122,70 @@ class DisplayHelper:
     logging.debug('External display ids: %s', external_display_ids)
     return external_display_ids
 
+  def _wait_for_displays_on(
+      self,
+      display_ids: list[pasit_display.PasitDisplay.DisplayId],
+      expected_off: list[pasit_display.PasitDisplay.DisplayId] | None = None,
+  ) -> None:
+    """Waits for the displays to be in the expected state.
+
+    Args:
+      display_ids: The list of display IDs to check.
+      expected_off: A list of display IDs expected to be Off. All other displays
+        are expected to be On.
+
+    Returns:
+      None
+    Raises:
+      DisplayStateMismatchError: If the displays are not in the expected state,
+        all displays are expected to be On except for the ones in expected_off.
+    """
+    expected_off = expected_off or []
+
+    def _state_to_string(state: bool) -> str:
+      return 'On' if state else 'Off'
+
+    def _check_displays_on() -> None:
+      mismatches = []
+      for display_id in display_ids:
+        is_on = self.display.is_display_on(display_id)
+        expected_on = not any(
+            display_id.is_same_physical_display(expected_off_id)
+            for expected_off_id in expected_off
+        )
+        if is_on != expected_on:
+          mismatches.append(
+              f'Display {display_id!r} is {_state_to_string(is_on)}, but'
+              f' expected {_state_to_string(expected_on)}.'
+          )
+
+      if mismatches:
+        raise DisplayStateMismatchError(' '.join(mismatches))
+
+    retry.retry(
+        _check_displays_on,
+        exceptions=(DisplayStateMismatchError,),
+        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+    )
+
   def get_display_count(
       self,
       expected_display_count: int,
+      expected_off: list[pasit_display.PasitDisplay.DisplayId] | None = None,
   ) -> int:
     """Returns the number of displays detected.
 
     The function waits for the display IDs to be stable and returns the number
     of displays. This will retry according to the retry policy if the display
     count does not match the expected count. The will return the last stable
-    display count, even if it is not the expected count.
+    display count, even if it is not the expected count.  It will also ensure
+    that the displays are in the expected state (ON or OFF) based on the
+    expected_off list.
 
     Args:
       expected_display_count: The expected number of displays.
+      expected_off: A list of display IDs expected to be OFF. All other detected
+        displays are expected to be ON.
 
     Returns:
       The number of displays detected.
@@ -138,15 +193,17 @@ class DisplayHelper:
     Raises:
       DisplayIDsNotStableError: If the display IDs are not stable this error
       will be raised.
+      DisplayStateMismatchError: If the displays are not in the expected state,
+        all displays are expected to be ON except for the ones in expected_off.
     """
-
-    display_count = retry.retry(
-        lambda: len(self._get_stable_ids()),
-        until=lambda ids_count: ids_count == expected_display_count,
+    display_ids = retry.retry(
+        self._get_stable_ids,
+        until=lambda display_ids: len(display_ids) == expected_display_count,
         exceptions=(DisplayIDsNotStableError,),
         policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
-    return display_count
+    self._wait_for_displays_on(display_ids, expected_off)
+    return len(display_ids)
 
   def _get_stable_ids(self) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Returns display IDs if stable, otherwise Raises DisplayIDsNotStableError."""

@@ -57,6 +57,33 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     def __hash__(self):
       return hash(self._id)
 
+    def is_same_physical_display(self, other: 'DisplayId') -> bool:
+      """Checks if two display IDs represent the same physical display.
+
+      Numerical display IDs (e.g., ID 0, ID 16) are not always stable on
+      Android. For example, when a laptop lid is closed, the framework may
+      re-assign the primary ID (0) to an external monitor and assign a new ID to
+      the internal panel. This method allows the test to track the physical
+      display across such re-assignment events by prioritizing stable
+      identifiers like UIDs.
+
+      Args:
+        other: The other display ID to compare.
+
+      Returns:
+        True if the two display IDs represent the same physical display.
+      """
+      # First check for exact equality (ID + UID + Human Readable).
+      if self == other:
+        return True
+
+      # If human readable IDs are the same then assume they are the same
+      # physical display.
+      return (
+          self.human_readable_id
+          and self.human_readable_id == other.human_readable_id
+      )
+
   class DisplayResolution:
     """Class for holding the resolution of a display."""
 

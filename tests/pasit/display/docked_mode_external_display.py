@@ -81,19 +81,22 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     )
 
     self._close_lid()
-
-    self._verify_internal_display_is_blank(
-        display_id_to_camera_id, internal_display_id
-    )
     self.verify_display_count(
         external_display_count + 1,
         'after lid closed and before power action',
+        # When lid is closed,  the internal display still detected, but it
+        # should be turned off.
+        expected_off=[internal_display_id],
+    )
+    self._verify_internal_display_is_blank(
+        display_id_to_camera_id, internal_display_id
     )
     dut_state_manager.execute_power_action(self.dut, power_action)
 
     self.verify_display_count(
         external_display_count + 1,
         'after lid closed',
+        expected_off=[internal_display_id],
     )
 
     # TODO(b/479143371): The display count remains the same, but display IDs
@@ -146,17 +149,16 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     self.painter.maximize_color_window()
 
     self._close_lid()
-
-    self._verify_internal_display_is_blank(
-        display_id_to_camera_id, internal_display_id
-    )
-
-    self._verify_red_moved_to_external_display(
-        display_id_to_camera_id, external_display_ids
-    )
     self.verify_display_count(
         external_display_count + 1,
         'after lid closed',
+        expected_off=[internal_display_id],
+    )
+    self._verify_internal_display_is_blank(
+        display_id_to_camera_id, internal_display_id
+    )
+    self._verify_red_moved_to_external_display(
+        display_id_to_camera_id, external_display_ids
     )
 
     self._open_lid()
