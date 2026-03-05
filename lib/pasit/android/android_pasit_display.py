@@ -81,6 +81,11 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
         self.controller
     ).get_internal_display_id()
 
+  def is_display_on(self, display_id: DisplayId | None = None) -> bool:
+    return dumpsys_display_parser.DumpsysDisplayParser(
+        self.controller
+    ).is_display_on(display_id)
+
   def get_display_resolution(
       self, display_id: DisplayId | None = None
   ) -> tuple[str, DisplayResolution]:

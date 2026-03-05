@@ -64,3 +64,9 @@ class AndroidDisplayId(DisplayId):
     id_int = int(self._unique_id)
     unsigned_id_int = ctypes.c_uint64(id_int).value
     return str(unsigned_id_int)
+
+  def is_same_physical_display(self, other: DisplayId) -> bool:
+    # Use the Unique ID (UID) to determine if the displays are the same
+    # physical panel. On Android, this is typically a stable identifier derived
+    # from EDID or hardware port.
+    return self.unique_id == other.unique_id
