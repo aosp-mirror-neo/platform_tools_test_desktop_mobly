@@ -43,64 +43,16 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     self.dut.set_lid_open()
     super().teardown_test()
 
-  @functools.with_variants(
-      reboot_dock_one_display=(
-          dut_state_manager.PowerAction.REBOOT,
-          peripheral_connector.ConnectionType.DOCK,
-          1,
-      ),
-      reboot_dock_two_display=(
-          dut_state_manager.PowerAction.REBOOT,
-          peripheral_connector.ConnectionType.DOCK,
-          2,
-      ),
-      shutdown_dock_one_display=(
-          dut_state_manager.PowerAction.SHUTDOWN,
-          peripheral_connector.ConnectionType.DOCK,
-          1,
-      ),
-      shutdown_dock_two_display=(
-          dut_state_manager.PowerAction.SHUTDOWN,
-          peripheral_connector.ConnectionType.DOCK,
-          2,
-      ),
-      suspend_dock_one_display=(
-          dut_state_manager.PowerAction.SUSPEND,
-          peripheral_connector.ConnectionType.DOCK,
-          1,
-      ),
-      suspend_dock_two_display=(
-          dut_state_manager.PowerAction.SUSPEND,
-          peripheral_connector.ConnectionType.DOCK,
-          2,
-      ),
-      reboot_dockless_one_display=(
-          dut_state_manager.PowerAction.REBOOT,
-          peripheral_connector.ConnectionType.DOCKLESS,
-          1,
-      ),
-      shutdown_dockless_one_display=(
-          dut_state_manager.PowerAction.SHUTDOWN,
-          peripheral_connector.ConnectionType.DOCKLESS,
-          1,
-      ),
-      suspend_dockless_one_display=(
-          dut_state_manager.PowerAction.SUSPEND,
-          peripheral_connector.ConnectionType.DOCKLESS,
-          1,
-      ),
-      reboot_daisychain_two_display=(
-          dut_state_manager.PowerAction.REBOOT,
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          2,
-      ),
-      shutdown_daisychain_two_display=(
-          dut_state_manager.PowerAction.SHUTDOWN,
-          peripheral_connector.ConnectionType.DAISY_CHAIN,
-          2,
-      ),
-      suspend_daisychain_two_display=(
-          dut_state_manager.PowerAction.SUSPEND,
+  @functools.with_dimensions(
+      reboot=dut_state_manager.PowerAction.REBOOT,
+      shutdown=dut_state_manager.PowerAction.SHUTDOWN,
+      suspend=dut_state_manager.PowerAction.SUSPEND,
+  )
+  @functools.with_dimensions(
+      dock_one_display=(peripheral_connector.ConnectionType.DOCK, 1),
+      dockless_one_display=(peripheral_connector.ConnectionType.DOCKLESS, 1),
+      dock_two_display=(peripheral_connector.ConnectionType.DOCK, 2),
+      daisychain_two_display=(
           peripheral_connector.ConnectionType.DAISY_CHAIN,
           2,
       ),
