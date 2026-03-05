@@ -64,6 +64,7 @@ class DisplayTestPolicy:
 
 
 class StorageTestPolicy:
+  """Test policies for Storage tests."""
   EXTERNAL_STORAGE_DETECTED_RETRY_POLICY = retry.RetryPolicy(
       max_tries=30,
       delay_seconds=2,
@@ -74,6 +75,10 @@ class StorageTestPolicy:
   )
   EXTERNAL_STORAGE_UNMOUNTED_RETRY_POLICY = retry.RetryPolicy(
       max_tries=15,
+      delay_seconds=2,
+  )
+  EXTERNAL_STORAGE_BLOCK_VERIFICATION_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=20,
       delay_seconds=2,
   )
 
