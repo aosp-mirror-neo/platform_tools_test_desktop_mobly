@@ -300,6 +300,9 @@ determine_cros_or_android() {
   if nc -z -w 1 "${DUT_IP}" "${cros_port}" &> /dev/null; then
     log_color GOOD "Found a ChromeOS device (SSH) listening on ${DUT_IP}:${cros_port}."
     DEVICE_TYPE="cros"
+    # Define a default since this is used for config generation even on CrOS
+    # device tests.
+    PASIT_ANDROID_IMAGE="${PASIT_ANDROID_IMAGE_PATH}:${PASIT_TAG}"
     return
   fi
   log_color ERROR "Failed to find a ChromeOS or Android device listening on ${DUT_IP}."
