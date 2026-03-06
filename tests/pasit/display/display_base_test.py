@@ -189,15 +189,18 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     Args:
       camera_id: The camera ID to use for the verification.
       expected_color: The expected color to verify.
-      camera_capture_name: Prefix for the image name to use for the capture.
+      camera_capture_name: Prefix for the image name to use for the capture. The
+        capture will be saved as
+        {log_path}/{timestamp}_{camera_capture_name}_from_camera{camera_id}.
       failure_message: The message to use for the assertion if the verification
         fails.
     """
+
     match_status = retry.retry(
         lambda: self.camera_mapper.try_match_color(
             camera_id,
             expected_color,
-            f'{camera_capture_name}_from_camera{camera_id}',
+            f'{camera_capture_name}',
         ),
         until=lambda status: status,
         policy=test_policy.DisplayTestPolicy.MATCH_COLOR_RETRY_POLICY,

@@ -28,7 +28,7 @@ from pasit.display import display_base_test
     manual=[
         'al_connect_disconnect_scenarios.disconnect_display_while_al_device_shutting_down',
         'al_persistence_of_settings.shutdown_al_device_while_display_connected',
-    ]
+    ],
 )
 class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
   """Test that shuts down DUT with external display plugged in."""
@@ -50,7 +50,7 @@ class ShutdownWithExternalDisplayTest(display_base_test.DisplayBaseTest):
         self.verify_captured_color(
             camera,
             image.NamedColor.BLACK,
-            f'black_after_shutdown_{camera}',
+            'black_after_shutdown',
             'Display should be black after shutdown.',
         )
       self.unplug_external_display()
