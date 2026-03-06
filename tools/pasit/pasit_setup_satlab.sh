@@ -45,14 +45,22 @@ PASSPORT_CONTAINER="passport-dev"
 # use multiplexing to keep the tunnels alive for 90 seconds, this allows for
 # faster reconnection after disconnection, this cuts down on runtime from > 60s
 # to < 20s.
-SOCKET="/tmp/pasit_setup_satlab.sh.sock"
-SSH_OPTS="-o ControlMaster=auto -o ControlPath=$SOCKET -o ControlPersist=90"
+SOCKET_BASE="/tmp/pasit_setup_satlab"
+SESSION_INFO_BASE="/tmp/pasit_session_info"
+LEASE_CACHE_FILE="/tmp/pasit_leases_cache_$$.txt"
+
+trap "rm -f ${LEASE_CACHE_FILE}" EXIT
+
+function get_ssh_opts() {
+  local satlab_ip="$1"
+  SSH_OPTS=(-o ControlMaster=auto -o "ControlPath=${SOCKET_BASE}_${satlab_ip}.sock" -o ControlPersist=90)
+}
 
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 function usage() {
-  echo "Usage: pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-p]"
+  echo "Usage: pasit_setup_satlab.sh [options]"
   echo "  -d|--dut_hostname: The hostname of the DUT to use for testing."
   echo "  -s|--satlab_ip: The IP of the Satlab to use for testing."
   echo "  -p|--provision: Provision the DUT before leasing (will only run if"
@@ -65,21 +73,145 @@ function usage() {
   echo "  --port-offset: An integer to offset all the tunnel ports by."
   echo "  --cros: Run the script to test CrOS devices (default is Android)."
   echo "  --sfp: Use this if the DUT is Satlab for Partners enrolled."
+  echo "  -f|--force: Force start a session even if there is a port conflict."
+  echo ""
+  echo "Session Management:"
+  echo "  --query: List active sessions and their lease status."
+  echo "  --release <DUT|all>: Abandon lease and close tunnel for a DUT or all."
   echo ""
   echo "Example:"
   echo "  pasit_setup_satlab.sh -d <DUT_HOSTNAME> -s <SATLAB_IP> [-c /path/to/config.yaml]"
+  echo "  pasit_setup_satlab.sh --query"
+  echo "  pasit_setup_satlab.sh --release <DUT_HOSTNAME>"
   echo ""
   echo "For more instructions see go/write-pasit-test."
   exit 1
 }
 
+# Function to get lease info from crosfleet
+function get_lease_info() {
+    local dut=$1
+    if ! which crosfleet > /dev/null 2>&1; then
+        echo "0" "0"
+        return
+    fi
+
+    if [[ ! -f "${LEASE_CACHE_FILE}" ]]; then
+        crosfleet dut leases 2>/dev/null > "${LEASE_CACHE_FILE}"
+    fi
+
+    # Search for the DUT in the leases list
+    awk -v dut="$dut" -F'=' '
+        BEGIN { lease_id = "0"; mins = "0"; current_dut = "" }
+        $1 == "DUT_HOSTNAME" { current_dut = $2 }
+        $1 == "MINS_REMAINING" && current_dut == dut { mins = $2 }
+        $1 == "LEASE_ID" && current_dut == dut { lease_id = $2 }
+        END { print lease_id, mins }
+    ' "${LEASE_CACHE_FILE}"
+}
+
+## Function to check if SSH mux is alive
+function is_ssh_alive() {
+    local dut=$1
+    local info_file="${SESSION_INFO_BASE}_${dut}.info"
+    if [[ ! -f "$info_file" ]]; then
+        return 1
+    fi
+    # Source metadata to get SESSION_SATLAB_IP
+    local SESSION_SATLAB_IP
+    SESSION_SATLAB_IP="$(grep "SESSION_SATLAB_IP=" "$info_file" | cut -d'=' -f2)"
+    local sock="${SOCKET_BASE}_${SESSION_SATLAB_IP}.sock"
+    if [[ ! -S "$sock" ]]; then
+        return 1
+    fi
+    ssh -O check -S "$sock" "${SESSION_SATLAB_IP}" 2>/dev/null
+    return $?
+}
+
+# Function to close a session
+function close_session() {
+    local dut=$1
+    local info_file="${SESSION_INFO_BASE}_${dut}.info"
+
+    if [[ ! -f "$info_file" ]]; then
+        echo "No session info found for $dut"
+        return 1
+    fi
+
+    local SESSION_SATLAB_IP
+    SESSION_SATLAB_IP="$(grep "SESSION_SATLAB_IP=" "$info_file" | cut -d'=' -f2)"
+    local sock="${SOCKET_BASE}_${SESSION_SATLAB_IP}.sock"
+
+    echo "Closing session for $dut..."
+    if [[ -n "$sock" && -S "$sock" ]]; then
+        ssh -O exit -S "$sock" "${SESSION_SATLAB_IP}" 2>/dev/null
+        echo "Cleanly closed mux session via $sock"
+    fi
+
+    rm -f "$sock"
+    rm -f "$info_file"
+}
+
+function close_session_and_abandon_lease() {
+    local dut=$1
+    local info_file="${SESSION_INFO_BASE}_${dut}.info"
+
+    # 1. Abandon lease if it exists
+    if which crosfleet > /dev/null 2>&1; then
+        local lease_info
+        read -r -a lease_info <<< "$(get_lease_info "$dut")"
+        local lease_id="${lease_info[0]}"
+        if [[ "${lease_id}" != "0" ]]; then
+            echo "Abandoning lease $lease_id..."
+            crosfleet dut abandon -lease-ids="$lease_id" > /dev/null 2>&1
+        fi
+    fi
+    close_session "$dut"
+}
+
+function query_sessions() {
+    echo "Scanning for active PASIT SSH sessions..."
+    echo "==================================================================="
+    local files=("${SESSION_INFO_BASE}"_*.info)
+    if [[ ! -e "${files[0]}" ]]; then
+        echo "No active PASIT sessions found."
+        return 0
+    fi
+
+    for f in "${files[@]}"; do
+        unset SESSION_DUT_HOSTNAME SESSION_SATLAB_IP SESSION_SOCKET SESSION_PID SESSION_CONFIG_FILE
+        source "$f"
+
+        echo "DUT Hostname:    $SESSION_DUT_HOSTNAME"
+        echo "Satlab IP:       $SESSION_SATLAB_IP"
+        echo "Socket:          $SESSION_SOCKET"
+        echo "Config:          $SESSION_CONFIG_FILE"
+
+        if is_ssh_alive "$SESSION_DUT_HOSTNAME"; then
+            echo "SSH Status:      ALIVE"
+        else
+            echo "SSH Status:      DEAD (Stale metadata?)"
+        fi
+
+        local lease_info
+        read -r -a lease_info <<< "$(get_lease_info "$SESSION_DUT_HOSTNAME")"
+        local lease_id="${lease_info[0]}"
+        local mins="${lease_info[1]}"
+        if [[ "${lease_id}" != "0" ]]; then
+            echo "Lease ID:        $lease_id"
+            echo "Lease Remaining: $mins minutes"
+        else
+            echo "Lease Remaining: None found"
+        fi
+        echo "-------------------------------------------------------------------"
+    done
+}
+
 function check_ssh_access() {
   # shellcheck disable=SC2086
-  ssh -O exit ${SSH_OPTS} "${SATLAB_IP}" > /dev/null 2>&1
-  rm "${SOCKET}" > /dev/null 2>&1
   echo -e "\n\nChecking SSH access to ${SATLAB_IP}..."
-  # shellcheck disable=SC2086
-  if ! ssh ${SSH_OPTS} -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
+  get_ssh_opts "${SATLAB_IP}"
+  if ! ssh "${SSH_OPTS[@]}" -o BatchMode=yes "${SATLAB_IP}" "echo 'SSH access successful.'" > /dev/null 2>&1; then
     echo -e "\n\nERROR: Failed to establish SSH connection to ${SATLAB_IP}."
     echo "Please ensure you have passwordless SSH access configured for this Satlab and that the host key is accepted."
     echo "See go/write-pasit-test#enter-satlab-dut for more details."
@@ -124,8 +256,8 @@ function run_command_on_satlab_ignore_error() {
   # and path as if we were running command from interactive shell
   # this assumes that no variable expanision is needed on the remote
   # ssh shell
-  # shellcheck disable=SC2086
-  ssh ${SSH_OPTS} "${SATLAB_IP}" -t "bash -l -c '$*'"
+  get_ssh_opts "${SATLAB_IP}"
+  ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" -t "bash -l -c '$*'"
 }
 
 function run_command_on_satlab() {
@@ -140,10 +272,46 @@ function run_command_on_satlab() {
   fi
 }
 
+function check_session_conflicts() {
+    local NEW_DUT=$1
+    local NEW_OFFSET=$2
+    local FORCE=$3
+
+    # 1. Check for existing session with the SAME DUT
+    local SAME_DUT_FILE="${SESSION_INFO_BASE}_${NEW_DUT}.info"
+    if [[ -e "${SAME_DUT_FILE}" ]]; then
+        echo "Auto-cleaning existing session for ${NEW_DUT}..."
+        close_session "${NEW_DUT}"
+    fi
+
+    # 2. Check for port conflicts (same port, different DUT)
+    for f in "${SESSION_INFO_BASE}"_*.info; do
+        if [[ -e "$f" ]]; then
+            unset SESSION_DUT_HOSTNAME SESSION_PORT_OFFSET SESSION_SOCKET
+            source "$f"
+            if [[ "${SESSION_PORT_OFFSET}" == "${NEW_OFFSET}" && "${SESSION_DUT_HOSTNAME}" != "${NEW_DUT}" ]]; then
+                if is_ssh_alive "${SESSION_DUT_HOSTNAME}"; then
+                    echo "ERROR: Port offset ${NEW_OFFSET} is already in use by ${SESSION_DUT_HOSTNAME}."
+                    if [[ "${FORCE}" != true ]]; then
+                        echo "Use --force to override or release the other session first."
+                        exit 1
+                    else
+                        echo "Forcing takeover of port offset ${NEW_OFFSET}..."
+                        close_session "${SESSION_DUT_HOSTNAME}"
+                    fi
+                else
+                    echo "Cleaning up stale session for ${SESSION_DUT_HOSTNAME} with same port offset..."
+                    close_session "${SESSION_DUT_HOSTNAME}"
+                fi
+            fi
+        fi
+    done
+}
+
 function setup_tunnel() {
-  TUNNEL_PGREP="ssh -fNT -L.*(${DUT_ADB_TUNNEL_PORT}|${DUT_SSH_TUNNEL_PORT})"
-  echo "Killing existing tunnels to ${TUNNEL_PGREP}..."
-  pgrep -f "${TUNNEL_PGREP}" | xargs kill -9 > /dev/null 2>&1
+  # close any existing sessions for the DUT
+  close_session "${DUT_HOSTNAME}"
+
   # background tunnel to the DUT
   if [[ ! -z "${SERVO_IP}" ]]; then
     SERVO_TUNNEL="-L ${SERVOD_TUNNEL_PORT}:${SERVO_IP}:${SERVOD_PORT}"
@@ -151,18 +319,23 @@ function setup_tunnel() {
 
   local DUT_TUNNEL
   if [[ "${CROS_TESTING}" == true ]]; then
-    DUT_TUNNEL="-L ${DUT_SSH_TUNNEL_PORT}:${DUT_HOSTNAME}:22"
+    DUT_TUNNEL=("-L" "${DUT_SSH_TUNNEL_PORT}:${DUT_HOSTNAME}:22")
   else
-    DUT_TUNNEL="-L ${DUT_ADB_TUNNEL_PORT}:${DUT_HOSTNAME}:5555"
+    DUT_TUNNEL=("-L" "${DUT_ADB_TUNNEL_PORT}:${DUT_HOSTNAME}:5555")
   fi
 
-  # shellcheck disable=SC2086
+  local SERVO_TUNNEL_ARGS=()
+  if [[ -n "${SERVO_IP}" ]]; then
+    SERVO_TUNNEL_ARGS=("-L" "${SERVOD_TUNNEL_PORT}:${SERVO_IP}:${SERVOD_PORT}")
+  fi
+
+  get_ssh_opts "${SATLAB_IP}"
   SSH_CMD=(ssh -fNT \
-    "${DUT_TUNNEL}" \
+    "${DUT_TUNNEL[@]}" \
     -L "${PASSPORT_TUNNEL_PORT}:${PASSPORT_IP}:8300" \
     -L "${IP_POWER_SWITCH_TUNNEL_PORT}:${IP_POWER_SWITCH_IP}:80" \
-    ${SSH_OPTS} \
-    ${SERVO_TUNNEL} \
+    "${SSH_OPTS[@]}" \
+    "${SERVO_TUNNEL_ARGS[@]}" \
     "${SATLAB_IP}")
 
   echo "Starting SSH tunnel to ${SATLAB_IP}: "
@@ -174,6 +347,16 @@ function setup_tunnel() {
     exit 1
   fi
   echo "SSH tunnel to ${DUT_HOSTNAME} started"
+  # Write session info for ssh_manager.sh
+  SESSION_INFO_FILE="${SESSION_INFO_BASE}_${DUT_HOSTNAME}.info"
+  cat <<EOF > "${SESSION_INFO_FILE}"
+SESSION_DUT_HOSTNAME=${DUT_HOSTNAME}
+SESSION_SATLAB_IP=${SATLAB_IP}
+SESSION_SOCKET=${SOCKET_BASE}_${SATLAB_IP}.sock
+SESSION_PORT_OFFSET=${PORT_OFFSET}
+SESSION_PID=$!
+SESSION_CONFIG_FILE=${CONFIG_OUTPUT_FILE}
+EOF
 }
 
 function start_passport() {
@@ -181,37 +364,33 @@ function start_passport() {
   # don't use the run_command_on_satlab function in this function because
   # there is too much quoting going on and it will mess up the command parsing
   local DOCKER_CMD
-  # shellcheck disable=SC2086
-  DOCKER_CMD="$(ssh ${SSH_OPTS} "${SATLAB_IP}" which docker)"
+  get_ssh_opts "${SATLAB_IP}"
+  DOCKER_CMD="$(ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" which docker)"
   if [[ -z "${DOCKER_CMD}" ]]; then
     DOCKER_CMD="/usr/local/bin/docker"
     echo -e "defaulting to satlab docker path ${DOCKER_CMD}"
   fi
   # stop any existing passport container
-  # shellcheck disable=SC2086
-  ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
+  ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" "${DOCKER_CMD}" rm -f "${PASSPORT_CONTAINER}" > /dev/null 2>&1
   # login to docker registry
-  # shellcheck disable=SC2086
-  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
+  if ! ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
       'cat /home/satlab/keys/pubsub-key-do-not-delete.json \
       | /usr/local/bin/docker login -u _json_key --password-stdin\
        ${PASSPORT_DOCKER_REGISTRY}'"; then
     echo "ERROR: failed to login to docker registry, are you running this script on a satlab?"
     exit 1
   fi
-  # shellcheck disable=SC2086
-  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
+  if ! ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" "${DOCKER_CMD} exec -i compose sh -c \
       \"/usr/local/bin/docker pull ${PASSPORT_DOCKER_IMAGE}\""; then
     echo "ERROR: failed to pull latest passport docker image"
     exit 1
   fi
   # start container
   echo -e "\n\nStarting passport container ${PASSPORT_DOCKER_IMAGE}..."
-  # shellcheck disable=SC2086
-  if ! ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" run \
+  if ! ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" "${DOCKER_CMD}" run \
     -d \
     --rm \
-    --name ${PASSPORT_CONTAINER} \
+    --name "${PASSPORT_CONTAINER}" \
     --privileged \
     -p 8300:8300 \
     "${PASSPORT_DOCKER_IMAGE}" ; then
@@ -219,8 +398,7 @@ function start_passport() {
     exit 1
   fi
 
-  # shellcheck disable=SC2086
-  PASSPORT_IP="$(ssh ${SSH_OPTS} "${SATLAB_IP}" "${DOCKER_CMD}" inspect -f \
+  PASSPORT_IP="$(ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" "${DOCKER_CMD}" inspect -f \
     '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
     "${PASSPORT_CONTAINER}")"
   if [[ $? -ne 0 || -z "${PASSPORT_IP}" ]]; then
@@ -249,8 +427,8 @@ function setup_servo() {
     exit 1
   fi
 
-  # shellcheck disable=SC2086
-  SERVO_IP="$(ssh ${SSH_OPTS} "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
+  get_ssh_opts "${SATLAB_IP}"
+  SERVO_IP="$(ssh "${SSH_OPTS[@]}" "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
   if [[ $? -ne 0 || -z "${SERVO_IP}" ]]; then
     echo -e "\n\nERROR: Failed to get Servod container IP."
     exit 1
@@ -266,9 +444,9 @@ function crosfleet_dut_info() {
     echo -e "\n\nFailed to get DUT info from crosfleet for ${DUT_HOSTNAME}"
     exit 1
   fi
-  BOARD=$(jq -r '.DUTs[].Machine.chromeosMachine.buildTarget' "${DUT_INFO_FILE}")
-  MODEL=$(jq -r '.DUTs[].Machine.chromeosMachine.model' "${DUT_INFO_FILE}")
-  POOL=$(jq -r '.. | .pools?[0] | select(. != null)' "${DUT_INFO_FILE}")
+  BOARD="$(jq -r '.DUTs[].Machine.chromeosMachine.buildTarget' "${DUT_INFO_FILE}")"
+  MODEL="$(jq -r '.DUTs[].Machine.chromeosMachine.model' "${DUT_INFO_FILE}")"
+  POOL="$(jq -r '.. | .pools?[0] | select(. != null)' "${DUT_INFO_FILE}")"
   rm "${DUT_INFO_FILE}"
   if [[ -z "${BOARD}" ]]; then
     echo -e "\n\nFailed to get board for ${DUT_HOSTNAME}"
@@ -290,7 +468,7 @@ function adb_connect_and_dut_info() {
     echo -e "\n\nFailed to connect to DUT ${DUT_HOSTNAME} via ADB"
     exit 1
   fi
-  for i in $(seq 1 5); do
+  for i in {1..5}; do
     sleep 2
     echo -e "Getting fingerprint for ${DUT_HOSTNAME}..."
     if adb -s "localhost:${DUT_ADB_TUNNEL_PORT}" shell getprop ro.build.fingerprint; then
@@ -358,20 +536,23 @@ function generate_config() {
 function lease_dut() {
   echo -e "\n\nChecking if DUT ${DUT_HOSTNAME} is leased..."
   #check that DUT is leased and if not lease it
-  if ! crosfleet dut leases | grep -q "${DUT_HOSTNAME}"; then
+  local lease_info
+  read -r -a lease_info <<< "$(get_lease_info "${DUT_HOSTNAME}")"
+  local lease_id="${lease_info[0]}"
+  if [[ "${lease_id}" -eq 0 ]]; then
     if [[ "${PROVISION}" == true ]]; then
       RUN_TYPE="suite"
-      OS_SPECIFIC_ARGS="-desktop -test-name-includes tradefed.cts.CtsJvmtiRunTest1911HostTestCases crosfleet-placeholder"
+      local OS_SPECIFIC_ARGS=("-desktop" "-test-name-includes" "tradefed.cts.CtsJvmtiRunTest1911HostTestCases" "crosfleet-placeholder")
       if [[ "${CROS_TESTING}" == true ]]; then
         RUN_TYPE="test"
-        OS_SPECIFIC_ARGS="-harness tast example.Pass"
+        OS_SPECIFIC_ARGS=("-harness" "tast" "example.Pass")
       fi
       echo -e "\n\nDUT ${DUT_HOSTNAME} is not leased, provisioning before leasing ...\n\n"
-      crosfleet run ${RUN_TYPE} \
+      crosfleet run "${RUN_TYPE}" \
         -board "${BOARD}" \
         -pool "${POOL}" \
         -dims "dut_name:${DUT_HOSTNAME}" \
-        ${OS_SPECIFIC_ARGS}
+        "${OS_SPECIFIC_ARGS[@]}"
       if [[ $? -ne 0 ]]; then
         echo -e "\n\nERROR: Failed to provision DUT ${DUT_HOSTNAME}."
         exit 1
@@ -434,12 +615,44 @@ while [[ $# -gt 0 ]]; do
       SFP=true
       shift
       ;;
+    -f|--force)
+      FORCE=true
+      shift
+      ;;
+    --query)
+      QUERY_ONLY=true
+      shift
+      ;;
+    --release)
+      RELEASE_TARGET="$2"
+      shift; shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
       ;;
   esac
 done
+
+if [[ "${QUERY_ONLY}" == true ]]; then
+  query_sessions
+  exit 0
+fi
+
+if [[ -n "${RELEASE_TARGET}" ]]; then
+    if [[ "${RELEASE_TARGET}" == "all" ]]; then
+        for f in "${SESSION_INFO_BASE}"_*.info; do
+            if [[ -e "$f" ]]; then
+                unset SESSION_DUT_HOSTNAME
+                source "$f"
+                close_session_and_abandon_lease "$SESSION_DUT_HOSTNAME"
+            fi
+        done
+    else
+        close_session_and_abandon_lease "${RELEASE_TARGET}"
+    fi
+    exit 0
+fi
 
 if [[ -z "${DUT_HOSTNAME}" ]]; then
   usage
@@ -467,6 +680,7 @@ if [[ "${PORT_OFFSET}" -ne 0 ]]; then
   SERVOD_TUNNEL_PORT=$((SERVOD_TUNNEL_PORT + PORT_OFFSET))
 fi
 
+check_session_conflicts "${DUT_HOSTNAME}" "${PORT_OFFSET}" "${FORCE}"
 check_dependencies
 # Check SSH access early
 check_ssh_access
