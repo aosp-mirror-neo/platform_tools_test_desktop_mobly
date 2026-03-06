@@ -155,10 +155,22 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         self.DEVICE_TYPE_MONITOR, display_path_tag
     )
 
-  def verify_display_count(self, expected_count: int, event_to_log: str):
-    """Verifies that the display count is equal to the expected count."""
+  def verify_display_count(
+      self,
+      expected_count: int,
+      event_to_log: str,
+      expected_off: list[pasit_display.PasitDisplay.DisplayId] | None = None,
+  ):
+    """Verifies that the display count and states are as expected.
+
+    Args:
+      expected_count: The expected number of displays.
+      event_to_log: The event to log for the verification.
+      expected_off: A list of display IDs expected to be OFF. All other detected
+        displays are expected to be ON.
+    """
     asserts.assert_equal(
-        self.helper.get_display_count(expected_count),
+        self.helper.get_display_count(expected_count, expected_off),
         expected_count,
         f'Display IDs count is not {expected_count} {event_to_log}.',
     )
