@@ -88,6 +88,23 @@ function usage() {
   exit 1
 }
 
+function set_satlab_ip() {
+  local dut="${1}"
+  echo "Discovering Satlab IP for ${dut}..."
+  SATLAB_IP="$(echo "{ \"bot_id\": \"crossk-${dut}\" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot | jq -r '.dimensions[] | select(.key == "drone_server") | .value[0]' || true)"
+
+  if [[ -z "${SATLAB_IP}" || "${SATLAB_IP}" == "null" ]]; then
+    # Fallback to externalIp if drone_server is not found or is empty
+    SATLAB_IP="$(echo "{ \"bot_id\": \"crossk-${dut}\" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot | jq -r '.dimensions[] | select(.key == "externalIp") | .value[0]' || true)"
+  fi
+
+  if [[ -z "${SATLAB_IP}" || "${SATLAB_IP}" == "null" ]]; then
+    echo "ERROR: Could not discover Satlab IP for ${dut}."
+    exit 1
+  fi
+  echo "Found Satlab IP: ${SATLAB_IP}"
+}
+
 # Function to get lease info from crosfleet
 function get_lease_info() {
     local dut=$1
@@ -665,10 +682,7 @@ if [[ "${SFP}" == true ]]; then
 fi
 
 if [[ -z "${SATLAB_IP}" ]]; then
-  echo -e "Missing Satlab IP, please provide it with the -s|--satlab_ip flag.\n\n"
-  echo "You can find the IP of your Satlab in the 'drone_server' entry under Dimensions by clicking the link below:"
-  echo "go/fcdut/${DUT_HOSTNAME}?tab=bot-info"
-  exit 1
+  set_satlab_ip "${DUT_HOSTNAME}"
 fi
 
 if [[ "${PORT_OFFSET}" -ne 0 ]]; then

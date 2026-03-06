@@ -74,26 +74,10 @@ if crosfleet dut leases | grep -q "${DUT_NAME}"; then
 fi
 
 if [[ "${SKIP_SETUP}" == false ]]; then
-  # 1. Discover Satlab IP
-  echo "Discovering Satlab IP for ${DUT_NAME}..."
-  SATLAB_IP=$(echo "{ \"bot_id\": \"crossk-${DUT_NAME}\" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot | jq -r '.dimensions[] | select(.key == "drone_server") | .value[0]' || true)
-
-  if [[ -z "${SATLAB_IP}" || "${SATLAB_IP}" == "null" ]]; then
-    # Fallback to externalIp if drone_server is not found or is empty
-    SATLAB_IP=$(echo "{ \"bot_id\": \"crossk-${DUT_NAME}\" }" | prpc call chromeos-swarming.appspot.com swarming.v2.Bots.GetBot | jq -r '.dimensions[] | select(.key == "externalIp") | .value[0]' || true)
-  fi
-
-  if [[ -z "${SATLAB_IP}" || "${SATLAB_IP}" == "null" ]]; then
-    echo "ERROR: Could not discover Satlab IP for ${DUT_NAME}."
-    exit 1
-  fi
-  echo "Found Satlab IP: ${SATLAB_IP}"
-
-  # 2. Setup Satlab (Lease, Tunnels, Config)
+  # 1. Setup Satlab (Lease, Tunnels, Config)
   echo "Setting up Satlab and tunnels..."
   "${PASIT_SETUP_SCRIPT}" \
     -d "${DUT_NAME}" \
-    -s "${SATLAB_IP}" \
     -c "${CONFIG_FILE}" \
     -m "${LEASE_MINUTES}" \
     ${PROVISION}
@@ -113,7 +97,7 @@ else
   fi
 fi
 
-# 3. Verify ADB Connectivity
+# 2. Verify ADB Connectivity
 echo "Verifying ADB connectivity to localhost:5555..."
 if ! adb -s localhost:5555 shell getprop ro.build.fingerprint > /dev/null 2>&1; then
     echo "Attempting to reconnect ADB..."
@@ -126,7 +110,7 @@ if ! adb -s localhost:5555 shell getprop ro.build.fingerprint; then
     exit 1
 fi
 
-# 4. Run Test
+# 3. Run Test
 echo "Running test: ${TEST_TARGET}"
 ATEST_CMD=(atest -vtb "${TEST_TARGET}" -s localhost:5555)
 if [[ "${ITERATIONS}" -gt 1 ]]; then
