@@ -19,7 +19,10 @@ import logging
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.pasit import peripheral_connector
+from lib.pasit import test_policy
 from lib.utils import functools
+from lib.utils import retry
+from mobly import asserts
 from mobly import test_runner
 from pasit.storage import storage_base_test
 
@@ -52,8 +55,9 @@ class USBAuthTests(storage_base_test.StorageBaseTest):
 
     self.plug_in_external_storage(connection_type=connection_type)
 
-    self.verify_external_storage_unmounted(
-        'External storage not unmounted when the user locks the DUT.'
+    logging.info('Verifying storage access while DUT locked')
+    self._verify_external_storage_blocked_at_block_level(
+        msg='Storage is accessible while locked'
     )
     logging.info('Storage access blocked while locked.')
 
@@ -79,14 +83,13 @@ class USBAuthTests(storage_base_test.StorageBaseTest):
     )
 
     with dut_state_manager.EnterStateAndReturnToPowerOn(
-        self.dut, dut_state_manager.PowerState.OFF,
-        login_on_power_on=False
+        self.dut, dut_state_manager.PowerState.OFF, login_on_power_on=False
     ):
       self.plug_in_external_storage(connection_type=connection_type)
 
-    self.verify_external_storage_unmounted(
-        'External storage not unmounted when the DUT boots and before user'
-        ' logs in.'
+    logging.info('Verifying storage access at login screen')
+    self._verify_external_storage_blocked_at_block_level(
+        msg='Storage is accessible at login screen'
     )
     logging.info('Storage is blocked at login screen.')
 
@@ -96,6 +99,19 @@ class USBAuthTests(storage_base_test.StorageBaseTest):
     self.verify_external_storage_mounted(
         'Storage failed to mount after logging in.'
     )
+
+  def _verify_external_storage_blocked_at_block_level(self, msg: str) -> None:
+    """Ensures no storage devices appear within the timeout period."""
+
+    storage = retry.retry(
+        self.storage.get_external_storage_blkdevs,
+        until=lambda storage: len(storage) > 0,
+        policy=(
+            test_policy.StorageTestPolicy
+            .EXTERNAL_STORAGE_BLOCK_VERIFICATION_RETRY_POLICY
+        ),
+    )
+    asserts.assert_false(storage, f'Unauthorized storage detected,{msg}.')
 
 
 if __name__ == '__main__':
