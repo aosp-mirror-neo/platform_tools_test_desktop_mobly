@@ -155,8 +155,11 @@ class MatchedColorIterator:
       log_path: The log path for debug logs.
       min_exposure: The minimum exposure time in microseconds.
       max_exposure: The maximum exposure time in microseconds.
-      camera_capture_prefix: The prefix to use for the camera capture.
+      camera_capture_prefix: The prefix to use for the camera capture. The
+        capture will be saved as
+        {log_path}/{timestamp}_{camera_capture_prefix}{camera_id}_{exposure_time_us}.
     """
+
     self.passport = passport
     self.camera_id = camera_id
     self.log_path = log_path

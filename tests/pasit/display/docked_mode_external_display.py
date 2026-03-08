@@ -243,7 +243,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
           lambda: self.camera_mapper.try_match_color(
               display_id_to_camera_id[display_id],
               image.NamedColor.RED,
-              f'capture_red_from_camera{display_id_to_camera_id[display_id]}',
+              'red_moved_to_external_display',
           ),
           until=lambda status: status,
           policy=test_policy.DisplayTestPolicy.MATCH_COLOR_RETRY_POLICY,

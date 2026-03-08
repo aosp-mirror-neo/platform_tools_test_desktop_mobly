@@ -202,11 +202,14 @@ class DisplayCameraMapper:
     Args:
       camera_id: The camera ID to get the color from.
       color: The color to match.
-      camera_capture_prefix: The prefix to use for the camera capture.
+      camera_capture_prefix: The prefix to use for the camera capture. The
+        capture will be saved as
+        {log_path}/{timestamp}_{camera_capture_prefix}{camera_id}_{exposure_time_us}.
 
     Returns:
       True if the color is matched, False otherwise.
     """
+
     # return the first matched color that is not None, or None if no color is
     # matched.
     last_matched_color = None
