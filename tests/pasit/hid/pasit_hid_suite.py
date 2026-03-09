@@ -23,6 +23,7 @@ from pasit.hid import hid_combo_keys
 from pasit.hid import hid_lock_unlock
 from pasit.hid import hid_wake
 from pasit.hid import plug_in_hid
+from pasit.hid import unplug_hid
 from pasit.hid import usb_auth_tests
 
 
@@ -38,6 +39,7 @@ class PasitHIDSuite(base_suite.BaseSuite):
     self.add_test_class(plug_in_hid.PlugInHIDTest, config)
     self.add_test_class(guest_mode.GuestModeTest, config)
     self.add_test_class(usb_auth_tests.USBAuthTests, config)
+    self.add_test_class(unplug_hid.UnplugHIDTest, config)
 
 
 def main() -> None:
