@@ -92,6 +92,15 @@ class PasitTestClass(base_test.BaseTestClass):
 
     self.passport_host.save_topology_diagram(self.log_path)
 
+  def mark_test_failed(self) -> None:
+    """Marks the test as failed.
+
+    This can be used to trigger the reboot policy and other teardown without
+    immediately failing the test, it is expected that the assertion will be
+    raised later in the teardown flow when this method is called.
+    """
+    self._test_failed = True
+
   def _setup_bugreport_policy(self):
     """Sets up the bugreport policy based on user parameters."""
     if 'bugreport' in self.user_params:
