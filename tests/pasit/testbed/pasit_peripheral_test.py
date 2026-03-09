@@ -23,6 +23,7 @@ when a testbed is suspected to be in a bad state to help with debugging.
 """
 
 import logging
+import time
 
 from chromiumos.test.lab.api import pasit_host_pb2
 from google.protobuf import json_format
@@ -55,15 +56,45 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       pasit_test_config.BugReportPolicy.NONE
   )
   screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
+  reboot_policy = pasit_test_config.RebootPolicy.ON_FAIL
 
   def teardown_test(self):
     """Handle the teardown for the test."""
     if hasattr(self, 'display'):
       self.display.save_debug_info(self.current_test_info.output_path)
+
+    teardown_display_count_matches_expected = True
+    if hasattr(self, 'display'):
+      self.passport_host.reset()
+      helper = display_helper.DisplayHelper(self.display)
+      display_count = helper.get_display_count(
+          test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      )
+      if (
+          display_count
+          != test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      ):
+        teardown_display_count_matches_expected = False
+        # ensure that reboot policy is triggered if the display count is not
+        # as expected.
+        self.mark_test_failed()
+
     super().teardown_test()
+
     if hasattr(self, 'network'):
       self.network.cleanup()
       delattr(self, 'network')
+
+    # Assert for the failure after super().teardown_test() which will trigger
+    # the reboot policy.
+    asserts.assert_equal(
+        teardown_display_count_matches_expected,
+        test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN,
+        'Display disconnect was not detected. Display count is not as expected '
+        'after disconnecting all external displays. Expected only'
+        f' {test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN}'
+        ' (internal) display.',
+    )
 
   def _get_test_name(
       self, device_type: str, device_id: str, tag: str | None = None
@@ -136,11 +167,13 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         tag if tag else 'default',
     )
     self.passport_host.activate_device_by_id(device_id, tag)
+    delay = 0
     expected_display_count = 2  # 1 internal + 1 external
     if tag == peripheral_connector.ConnectionTag.DAISY_CHAIN:
       # 1 internal + 2 external for daisy chain there is no way to connect just
       # 1 external display in daisy chain mode.
       expected_display_count = 3
+      delay = 20
     display_count = helper.get_display_count(expected_display_count)
     self.capture_screenshots(f'after_display_activation_{device_id}')
     asserts.assert_equal(
@@ -150,6 +183,7 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
         f' {expected_display_count - 1} external displays.',
     )
     logging.info('Display count is %d', display_count)
+    time.sleep(delay)
     if test_display_mapping:
       self._check_display_mapping()
 

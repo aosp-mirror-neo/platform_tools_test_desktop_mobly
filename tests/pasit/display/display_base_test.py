@@ -66,7 +66,33 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     """Handle the teardown for the test."""
     self.display.save_debug_info(self.current_test_info.output_path)
     self.painter.safe_clean_color_on_display()
+
+    teardown_display_count_matches_expected = True
+    if hasattr(self, 'helper'):
+      self.passport_host.reset()
+      display_count = self.helper.get_display_count(
+          test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      )
+      if (
+          display_count
+          != test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      ):
+        teardown_display_count_matches_expected = False
+        # ensure that reboot policy is triggered if the display count is not
+        # as expected.
+        self.mark_test_failed()
+
     super().teardown_test()
+    # Assert for the failure after super().teardown_test() which will trigger
+    # the reboot policy.
+    asserts.assert_equal(
+        teardown_display_count_matches_expected,
+        test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN,
+        'Display disconnect was not detected. Display count is not as expected '
+        'after disconnecting all external displays. Expected only'
+        f' {test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN}'
+        ' (internal) display.',
+    )
 
   def teardown_class(self):
     """Handle the teardown for the class."""
