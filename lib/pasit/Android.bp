@@ -299,6 +299,21 @@ python_test_host {
 }
 
 python_test_host {
+    name: "color_capturer_test",
+    team: "trendy_team_desktop_peripherals",
+    srcs: [
+        "color_capturer_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-display-camera-mapper",
+        "py-desktop-utils",
+    ],
+}
+
+python_test_host {
     name: "peripheral_connector_test",
     team: "trendy_team_desktop_peripherals",
     srcs: [

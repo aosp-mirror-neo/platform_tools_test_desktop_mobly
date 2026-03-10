@@ -18,6 +18,7 @@ from lib.pasit.passport import passport_host
 from mobly import base_suite
 from mobly import config_parser
 from mobly import suite_runner
+from pasit.component import get_camera_exposure_test
 from pasit.component import hid_emulator_test
 from pasit.component import pasit_camera_test
 from pasit.component import pasit_device_test
@@ -42,6 +43,7 @@ class PasitComponentSuite(base_suite.BaseSuite):
     self.add_test_class(pasit_test_test.PasitTestTest, config)
     self.add_test_class(pasit_power_test.PasitPowerTest, config)
     self.add_test_class(pasit_camera_test.PasitCameraTest, config)
+    self.add_test_class(get_camera_exposure_test.GetCameraExposureTest, config)
 
 
 def main() -> None:
