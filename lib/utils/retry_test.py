@@ -15,6 +15,7 @@
 """Unit tests for retry.py."""
 
 import unittest
+from unittest import mock
 
 from lib.utils import retry
 
@@ -85,6 +86,109 @@ class RetryTest(unittest.TestCase):
             policy=retry.RetryPolicy(max_tries=3),
         ),
     )
+
+
+class MockTime:
+
+  def __init__(self, start_time=1000.0):
+    self._current_time = start_time
+
+  def time(self) -> float:
+    return self._current_time
+
+  def sleep(self, duration: float):
+    self._current_time += duration
+
+
+class WaitForStableValueTest(unittest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.mock_time = MockTime()
+    self.enterContext(mock.patch("time.time", side_effect=self.mock_time.time))
+    self.enterContext(
+        mock.patch("time.sleep", side_effect=self.mock_time.sleep)
+    )
+
+  def test_stabilizes_immediately(self):
+    mock_func = mock.Mock(return_value="stable")
+    result = retry.wait_for_stable_value(
+        mock_func,
+        timeout_seconds=10,
+        delay_seconds=1,
+        required_stable_duration_seconds=2,
+    )
+    self.assertEqual(result, "stable")
+    # Initial call, then 2 calls within the loop to pass 2s stable time.
+    self.assertEqual(mock_func.call_count, 3)
+
+  def test_stabilizes_after_changes(self):
+    mock_func = mock.Mock(side_effect=["A", "B", "C", "C", "C", "C", "C", "C"])
+    mock_criteria = mock.Mock(
+        side_effect=[True, False, True, False, True, True, True]
+    )
+    result = retry.wait_for_stable_value(
+        mock_func,
+        timeout_seconds=20,
+        delay_seconds=1,
+        required_stable_duration_seconds=3,
+        criteria=mock_criteria,
+    )
+    self.assertEqual(result, "C")
+    self.assertEqual(mock_func.call_count, 8)
+    self.assertEqual(mock_criteria.call_count, 7)
+
+  def test_stabilizes_but_criteria_never_met(self):
+    mock_func = mock.Mock(side_effect=["A", "C", "A", "A", "A", "A", "A"])
+    mock_criteria = mock.Mock(return_value=False)
+    with self.assertRaises(retry.StabilizationTimeoutError) as context:
+      retry.wait_for_stable_value(
+          mock_func,
+          timeout_seconds=5,
+          delay_seconds=1,
+          required_stable_duration_seconds=2,
+          criteria=mock_criteria,
+      )
+    self.assertIn("did not stabilize within 5s", str(context.exception))
+    self.assertIn("A", str(context.exception))
+    self.assertEqual(mock_func.call_count, 6)
+    self.assertEqual(mock_criteria.call_count, 5)
+
+  def test_timeout_if_never_stabilizes(self):
+    values = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
+    mock_func = mock.Mock(side_effect=values)
+    with self.assertRaises(retry.StabilizationTimeoutError) as context:
+      retry.wait_for_stable_value(
+          mock_func,
+          timeout_seconds=10,
+          delay_seconds=1,
+          required_stable_duration_seconds=2,
+      )
+    self.assertIn("did not stabilize within 10s", str(context.exception))
+    self.assertIn("K", str(context.exception))
+
+  def test_timeout_if_not_stable_long_enough(self):
+    mock_func = mock.Mock(
+        side_effect=["A"] * 2 + ["B"] * 2 + ["C"] * 2 + ["D"] * 10
+    )
+    with self.assertRaises(retry.StabilizationTimeoutError):
+      retry.wait_for_stable_value(
+          mock_func,
+          timeout_seconds=10,
+          delay_seconds=1,
+          required_stable_duration_seconds=5,
+      )
+
+  def test_zero_required_stability(self):
+    mock_func = mock.Mock(return_value="any")
+    result = retry.wait_for_stable_value(
+        mock_func,
+        timeout_seconds=5,
+        delay_seconds=1,
+        required_stable_duration_seconds=0,
+    )
+    self.assertEqual(result, "any")
+    self.assertEqual(mock_func.call_count, 2)
 
 
 if __name__ == "__main__":
