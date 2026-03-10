@@ -43,30 +43,60 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.emulator = hid_emulator.HIDEmulator(self.passport_host)
 
-  def plug_in_hid_emulator_and_verify(self, hid: pasit_hid.PasitHID) -> None:
-    """Plugs in the HID emulator to the DUT and initializes it."""
-    self.plug_in_hid_emulator()
-    self.initialize_and_verify_hid_emulator(hid)
+  def initialize_hid_emulator(self) -> None:
+    """Initializes the HID emulator.
+
+    Retries the initialization based on the retry policy until successful.
+
+    Raises:
+      hid_emulator.HIDEmulator.Error: If the HID emulator fails to initialize.
+    """
+    retry.retry(
+        self.emulator.initialize,
+        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
+        exceptions=(hid_emulator.HIDEmulator.Error,),
+    )
+
+  def verify_hid_emulator_devices(self, hid: pasit_hid.PasitHID) -> None:
+    """Verifies the HID emulator devices are seen by the DUT.
+
+    Args:
+      hid: The PasitHID object to use for verifying the HID emulator devices.
+    """
+    hid_emulator_devices = retry.retry(
+        hid.get_hid_emulator_devices,
+        until=lambda hid_devices: len(hid_devices)
+        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
+    )
+    logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
+    asserts.assert_equal(
+        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        len(hid_emulator_devices),
+        'Expected DUT to have'
+        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} HID emulator'
+        ' devices after activation of HID emulator.',
+    )
 
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
     logging.info('Plugging in HID emulator to DUT')
     self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
 
-  def _verify_all_keys_captured(
-      self, hid: pasit_hid.PasitHID, keys: enum.StrEnum
-  ) -> None:
-    """Iterates through keys and asserts they are captured by the DUT."""
-    for key in keys:
-      self.emulator.keypress([key])
-      captured = hid.get_captured_key_events()
-      expected = hid.get_expected_key_events(key)
-      asserts.assert_equal(captured, expected, f'Key events mismatch for {key}')
-
   def unplug_hid_emulator(self) -> None:
     """Un-plugs the HID emulator from the DUT."""
     logging.info('Unplugging HID emulator from DUT')
     self.passport_host.deactivate_device_by_type(self.DEVICE_TYPE_HID)
+
+  def initialize_and_verify_hid_emulator(self, hid: pasit_hid.PasitHID) -> None:
+    """Initializes and verifies the HID emulator."""
+    self.initialize_hid_emulator()
+    self.verify_hid_emulator_devices(hid)
+
+  def plug_in_hid_emulator_and_verify(self, hid: pasit_hid.PasitHID) -> None:
+    """Plugs in the HID emulator to the DUT and initializes it."""
+    self.plug_in_hid_emulator()
+    self.initialize_and_verify_hid_emulator(hid)
 
   def validate_keyboard_input(self, hid: pasit_hid.PasitHID) -> None:
     """Validates keyboard input for function and alphanumeric keys."""
@@ -81,29 +111,18 @@ class HIDBaseTest(pasit_test.PasitTestClass):
 
     hid.stop_key_capture()
 
-  def initialize_and_verify_hid_emulator(self, hid: pasit_hid.PasitHID) -> None:
-    """Initializes and verifies the HID emulator."""
+  def _verify_all_keys_captured(
+      self, hid: pasit_hid.PasitHID, keys: enum.StrEnum
+  ) -> None:
+    """Iterates through keys and asserts they are captured by the DUT."""
+    for key in keys:
+      self._verify_single_key_captured(hid, key)
 
-    self._initialize_hid_emulator()
-    hid_emulator_devices = retry.retry(
-        hid.get_hid_emulator_devices,
-        until=lambda hid_devices: len(hid_devices)
-        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-        policy=test_policy.HIDTestPolicy.DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY,
-    )
-    logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
-    asserts.assert_equal(
-        len(hid_emulator_devices),
-        test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-        'Expected DUT to have'
-        f' {test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED} HID emulator'
-        ' devices after activation of HID emulator.',
-    )
-
-  def _initialize_hid_emulator(self):
-    """Helper function to initialize the HID emulator."""
-    retry.retry(
-        self.emulator.initialize,
-        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
-        exceptions=(hid_emulator.HIDEmulator.Error,),
-    )
+  def _verify_single_key_captured(
+      self, hid: pasit_hid.PasitHID, key: str
+  ) -> None:
+    """Verifies a single key is captured by the DUT."""
+    self.emulator.keypress([key])
+    captured = hid.get_captured_key_events()
+    expected = hid.get_expected_key_events(key)
+    asserts.assert_equal(expected, captured, f'Key events mismatch for {key}')
