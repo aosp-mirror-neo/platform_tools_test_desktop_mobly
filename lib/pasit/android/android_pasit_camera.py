@@ -147,6 +147,15 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     ).click():
       raise CameraError('Failed to click stop recording video button')
 
+  def is_recording_video(self, timeout_seconds: int = 1) -> bool:
+    try:
+      return self.controller.ui(
+          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
+      ).wait.exists(timeout=datetime.timedelta(seconds=timeout_seconds))
+    except Exception as e:  # pylint: disable=broad-except
+      raise CameraError('Failed to check if recording video') from e
+
   def get_files_path(self) -> str:
     return self._CAMERA_APP_FILES_PATH
 

@@ -96,6 +96,18 @@ class BasePasitCamera(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def is_recording_video(self, timeout_seconds: int = 1) -> bool:
+    """Checks if the camera is recording a video.
+
+    Args:
+      timeout_seconds: The timeout in seconds to wait for the validation.
+
+    Returns:
+      True if the camera is recording a video, False otherwise.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def get_files_path(self) -> str:
     """Returns the path of the captured photos and videos directory."""
     raise NotImplementedError
