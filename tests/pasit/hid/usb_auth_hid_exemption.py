@@ -27,7 +27,7 @@ from pasit.hid import hid_base_test
         'b/471031829',  # External keyboard/mouse functional after lock/unlock
     ],
 )
-class USBAuthTests(hid_base_test.HIDBaseTest):
+class USBAuthHIDExemptionTests(hid_base_test.HIDBaseTest):
   """Verifies keyboard functionality with USB host authorization.
 
   Newly connected USB peripherals are not automatically
@@ -40,14 +40,14 @@ class USBAuthTests(hid_base_test.HIDBaseTest):
 
   def setup_class(self) -> None:
     """Setup for the test class."""
-    super().setup_class()
+    super().setup_class()  # pylint: disable=attribute-error
     self.hid = self.create(pasit_hid)
 
   def teardown_class(self):
     """Handle the teardown for the class."""
     if hasattr(self, 'hid'):
       self.hid.cleanup()
-    super().teardown_class()
+    super().teardown_class()  # pylint: disable=attribute-error
 
   def test_hid_on_login_screen(self) -> None:
     """Verify HID works after booting to login screen."""
