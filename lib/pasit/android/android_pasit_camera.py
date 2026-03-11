@@ -108,12 +108,10 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     return bool(output)
 
   def switch_camera(self):
-    try:
-      self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
-      ).click()
-    except Exception as e:  # pylint: disable=broad-except
-      raise CameraError('Failed to switch camera') from e
+    if not self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
+    ).click():
+      raise CameraError('Failed to click switch camera button')
 
   def switch_mode(self, mode: Mode) -> bool:
     # Both the photo and video mode buttons are in the same view. Clicking
@@ -129,31 +127,25 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     return self._mode_action_button_exists(mode)
 
   def take_photo(self):
-    try:
-      self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
-          desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
-      ).click()
-    except Exception as e:  # pylint: disable=broad-except
-      raise CameraError('Failed to take photo') from e
+    if not self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
+    ).click():
+      raise CameraError('Failed to click take photo button')
 
   def start_recording_video(self):
-    try:
-      self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
-          desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
-      ).click()
-    except Exception as e:  # pylint: disable=broad-except
-      raise CameraError('Failed to start recording video') from e
+    if not self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
+    ).click():
+      raise CameraError('Failed to click start recording video button')
 
   def stop_recording_video(self):
-    try:
-      self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
-          desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
-      ).click()
-    except Exception as e:  # pylint: disable=broad-except
-      raise CameraError('Failed to stop recording video') from e
+    if not self.controller.ui(
+        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
+    ).click():
+      raise CameraError('Failed to click stop recording video button')
 
   def get_files_path(self) -> str:
     return self._CAMERA_APP_FILES_PATH
@@ -186,8 +178,11 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
 
   def maximize_camera_app_window(self):
     try:
-      self.controller.ui(desc='Maximize Camera').click()
+      if not self.controller.ui(desc='Maximize Camera').click():
+        raise CameraError('Failed to click maximize camera button')
     except Exception as e:  # pylint: disable=broad-except
+      if isinstance(e, CameraError):
+        raise
       raise CameraError('Failed to maximize camera app window') from e
 
   def _click_switch_camera_button(self, mode: Mode):
