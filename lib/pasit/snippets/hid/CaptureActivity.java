@@ -24,67 +24,67 @@ import android.widget.Toast;
 /** A simple Activity that exists solely to gain focus and capture key events. */
 public class CaptureActivity extends Activity {
 
-    public static CaptureActivity instance = null;
+  public static CaptureActivity instance = null;
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
 
-        instance = this;
-        Toast.makeText(this, "CaptureActivity Started.", Toast.LENGTH_LONG).show();
+    instance = this;
+    Toast.makeText(this, "CaptureActivity Started.", Toast.LENGTH_LONG).show();
+  }
+
+  @Override
+  public void onDestroy() {
+    super.onDestroy();
+
+    if (instance == this) {
+      instance = null;
+    }
+    Toast.makeText(this, "CaptureActivity Stopped.", Toast.LENGTH_SHORT).show();
+  }
+
+  /**
+   * Called when a key is pressed down.
+   *
+   * @param keyCode The physical key code.
+   * @param event The full key event object.
+   * @return boolean indicating if the event was consumed.
+   */
+  @Override
+  public boolean onKeyDown(int keyCode, KeyEvent event) {
+    // Log the key press to the static list in the Snippet class
+    String keyName = KeyEvent.keyCodeToString(keyCode);
+    synchronized (HIDDeviceSnippet.mKeyLog) {
+      HIDDeviceSnippet.mKeyLog.add("DOWN: " + keyName);
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
+    // Log to Android logcat for debugging
+    System.out.println("HIDDeviceSnippet: DOWN: " + keyName);
 
-        if (instance == this) {
-            instance = null;
-        }
-        Toast.makeText(this, "CaptureActivity Stopped.", Toast.LENGTH_SHORT).show();
+    // Return true to not propagate the key event to other Activities.
+    return true;
+  }
+
+  /**
+   * Called when a key is released.
+   *
+   * @param keyCode The physical key code.
+   * @param event The full key event object.
+   * @return boolean indicating if the event was consumed.
+   */
+  @Override
+  public boolean onKeyUp(int keyCode, KeyEvent event) {
+    // Log the key release to the static list in the Snippet class
+    String keyName = KeyEvent.keyCodeToString(keyCode);
+    synchronized (HIDDeviceSnippet.mKeyLog) {
+      HIDDeviceSnippet.mKeyLog.add("UP: " + keyName);
     }
 
-    /**
-     * Called when a key is pressed down.
-     *
-     * @param keyCode The physical key code.
-     * @param event The full key event object.
-     * @return boolean indicating if the event was consumed.
-     */
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Log the key press to the static list in the Snippet class
-        String keyName = KeyEvent.keyCodeToString(keyCode);
-        synchronized (HIDDeviceSnippet.mKeyLog) {
-            HIDDeviceSnippet.mKeyLog.add("DOWN: " + keyName);
-        }
+    // Log to Android logcat for debugging
+    System.out.println("HIDDeviceSnippet: UP: " + keyName);
 
-        // Log to Android logcat for debugging
-        System.out.println("HIDDeviceSnippet: DOWN: " + keyName);
-
-        // Return true to not propagate the key event to other Activities.
-        return true;
-    }
-
-    /**
-     * Called when a key is released.
-     *
-     * @param keyCode The physical key code.
-     * @param event The full key event object.
-     * @return boolean indicating if the event was consumed.
-     */
-    @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
-        // Log the key release to the static list in the Snippet class
-        String keyName = KeyEvent.keyCodeToString(keyCode);
-        synchronized (HIDDeviceSnippet.mKeyLog) {
-            HIDDeviceSnippet.mKeyLog.add("UP: " + keyName);
-        }
-
-        // Log to Android logcat for debugging
-        System.out.println("HIDDeviceSnippet: UP: " + keyName);
-
-        // Return true to not propagate the key event to other Activities.
-        return true;
-    }
+    // Return true to not propagate the key event to other Activities.
+    return true;
+  }
 }
