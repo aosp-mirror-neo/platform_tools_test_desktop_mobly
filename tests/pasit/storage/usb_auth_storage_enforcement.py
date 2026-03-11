@@ -33,7 +33,7 @@ from pasit.storage import storage_base_test
     ],
 )
 @functools.generate_tests
-class USBAuthTests(storage_base_test.StorageBaseTest):
+class USBAuthStorageEnforcementTests(storage_base_test.StorageBaseTest):
   """Verifies USB host authorization.
 
   Newly connected USB peripherals are not automatically
@@ -107,8 +107,7 @@ class USBAuthTests(storage_base_test.StorageBaseTest):
         self.storage.get_external_storage_blkdevs,
         until=lambda storage: len(storage) > 0,
         policy=(
-            test_policy.StorageTestPolicy
-            .EXTERNAL_STORAGE_BLOCK_VERIFICATION_RETRY_POLICY
+            test_policy.StorageTestPolicy.EXTERNAL_STORAGE_BLOCK_VERIFICATION_RETRY_POLICY
         ),
     )
     asserts.assert_false(storage, f'Unauthorized storage detected,{msg}.')
