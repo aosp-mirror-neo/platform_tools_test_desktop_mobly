@@ -22,16 +22,16 @@ import android.view.KeyEvent;
 import android.widget.Toast;
 
 /** A simple Activity that exists solely to gain focus and capture key events. */
-public class KeyCaptureActivity extends Activity {
+public class CaptureActivity extends Activity {
 
-    public static KeyCaptureActivity instance = null;
+    public static CaptureActivity instance = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         instance = this;
-        Toast.makeText(this, "KeyCaptureActivity Started.", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "CaptureActivity Started.", Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -41,7 +41,7 @@ public class KeyCaptureActivity extends Activity {
         if (instance == this) {
             instance = null;
         }
-        Toast.makeText(this, "KeyCaptureActivity Stopped.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "CaptureActivity Stopped.", Toast.LENGTH_SHORT).show();
     }
 
     /**

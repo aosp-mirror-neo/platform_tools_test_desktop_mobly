@@ -95,10 +95,10 @@ public class HIDDeviceSnippet implements Snippet {
         return devices;
     }
 
-    /** Starts the dedicated Activity that will listen for key events. */
-    @Rpc(description = "Starts the key listening activity.")
-    public void startKeyCaptureActivity() {
-        Intent intent = new Intent(mInstrumentation.getTargetContext(), KeyCaptureActivity.class);
+    /** Starts the dedicated Activity that will listen for input events. */
+    @Rpc(description = "Starts the input listening activity.")
+    public void startCaptureActivity() {
+        Intent intent = new Intent(mInstrumentation.getTargetContext(), CaptureActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         // This launches the Activity synchronously on the main thread
@@ -121,18 +121,18 @@ public class HIDDeviceSnippet implements Snippet {
     }
 
     /**
-     * Finds and finishes the KeyCaptureActivity instance.
+     * Finds and finishes the CaptureActivity instance.
      *
      * @return true if the activity was found and finished, false otherwise.
      */
-    @Rpc(description = "Stops the key listening activity.")
-    public boolean stopKeyCaptureActivity() {
-        if (KeyCaptureActivity.instance != null) {
+    @Rpc(description = "Stops the input listening activity.")
+    public boolean stopCaptureActivity() {
+        if (CaptureActivity.instance != null) {
             mInstrumentation.runOnMainSync(
                     new Runnable() {
                         @Override
                         public void run() {
-                            KeyCaptureActivity.instance.finish();
+                            CaptureActivity.instance.finish();
                         }
                     });
             return true;

@@ -21,7 +21,7 @@
     <meta-data
         android:name="mobly-snippets"
         android:value="com.google.android.hiddevicesnippet.HIDDeviceSnippet"/>
-        <activity android:name=".KeyCaptureActivity"
+        <activity android:name=".CaptureActivity"
                   android:exported="true"
                   android:screenOrientation="portrait"
                   android:directBootAware="true">
