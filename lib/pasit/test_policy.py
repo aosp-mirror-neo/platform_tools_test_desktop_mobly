@@ -61,6 +61,7 @@ class DisplayTestPolicy:
   STABLE_ID_REQUIRED_DURATION_SECONDS = 10
   STABLE_ID_TIMEOUT_SECONDS = 20
   REBOOT_POLICY = pasit_test_config.RebootPolicy.ON_FAIL
+  EXPECTED_DISPLAY_COUNT_ON_TEARDOWN = 1
 
 
 class StorageTestPolicy:

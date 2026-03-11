@@ -70,7 +70,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
 
   def validate_keyboard_input(self, hid: pasit_hid.PasitHID) -> None:
     """Validates keyboard input for function and alphanumeric keys."""
-    self.hid.start_key_capture()
+    hid.start_key_capture()
     self.capture_screenshots('key_capture_started')
 
     logging.info('Validating keyboard input...')
@@ -79,7 +79,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
       self._verify_all_keys_captured(hid, key_enum)
     logging.info('Keyboard input validation complete.')
 
-    self.hid.stop_key_capture()
+    hid.stop_key_capture()
 
   def initialize_and_verify_hid_emulator(self, hid: pasit_hid.PasitHID) -> None:
     """Initializes and verifies the HID emulator."""
