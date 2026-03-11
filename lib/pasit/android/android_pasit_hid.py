@@ -151,14 +151,14 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
 
   def start_key_capture(self) -> None:
     """Starts the key capture activity using the Mobly snippet."""
-    self.controller.hid.startKeyCaptureActivity()
+    self.controller.hid.startCaptureActivity()
     self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.exists(
         timeout=datetime.timedelta(seconds=5)
     )
 
   def stop_key_capture(self) -> None:
     """Stops the key capture activity using the Mobly snippet."""
-    self.controller.hid.stopKeyCaptureActivity()
+    self.controller.hid.stopCaptureActivity()
     self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.gone(
         timeout=datetime.timedelta(seconds=5)
     )

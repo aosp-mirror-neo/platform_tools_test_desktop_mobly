@@ -21,11 +21,12 @@ may fail due to transient errors, such as timeouts or exceptions.
 
 from collections.abc import Callable
 import logging
+import math
 import time
 from typing import Optional, Tuple, TypeVar
 
 
-_T = TypeVar("_T")
+_T = TypeVar('_T')
 
 
 class RetryPolicy:
@@ -92,13 +93,13 @@ def retry(
       return func_result
 
     if tries >= policy.max_tries:
-      logging.debug("Retry failed after %d attempts.", policy.max_tries)
+      logging.debug('Retry failed after %d attempts.', policy.max_tries)
       return func_result
 
     # If the function failed or did not meet the exit predicate, log the error
     # and sleep for the delay.
     logging.debug(
-        "Attempt %d/%d failed. Retrying in %ds...",
+        'Attempt %d/%d failed. Retrying in %ds...',
         tries,
         policy.max_tries,
         policy.delay_seconds,
@@ -137,15 +138,98 @@ def _try_function(
     # No exceptions are raised, so the function is successful
     return (True, func())
   except exceptions as e:
-    logging.debug("Exception caught: %s", e)
+    logging.debug('Exception caught: %s', e)
     if current_try < max_tries:
       # The function failed, but there are more tries, so return (False, None)
       return (False, None)
     else:
       logging.debug(
-          "Retry failed after %d attempts. Last exception: %s",
+          'Retry failed after %d attempts. Last exception: %s',
           max_tries,
           e,
           exc_info=True,
       )
       raise
+
+
+class StabilizationTimeoutError(Exception):
+  """Error raised when a value does not stabilize within the timeout."""
+
+
+def wait_for_stable_value(
+    func: Callable[[], _T],
+    timeout_seconds: int,
+    delay_seconds: int,
+    required_stable_duration_seconds: int,
+    criteria: Callable[[_T], bool] = lambda _: True,
+) -> _T | None:
+  """Polls a function until its return value remains unchanged for a duration.
+
+  This function repeatedly calls `func` every `delay_seconds`, checking if the
+  returned value has been the same for at least
+  `required_stable_duration_seconds`. The process continues until the value
+  stabilizes or the total time elapsed exceeds `timeout_seconds`.
+
+  Args:
+    func: A callable that takes no arguments and returns a value to be checked
+      for stability.
+    timeout_seconds: The maximum total time to wait for the value to stabilize.
+    delay_seconds: The time to wait between calls to `func`.
+    required_stable_duration_seconds: The minimum duration the return value from
+      `func` must remain constant to be considered stable.
+    criteria: A callable that takes the return value of `func` and returns True
+      if the value is considered stable. This criteria has to be met
+      continuously for `required_stable_duration_seconds` for the function to
+      return.
+
+  Returns:
+    The value returned by `func` once it has been stable for the required
+    duration.
+
+  Raises:
+    StabilizationTimeoutError: If the return value of `func` does not stabilize
+      within the specified `timeout_seconds`.
+  """
+  start_time = time.time()
+  end_time = start_time + timeout_seconds
+
+  last_result = func()
+  stable_start_time = start_time
+  logging.debug('Waiting to stabilize...')
+
+  while time.time() < end_time:
+    time.sleep(delay_seconds)
+    current_result = func()
+    logging.debug(
+        'Polling for stable result. Current: %s, Last: %s',
+        current_result,
+        last_result,
+    )
+
+    if criteria(current_result) and current_result == last_result:
+      time_since_last_change = time.time() - stable_start_time
+      if (
+          time_since_last_change > required_stable_duration_seconds
+          or math.isclose(
+              time_since_last_change, required_stable_duration_seconds
+          )
+      ):
+        logging.debug(
+            'The result have been stable for %ds: %s',
+            required_stable_duration_seconds,
+            current_result,
+        )
+        return current_result
+    else:
+      logging.warning(
+          'Result changed or criteria not met during stability check. Last: %s,'
+          ' Current: %s',
+          last_result,
+          current_result,
+      )
+      last_result = current_result
+      stable_start_time = time.time()
+  raise StabilizationTimeoutError(
+      f'Result did not stabilize within {timeout_seconds}s. Last seen result:'
+      f' {last_result}',
+  )

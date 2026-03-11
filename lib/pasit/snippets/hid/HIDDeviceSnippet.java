@@ -37,111 +37,110 @@ import org.json.JSONObject;
 /** A Mobly snippet that uses the Android Java APIs to interact with HID devices. */
 public class HIDDeviceSnippet implements Snippet {
 
-    private final Context mContext;
-    private final InputManager mInputManager;
+  private final Context mContext;
+  private final InputManager mInputManager;
 
-    private final Instrumentation mInstrumentation;
+  private final Instrumentation mInstrumentation;
 
-    public static final List<String> mKeyLog = new ArrayList<>();
+  public static final List<String> mKeyLog = new ArrayList<>();
 
-    public HIDDeviceSnippet() {
-        mContext = InstrumentationRegistry.getTargetContext();
-        mInputManager = mContext.getSystemService(InputManager.class);
-        mInstrumentation = InstrumentationRegistry.getInstrumentation();
+  public HIDDeviceSnippet() {
+    mContext = InstrumentationRegistry.getTargetContext();
+    mInputManager = mContext.getSystemService(InputManager.class);
+    mInstrumentation = InstrumentationRegistry.getInstrumentation();
+  }
+
+  /**
+   * Gets a list of attached HID devices, filtered for keyboards and mice.
+   *
+   * @return A JSONArray of JSONObjects, each representing a device.
+   * @throws JSONException if there is an error creating the JSON response.
+   */
+  @Rpc(description = "Gets a list of attached HID devices (keyboards and mice).")
+  public JSONArray getHidDevices() throws JSONException {
+    JSONArray devices = new JSONArray();
+    int[] deviceIds = mInputManager.getInputDeviceIds();
+
+    // Iterate over all attached input device IDs.
+    for (int deviceId : deviceIds) {
+      InputDevice dev = mInputManager.getInputDevice(deviceId);
+      if (dev == null) {
+        continue;
+      }
+
+      // Check the device's sources to determine if it's a keyboard or a mouse.
+      boolean isKeyboard =
+          (dev.getSources() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
+      boolean isMouse = (dev.getSources() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
+
+      // If the device is a keyboard or mouse, add it to our list.
+      if (isKeyboard || isMouse) {
+        JSONObject deviceInfo = new JSONObject();
+        deviceInfo.put("name", dev.getName());
+        deviceInfo.put("vendorId", dev.getVendorId());
+        deviceInfo.put("productId", dev.getProductId());
+
+        String type = "";
+        if (isKeyboard) {
+          type += "Keyboard";
+        }
+        if (isMouse) {
+          type += (type.isEmpty() ? "Mouse" : " & Mouse");
+        }
+        deviceInfo.put("type", type);
+        devices.put(deviceInfo);
+      }
     }
+    return devices;
+  }
 
-    /**
-     * Gets a list of attached HID devices, filtered for keyboards and mice.
-     *
-     * @return A JSONArray of JSONObjects, each representing a device.
-     * @throws JSONException if there is an error creating the JSON response.
-     */
-    @Rpc(description = "Gets a list of attached HID devices (keyboards and mice).")
-    public JSONArray getHidDevices() throws JSONException {
-        JSONArray devices = new JSONArray();
-        int[] deviceIds = mInputManager.getInputDeviceIds();
+  /** Starts the dedicated Activity that will listen for input events. */
+  @Rpc(description = "Starts the input listening activity.")
+  public void startCaptureActivity() {
+    Intent intent = new Intent(mInstrumentation.getTargetContext(), CaptureActivity.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        // Iterate over all attached input device IDs.
-        for (int deviceId : deviceIds) {
-            InputDevice dev = mInputManager.getInputDevice(deviceId);
-            if (dev == null) {
-                continue;
+    // This launches the Activity synchronously on the main thread
+    mInstrumentation.startActivitySync(intent);
+  }
+
+  /**
+   * Returns the current list of captured key events and then clears the log.
+   *
+   * @return A List of strings, where each string is a logged key event.
+   */
+  @Rpc(description = "Returns the list of captured key events and clears the log.")
+  public List<String> getKeyLog() {
+    // Return a copy and clear the original
+    synchronized (mKeyLog) {
+      List<String> result = new ArrayList<>(mKeyLog);
+      mKeyLog.clear();
+      return result;
+    }
+  }
+
+  /**
+   * Finds and finishes the CaptureActivity instance.
+   *
+   * @return true if the activity was found and finished, false otherwise.
+   */
+  @Rpc(description = "Stops the input listening activity.")
+  public boolean stopCaptureActivity() {
+    if (CaptureActivity.instance != null) {
+      mInstrumentation.runOnMainSync(
+          new Runnable() {
+            @Override
+            public void run() {
+              CaptureActivity.instance.finish();
             }
-
-            // Check the device's sources to determine if it's a keyboard or a mouse.
-            boolean isKeyboard =
-                    (dev.getSources() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
-            boolean isMouse =
-                    (dev.getSources() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
-
-            // If the device is a keyboard or mouse, add it to our list.
-            if (isKeyboard || isMouse) {
-                JSONObject deviceInfo = new JSONObject();
-                deviceInfo.put("name", dev.getName());
-                deviceInfo.put("vendorId", dev.getVendorId());
-                deviceInfo.put("productId", dev.getProductId());
-
-                String type = "";
-                if (isKeyboard) {
-                    type += "Keyboard";
-                }
-                if (isMouse) {
-                    type += (type.isEmpty() ? "Mouse" : " & Mouse");
-                }
-                deviceInfo.put("type", type);
-                devices.put(deviceInfo);
-            }
-        }
-        return devices;
+          });
+      return true;
     }
+    return false; // Activity wasn't running
+  }
 
-    /** Starts the dedicated Activity that will listen for key events. */
-    @Rpc(description = "Starts the key listening activity.")
-    public void startKeyCaptureActivity() {
-        Intent intent = new Intent(mInstrumentation.getTargetContext(), KeyCaptureActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        // This launches the Activity synchronously on the main thread
-        mInstrumentation.startActivitySync(intent);
-    }
-
-    /**
-     * Returns the current list of captured key events and then clears the log.
-     *
-     * @return A List of strings, where each string is a logged key event.
-     */
-    @Rpc(description = "Returns the list of captured key events and clears the log.")
-    public List<String> getKeyLog() {
-        // Return a copy and clear the original
-        synchronized (mKeyLog) {
-            List<String> result = new ArrayList<>(mKeyLog);
-            mKeyLog.clear();
-            return result;
-        }
-    }
-
-    /**
-     * Finds and finishes the KeyCaptureActivity instance.
-     *
-     * @return true if the activity was found and finished, false otherwise.
-     */
-    @Rpc(description = "Stops the key listening activity.")
-    public boolean stopKeyCaptureActivity() {
-        if (KeyCaptureActivity.instance != null) {
-            mInstrumentation.runOnMainSync(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            KeyCaptureActivity.instance.finish();
-                        }
-                    });
-            return true;
-        }
-        return false; // Activity wasn't running
-    }
-
-    @Override
-    public void shutdown() {
-        // Perform any necessary cleanup here.
-    }
+  @Override
+  public void shutdown() {
+    // Perform any necessary cleanup here.
+  }
 }

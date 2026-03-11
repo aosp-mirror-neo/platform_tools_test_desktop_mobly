@@ -64,6 +64,14 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
       external_display_count: int,
   ):
     """Test that external displays remain active with lid closed when DUT is in different states."""
+    # TODO: b/489083801 - skip reboot with two dock display as DUT
+    # does not come online after reboot.
+    asserts.skip_if(
+        power_action == dut_state_manager.PowerAction.REBOOT
+        and connection_type == peripheral_connector.ConnectionType.DOCK
+        and external_display_count > 1,
+        'b/489083801 reboot with dock_two_display failing.'
+    )
     self.skip_if_servo_needed_and_not_configured(power_action)
     internal_display_id = self.helper.get_internal_display_id()
 

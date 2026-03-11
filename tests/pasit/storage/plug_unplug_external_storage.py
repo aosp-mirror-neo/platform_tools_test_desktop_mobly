@@ -16,6 +16,7 @@
 
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
+from lib.pasit import peripheral_connector
 from lib.utils import functools
 from mobly import test_runner
 from pasit.storage import write_to_storage_base_test
@@ -25,7 +26,7 @@ from pasit.storage import write_to_storage_base_test
     cujs=[
         'b/379290617',  # Transfer and delete files
         # TODO: b/484385020 - Map to new CUJs once variants are added.
-        # 'b/378754273',  # Transfer data via dock
+        'b/378754273',  # Transfer data via dock
         # 'b/471032860',  # Dock and peripherals work after reboot/suspend
         # 'b/471033476',  # Common peripherals (storage) function through dock
     ],
@@ -111,6 +112,40 @@ class PlugUnplugExternalStorageTest(
     self.plug_in_external_storage()
     external_storage_path = self.verify_external_storage_mounted(
         'External storage not mounted after replugging.'
+    )
+    external_storage_file_path = self.copy_file_to_external_storage(
+        self.host_file_path, external_storage_path
+    )
+    self.verify_test_file_content_matches(
+        external_storage_file_path, self.host_file_content
+    )
+
+  @functools.with_dimensions(
+      reboot=(dut_state_manager.PowerAction.REBOOT,),
+      suspend=(dut_state_manager.PowerAction.SUSPEND,),
+  )
+  @functools.with_dimensions(
+      dock=(peripheral_connector.ConnectionType.DOCK,),
+      dockless=(peripheral_connector.ConnectionType.DOCKLESS,),
+  )
+  def test_plug_in_storage_then(
+      self,
+      target_action: dut_state_manager.PowerAction,
+      connection_type: peripheral_connector.ConnectionType,
+  ):
+    """Verifies storage functionality after a Reboot or Suspend/Resume cycle."""
+
+    self.skip_if_servo_needed_and_not_configured(target_action)
+
+    self.plug_in_external_storage(connection_type=connection_type)
+
+    self.verify_external_storage_mounted_or_reformat(
+        'External storage not mounted or usable before power action.'
+    )
+    dut_state_manager.execute_power_action(self.dut, target_action)
+
+    external_storage_path = self.verify_external_storage_mounted(
+        f'External storage not mounted after {target_action.name} transition.'
     )
     external_storage_file_path = self.copy_file_to_external_storage(
         self.host_file_path, external_storage_path
