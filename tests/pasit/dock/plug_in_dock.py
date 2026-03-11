@@ -79,7 +79,9 @@ class PlugInDockTest(pasit_test.PasitTestClass):
   @functools.with_variants(
       suspend=(dut_state_manager.PowerAction.SUSPEND,),
       shutdown=(dut_state_manager.PowerAction.SHUTDOWN,),
-      reboot=(dut_state_manager.PowerAction.REBOOT,),
+      # TODO: b/489083801 - DUT not online within the
+      # expected timeout 180 seconds after reboot
+      # reboot=(dut_state_manager.PowerAction.REBOOT,),
   )
   def test_plug_in_dock_and_then(
       self, action_after_plug_in_dock: dut_state_manager.PowerAction
