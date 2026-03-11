@@ -67,9 +67,12 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
       self, camera_mode: pasit_camera.PasitCamera.Mode
   ):
     """Test recording from an external camera."""
-    self.connect_external_camera()
+    _, external_camera_devices = self.connect_external_camera()
     self.launch_camera_app()
     self.switch_camera()
+    self.verify_camera_app_is_using_any_device(
+        external_camera_devices, 'external camera'
+    )
 
     external_display_id = self.connect_external_display()
     self.switch_mode(camera_mode)
@@ -108,7 +111,16 @@ class CaptureFromExternalCameraTest(camera_base_test.CameraBaseTest):
         image.NamedColor.BLUE,
     ]
     self.camera.start_recording_video()
+    asserts.assert_true(
+        # Give a generous timeout for the video to start recording.
+        self.camera.is_recording_video(timeout_seconds=10),
+        'Video recording failed to start.',
+    )
     for color in colors:
+      asserts.assert_true(
+          self.camera.is_recording_video(),
+          'Video recording stopped unexpectedly.',
+      )
       self.painter.show_color_on_display(color.value, external_display_id)
       time.sleep(per_color_duration_seconds)  # for video content to be recorded
       self.capture_screenshots(f'{color.name}_color_recorded')
