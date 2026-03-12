@@ -18,13 +18,22 @@ package com.google.android.hiddevicesnippet;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
 /** A simple Activity that exists solely to gain focus and capture key events. */
 public class CaptureActivity extends Activity {
 
+  /** Represents the types of key events we track. */
+  public static enum KeyEventType {
+    DOWN,
+    UP
+  }
+
   public static CaptureActivity instance = null;
+
+  private static final String TAG = "HIDDeviceSnippet";
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -53,15 +62,8 @@ public class CaptureActivity extends Activity {
    */
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    // Log the key press to the static list in the Snippet class
-    String keyName = KeyEvent.keyCodeToString(keyCode);
-    synchronized (HIDDeviceSnippet.mKeyLog) {
-      HIDDeviceSnippet.mKeyLog.add("DOWN: " + keyName);
-    }
-
-    // Log to Android logcat for debugging
-    System.out.println("HIDDeviceSnippet: DOWN: " + keyName);
-
+    Log.d(TAG, "onKeyDown: " + event.toString());
+    logKeyEvent(KeyEventType.DOWN, event.getKeyCode());
     // Return true to not propagate the key event to other Activities.
     return true;
   }
@@ -75,16 +77,15 @@ public class CaptureActivity extends Activity {
    */
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    // Log the key release to the static list in the Snippet class
-    String keyName = KeyEvent.keyCodeToString(keyCode);
-    synchronized (HIDDeviceSnippet.mKeyLog) {
-      HIDDeviceSnippet.mKeyLog.add("UP: " + keyName);
-    }
-
-    // Log to Android logcat for debugging
-    System.out.println("HIDDeviceSnippet: UP: " + keyName);
-
+    Log.d(TAG, "onKeyUp: " + event.toString());
+    logKeyEvent(KeyEventType.UP, event.getKeyCode());
     // Return true to not propagate the key event to other Activities.
     return true;
+  }
+
+  private static void logKeyEvent(KeyEventType action, int keyCode) {
+    synchronized (HIDDeviceSnippet.mKeyLog) {
+      HIDDeviceSnippet.mKeyLog.add(action.name() + ": " + KeyEvent.keyCodeToString(keyCode));
+    }
   }
 }

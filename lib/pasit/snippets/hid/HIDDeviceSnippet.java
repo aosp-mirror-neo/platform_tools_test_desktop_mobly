@@ -21,15 +21,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.input.InputManager;
 import android.view.InputDevice;
-
-import androidx.test.InstrumentationRegistry;
-
+import androidx.test.platform.app.InstrumentationRegistry;
 import com.google.android.mobly.snippet.Snippet;
 import com.google.android.mobly.snippet.rpc.Rpc;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,9 +41,9 @@ public class HIDDeviceSnippet implements Snippet {
   public static final List<String> mKeyLog = new ArrayList<>();
 
   public HIDDeviceSnippet() {
-    mContext = InstrumentationRegistry.getTargetContext();
-    mInputManager = mContext.getSystemService(InputManager.class);
     mInstrumentation = InstrumentationRegistry.getInstrumentation();
+    mContext = mInstrumentation.getTargetContext();
+    mInputManager = mContext.getSystemService(InputManager.class);
   }
 
   /**
