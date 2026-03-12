@@ -46,7 +46,7 @@ class ChangeDisplayResolutionTest(display_base_test.DisplayBaseTest):
           2,
       ),
   )
-  def test_external_display_resolution_when_dut(
+  def test_external_display_resolution(
       self,
       connection_type: peripheral_connector.ConnectionType,
       external_display_count: int,
