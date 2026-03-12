@@ -924,11 +924,9 @@ class PassportHost:
     """
     warm_masks = {
         'warm': image.HSVMask(
-            image.HSV(h=330, s=0.3, v=0.3), image.HSV(h=60, s=1.0, v=1.0)
-        ),
+            image.HSV(h=300, s=0.15, v=0.2), image.HSV(h=70, s=1.0, v=1.0)),
         'cold': image.HSVMask(
-            image.HSV(h=165, s=0.3, v=0.3), image.HSV(h=270, s=1.0, v=1.0)
-        ),
+            image.HSV(h=100, s=0.15, v=0.2), image.HSV(h=280, s=1.0, v=1.0)),
     }
     results = self.analyze_hsv(
         camera_id, warm_masks, log_dir, image_name_suffix, exposure_time_us
