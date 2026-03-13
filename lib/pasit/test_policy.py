@@ -130,3 +130,12 @@ class NetworkTestPolicy:
       max_tries=10,
       delay_seconds=2,
   )
+
+
+class DockTestPolicy:
+  """Test policies for Dock tests."""
+
+  DOCK_POWER_DETECTED_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=10,
+      delay_seconds=2,
+  )

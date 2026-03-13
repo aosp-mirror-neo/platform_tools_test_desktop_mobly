@@ -137,9 +137,18 @@ class PlugInDockTest(pasit_test.PasitTestClass):
     self.plug_in_device_via_dock(self.DEVICE_TYPE_STORAGE)
 
   def _verify_dock_peripherals(self):
-    asserts.assert_true(
-        self.dut.is_powered(), 'DUT is not powered or charging.'
+    """Verifies dock power and peripherals connectivity."""
+    logging.info('Verifying if DUT is powered or charging.')
+    is_powered = retry.retry(
+        self.dut.is_powered,
+        until=lambda powered: powered,
+        policy=test_policy.DockTestPolicy.DOCK_POWER_DETECTED_RETRY_POLICY,
     )
+
+    asserts.assert_true(
+        is_powered, 'DUT is not powered or charging after retries.'
+    )
+
     self._verify_external_storage_mounted(
         'External storage not mounted after plugging in the Dock'
     )
