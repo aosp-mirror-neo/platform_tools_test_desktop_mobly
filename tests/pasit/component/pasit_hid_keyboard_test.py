@@ -71,6 +71,9 @@ class PasitHIDKeyboardTest(pasit_test.PasitTestClass):
   def test_capture_numpad_keys(self) -> None:
     self._verify_all_keys_captured([key for key in hid_keys.Numpad])
 
+  def test_capture_media_keys(self) -> None:
+    self._verify_all_keys_captured([key for key in hid_keys.Media])
+
   def _verify_all_keys_captured(self, keys: list[str]) -> None:
     """Verifies that all keys are captured correctly.
 

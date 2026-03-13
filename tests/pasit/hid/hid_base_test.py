@@ -104,7 +104,13 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     self.capture_screenshots('key_capture_started')
 
     logging.info('Validating keyboard input...')
-    for key_enum in (hid_keys.Function, hid_keys.Alphanumeric):
+    for key_enum in (
+        hid_keys.Function,
+        hid_keys.Alphanumeric,
+        hid_keys.Media,
+        hid_keys.ArrowPad,
+        hid_keys.ControlPad,
+    ):
       logging.info('Verifying %s keys...', key_enum.__name__)
       self._verify_all_keys_captured(hid, key_enum)
     logging.info('Keyboard input validation complete.')

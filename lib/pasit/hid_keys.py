@@ -97,6 +97,7 @@ class Special(enum.StrEnum):
   META = 'Meta'
   META_LEFT = 'LMeta'
   META_RIGHT = 'RMeta'
+  POWER = 'Power'
 
 
 class Function(enum.StrEnum):
@@ -169,3 +170,15 @@ class Numpad(enum.StrEnum):
   NUMPAD_ENTER = 'Return'
   NUMPAD_MULTIPLY = '*'
   NUMPAD_SUBTRACT = '-'
+
+
+class Media(enum.StrEnum):
+  """Represents a Media Key."""
+
+  BROWSER_REFRESH = 'Refresh'
+  MEDIA_PLAY_PAUSE = 'MediaPlayPause'
+  AUDIO_VOLUME_MUTE = 'AudioVolumeMute'
+  MEDIA_TRACK_NEXT = 'MediaTrackNext'
+  MEDIA_TRACK_PREVIOUS = 'MediaTrackPrevious'
+  AUDIO_VOLUME_UP = 'AudioVolumeUp'
+  AUDIO_VOLUME_DOWN = 'AudioVolumeDown'
