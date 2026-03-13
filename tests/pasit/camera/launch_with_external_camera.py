@@ -79,7 +79,7 @@ class LaunchWithExternalCameraTest(camera_base_test.CameraBaseTest):
 
     if action_after_plug_camera == dut_state_manager.PowerAction.SUSPEND:
       asserts.assert_true(
-          self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+          self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
           'Camera app should remain opened after DUT is woken up from suspend.',
       )
       self.capture_screenshots('after_dut_woken_up_from_suspend')

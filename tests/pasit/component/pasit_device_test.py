@@ -17,7 +17,6 @@
 import logging
 
 from lib.pasit import pasit_device
-from lib.pasit.base import base_user_tools
 from lib.utils import functools
 from mobly import asserts
 from mobly import base_test
@@ -66,12 +65,12 @@ class PasitDeviceTest(base_test.BaseTestClass):
     if login:
       asserts.assert_equal(
           self.dut.user_tools.session_status(),
-          base_user_tools.SessionStatus.LOGGED_IN,
+          pasit_device.SessionStatus.LOGGED_IN,
       )
     else:
       asserts.assert_equal(
           self.dut.user_tools.session_status(),
-          base_user_tools.SessionStatus.LOGGED_OUT,
+          pasit_device.SessionStatus.LOGGED_OUT,
       )
       self.dut.user_tools.login()
 
@@ -134,50 +133,54 @@ class PasitDeviceTest(base_test.BaseTestClass):
   def test_lock_unlock(self):
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.LOGGED_IN,
+        pasit_device.SessionStatus.LOGGED_IN,
     )
     self.dut.user_tools.lock()
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.LOCKED,
+        pasit_device.SessionStatus.LOCKED,
     )
     self.dut.user_tools.unlock()
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.LOGGED_IN,
+        pasit_device.SessionStatus.LOGGED_IN,
     )
 
   def test_guest_mode(self):
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.LOGGED_IN,
+        pasit_device.SessionStatus.LOGGED_IN,
     )
     self.dut.user_tools.guest_mode()
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.GUEST,
+        pasit_device.SessionStatus.GUEST,
     )
     self.dut.user_tools.logout()
     asserts.assert_equal(
         self.dut.user_tools.session_status(),
-        base_user_tools.SessionStatus.LOGGED_OUT,
+        pasit_device.SessionStatus.LOGGED_OUT,
     )
 
   @functools.with_variants(
-      settings=(pasit_device.PasitDevice.UiApplication.SETTINGS,),
-      files=(pasit_device.PasitDevice.UiApplication.FILES,),
+      settings=(pasit_device.UIApplication.SETTINGS,),
+      files=(pasit_device.UIApplication.FILES,),
   )
-  def test_launch_app(self, app: pasit_device.PasitDevice.UiApplication):
+  def test_launch_app(self, app: pasit_device.UIApplication):
     logging.info('Launching app...')
-    self.dut.launch_app(app)
-    asserts.assert_true(self.dut.wait_app_open(app), 'App did not open.')
+    self.dut.ui_tools.launch_app(app)
+    asserts.assert_true(
+        self.dut.ui_tools.wait_app_open(app), 'App did not open.'
+    )
     logging.info('Capturing screenshots after launching app...')
     self.dut.capture_screenshots(
         self.current_test_info.output_path, f'test_launch_app_{str(app)}'
     )
     logging.info('Stopping app...')
-    self.dut.stop_app(app)
-    asserts.assert_true(self.dut.wait_app_close(app), 'App did not close.')
+    self.dut.ui_tools.stop_app(app)
+    asserts.assert_true(
+        self.dut.ui_tools.wait_app_close(app), 'App did not close.'
+    )
 
 
 if __name__ == '__main__':

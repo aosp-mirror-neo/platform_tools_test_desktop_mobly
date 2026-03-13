@@ -80,6 +80,8 @@ python_library_host {
         "*/snippet_tools.py",
         "*/base_user_tools.py",
         "*/android_user_tools.py",
+        "*/base_ui_tools.py",
+        "*/android_ui_tools.py",
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
         "*/ui_watcher.py",

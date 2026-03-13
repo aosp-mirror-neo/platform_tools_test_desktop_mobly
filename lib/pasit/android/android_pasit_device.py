@@ -15,18 +15,19 @@
 """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
 
 from collections.abc import Iterable
-import datetime
 import functools
 import logging
 import threading
 import time
 
+from lib.pasit.android import android_ui_tools
 from lib.pasit.android import android_user_tools
 from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import ui_watcher
 from lib.pasit.base import base_pasit_device
+from lib.pasit.base import base_ui_tools
 from lib.pasit.base import base_user_tools
 from lib.utils import retry
 from lib.utils import servo_client
@@ -39,17 +40,6 @@ PasitDeviceError = base_pasit_device.PasitDeviceError
 
 class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   """AndroidPasitDevice handles the setup of an Android device for PASIT testing."""
-
-  UiApplication = base_pasit_device.BasePasitDevice.UiApplication
-
-  _UI_APPLICATION_PACKAGE_NAME = {
-      UiApplication.SETTINGS: 'com.android.settings',
-      UiApplication.FILES: 'com.google.android.documentsui',
-      UiApplication.CAMERA: 'com.google.android.desktop.camera',
-  }
-
-  _WAIT_APP_OPEN_TIMEOUT_SECONDS = 10
-  _WAIT_APP_CLOSE_TIMEOUT_SECONDS = 10
 
   _BOOT_COMPLETION_TIMEOUT_SECONDS = 3 * 60
   _IS_DEVICE_ONLINE_TIMEOUT_SECONDS = 20
@@ -93,6 +83,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._screen_recording_started = False
     self._ui_watcher = ui_watcher.UIWatcher(self.controller)
     self._user_tools = android_user_tools.AndroidUserTools(self.controller)
+    self._ui_tools = android_ui_tools.AndroidUITools(self.controller)
 
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
@@ -208,10 +199,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._stop_services()
     self._suspend()
 
-  @property
-  def user_tools(self) -> base_user_tools.BaseUserTools:
-    return self._user_tools
-
   def _wakeup_attempt(self):
     # This is just one way we could acomplish the retries to deal with ADB
     # flakes after wakeup.  Retrying the wait_for_boot_completion is not
@@ -305,32 +292,6 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
   def get_temp_dir(self) -> str:
     return self.TMP_DIR
 
-  def wait_app_open(self, app: UiApplication) -> bool:
-    self._ensure_app_is_supported(app)
-    try:
-      return self.controller.ui(
-          pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-      ).wait.exists(
-          timeout=datetime.timedelta(
-              seconds=self._WAIT_APP_OPEN_TIMEOUT_SECONDS
-          )
-      )
-    except Exception as e:  # pylint: disable=broad-except
-      raise PasitDeviceError(f'Failed to wait for app to open: {app}') from e
-
-  def wait_app_close(self, app: UiApplication) -> bool:
-    self._ensure_app_is_supported(app)
-    try:
-      return self.controller.ui(
-          pkg=self._UI_APPLICATION_PACKAGE_NAME[app]
-      ).wait.gone(
-          timeout=datetime.timedelta(
-              seconds=self._WAIT_APP_CLOSE_TIMEOUT_SECONDS
-          )
-      )
-    except Exception as e:  # pylint: disable=broad-except
-      raise PasitDeviceError(f'Failed to wait for app to close: {app}') from e
-
   def is_powered(self) -> bool:
     return dumpsys_battery_parser.DumpsysBatteryParser(
         self.controller
@@ -400,31 +361,13 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     if self._screen_recording_started:
       self._screen_recorder.start()
 
-  def launch_app(self, app: UiApplication):
-    self._ensure_app_is_supported(app)
-    self.controller.adb.shell([
-        'monkey',
-        '-p',
-        self._UI_APPLICATION_PACKAGE_NAME[app],
-        '-c',
-        'android.intent.category.LAUNCHER',
-        '1',
-    ])
+  @property
+  def user_tools(self) -> base_user_tools.BaseUserTools:
+    return self._user_tools
 
-  def stop_app(self, app: UiApplication):
-    self._ensure_app_is_supported(app)
-    self.controller.adb.shell([
-        'am',
-        'force-stop',
-        self._UI_APPLICATION_PACKAGE_NAME[app],
-    ])
-
-  def _ensure_app_is_supported(self, app: UiApplication) -> None:
-    if app not in self._UI_APPLICATION_PACKAGE_NAME:
-      raise ValueError(
-          f'Unsupported UI application: {app}. Supported applications:'
-          f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
-      )
+  @property
+  def ui_tools(self) -> base_ui_tools.BaseUITools:
+    return self._ui_tools
 
   def _wait_for_boot_completion(self):
     try:

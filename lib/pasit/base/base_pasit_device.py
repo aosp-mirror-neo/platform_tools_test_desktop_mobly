@@ -16,11 +16,11 @@
 
 import abc
 from collections.abc import Iterable
-import enum
 import logging
 from typing import Any, Callable
 
 from lib.pasit import test_policy
+from lib.pasit.base import base_ui_tools
 from lib.pasit.base import base_user_tools
 from lib.utils import retry
 from lib.utils import servo_client
@@ -66,13 +66,6 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
   Attributes:
     controller: Mobly controller instance for the tested device.
   """
-
-  class UiApplication(enum.Enum):
-    """Represents a UI application on the device."""
-
-    SETTINGS = 'Settings'
-    FILES = 'Files'
-    CAMERA = 'Camera'
 
   def __init__(
       self, controller: Any, servo: servo_client.ServoBase | None = None
@@ -199,36 +192,6 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def wait_app_open(self, app: UiApplication) -> bool:
-    """Waits for the UI application to appear.
-
-    Args:
-      app: The UI application to wait for.
-
-    Returns:
-      True if the UI application appeared, False otherwise.
-
-    Raises:
-      ValueError: If the UI application is not supported.
-    """
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def wait_app_close(self, app: UiApplication) -> bool:
-    """Wait for the UI application to close.
-
-    Args:
-      app: The UI application to wait for.
-
-    Returns:
-      True if the UI application closed, False otherwise.
-
-    Raises:
-      ValueError: If the UI application is not supported.
-    """
-    raise NotImplementedError
-
-  @abc.abstractmethod
   def unexpected_reboots(self) -> bool:
     """Checks if the device has rebooted unexpectedly.
 
@@ -270,20 +233,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Stops screen recording on the device."""
     raise NotImplementedError
 
-  @abc.abstractmethod
-  def launch_app(self, app: UiApplication):
-    """Launches the UI application on the device."""
-    raise NotImplementedError
-
-  @abc.abstractmethod
-  def stop_app(self, app: UiApplication):
-    """Stops the UI application on the device."""
-    raise NotImplementedError
-
   @property
   @abc.abstractmethod
   def user_tools(self) -> base_user_tools.BaseUserTools:
     """Returns the user tools instance for the device."""
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def ui_tools(self) -> base_ui_tools.BaseUITools:
+    """Returns the UI tools instance for the device."""
     raise NotImplementedError
 
   def wait_for_device_online(self):
