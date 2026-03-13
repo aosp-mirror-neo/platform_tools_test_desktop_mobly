@@ -14,13 +14,13 @@
 
 """AndroidPasitHID handles HID operations for PASIT testing on Android devices."""
 
-import datetime
 import logging
 import os
 import sys
 from typing import List
 
 from lib.pasit import hid_keys
+from lib.pasit.android import android_ui_tools
 from lib.pasit.base import base_pasit_hid
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import apk_utils
@@ -100,7 +100,6 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
 
   KeyboardShortcut = base_pasit_hid.BasePasitHID.KeyboardShortcut
 
-  _HID_SNIPPET_PACKAGE_NAME = 'com.google.android.hiddevicesnippet'
   _HID_SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
       'HidDeviceSnippet.apk',
@@ -109,13 +108,20 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def __init__(self, controller: android_device.AndroidDevice):
     """Initializes the AndroidPasitHID."""
     super().__init__(controller)
+    self.ui_tools = android_ui_tools.AndroidUITools(self.controller)
+    self.package_name = self.ui_tools.get_app_package_name(
+        android_ui_tools.AndroidUIApplication.HID_SNIPPET
+    )
     # uninstall apks to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE errors
-    apk_utils.uninstall(self.controller, self._HID_SNIPPET_PACKAGE_NAME)
+    apk_utils.uninstall(
+        self.controller,
+        self.package_name,
+    )
     apk_utils.install(
         self.controller,
         self._HID_SNIPPET_APK_PATH,
     )
-    self.controller.load_snippet('hid', self._HID_SNIPPET_PACKAGE_NAME)
+    self.controller.load_snippet('hid', self.package_name)
 
   def cleanup(self):
     """Cleans up after testing.
@@ -123,7 +129,7 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
     Uninstalls the HidDeviceSnippet when the object is garbage collected.
     """
     self.controller.unload_snippet('hid')
-    apk_utils.uninstall(self.controller, self._HID_SNIPPET_PACKAGE_NAME)
+    apk_utils.uninstall(self.controller, self.package_name)
 
   def get_hid_devices(self) -> List[base_pasit_hid.BasePasitHID.DeviceInfo]:
     """Returns a list of connected HID devices using the Mobly snippet."""
@@ -159,15 +165,18 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   def start_key_capture(self) -> None:
     """Starts the key capture activity using the Mobly snippet."""
     self.controller.hid.startCaptureActivity()
-    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.exists(
-        timeout=datetime.timedelta(seconds=5)
+    self.ui_tools.wait_app_open(
+        android_ui_tools.AndroidUIApplication.HID_SNIPPET
+    )
+    self.ui_tools.maximize_app_window(
+        android_ui_tools.AndroidUIApplication.HID_SNIPPET
     )
 
   def stop_key_capture(self) -> None:
     """Stops the key capture activity using the Mobly snippet."""
     self.controller.hid.stopCaptureActivity()
-    self.controller.ui(pkg=self._HID_SNIPPET_PACKAGE_NAME).wait.gone(
-        timeout=datetime.timedelta(seconds=5)
+    self.ui_tools.wait_app_close(
+        android_ui_tools.AndroidUIApplication.HID_SNIPPET
     )
 
   def get_captured_key_events(self) -> List[str]:
