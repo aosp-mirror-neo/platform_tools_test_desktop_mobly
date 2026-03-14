@@ -64,6 +64,11 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
 
   def teardown_test(self):
     """Handle the teardown for the test."""
+    if self.dut.is_device_offline():
+      logging.warning('DUT is offline, skipping display teardown.')
+      super().teardown_test()
+      return
+
     self.display.save_debug_info(self.current_test_info.output_path)
     self.painter.safe_clean_color_on_display()
 
