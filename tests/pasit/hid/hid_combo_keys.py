@@ -17,6 +17,7 @@
 import logging
 
 from android.platform.test.annotations import DesktopTest
+from lib.pasit import pasit_device
 from lib.pasit import pasit_file
 from lib.pasit import pasit_hid
 from lib.pasit import test_policy
@@ -62,12 +63,12 @@ class HIDComboKeysTests(persistent_hid_base_test.PersistentHIDBaseTest):
   def disabled_test_combo_keys_settings(self) -> None:
     self.emulate_shortcut_combination(KeyboardShortcut.SETTINGS)
     asserts.assert_true(
-        self.dut.wait_app_open(self.dut.UiApplication.SETTINGS),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.SETTINGS),
         f'Failed to find the keyboard shortcuts window',
     )
     self.emulate_shortcut_combination(KeyboardShortcut.HOME)
     asserts.assert_true(
-        self.dut.wait_app_close(self.dut.UiApplication.SETTINGS),
+        self.dut.ui_tools.wait_app_close(pasit_device.UIApplication.SETTINGS),
         f'Failed to close the settings window',
     )
 

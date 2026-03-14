@@ -16,19 +16,21 @@
 
 import logging
 import types
-from typing import Any
+from typing import Any, TypeAlias
 
 from lib.pasit.android import android_pasit_device
 from lib.pasit.base import base_pasit_device
+from lib.pasit.base import base_ui_tools
 from lib.pasit.base import base_user_tools
 from lib.utils import servo_client
 from mobly import base_test
 from mobly.controllers import android_device
 
 
-PasitDevice = base_pasit_device.BasePasitDevice
-PasitDeviceError = base_pasit_device.PasitDeviceError
-SessionStatus = base_user_tools.SessionStatus
+PasitDevice: TypeAlias = base_pasit_device.BasePasitDevice
+PasitDeviceError: TypeAlias = base_pasit_device.PasitDeviceError
+SessionStatus: TypeAlias = base_user_tools.SessionStatus
+UIApplication: TypeAlias = base_ui_tools.BaseUITools.UIApplication
 
 
 def create_controller(

@@ -43,7 +43,7 @@ class PasitCameraTest(pasit_test.PasitTestClass):
     )
 
     asserts.assert_true(
-        self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
         'Camera app did not open after suspend and wakeup.',
     )
     logging.info('Camera app is open before suspend.')
@@ -53,7 +53,7 @@ class PasitCameraTest(pasit_test.PasitTestClass):
     )
 
     asserts.assert_true(
-        self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
         'Camera app did not open after suspend and wakeup.',
     )
     logging.info('Camera app is open after suspend and wakeup.')
@@ -67,7 +67,7 @@ class PasitCameraTest(pasit_test.PasitTestClass):
     )
 
     asserts.assert_true(
-        self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
         'Camera app did not open.',
     )
     logging.info('Camera app is open before reboot.')
@@ -76,7 +76,7 @@ class PasitCameraTest(pasit_test.PasitTestClass):
         self.dut, dut_state_manager.PowerAction.REBOOT
     )
     asserts.assert_false(
-        self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
         'Camera app is still open after reboot.',
     )
     logging.info('Camera app is closed after reboot.')
@@ -86,7 +86,7 @@ class PasitCameraTest(pasit_test.PasitTestClass):
         'Failed to launch camera app after reboot.',
     )
     asserts.assert_true(
-        self.dut.wait_app_open(pasit_device.PasitDevice.UiApplication.CAMERA),
+        self.dut.ui_tools.wait_app_open(pasit_device.UIApplication.CAMERA),
         'Camera app did not open after reboot.',
     )
     logging.info('Camera app is open after reboot.')
