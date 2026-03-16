@@ -22,9 +22,13 @@ inherit from this class and implement the abstract methods.
 
 import abc
 import enum
+from typing import Generic, TypeVar
 
 
-class BaseUITools(abc.ABC):
+UIApplicationType = TypeVar('UIApplicationType', bound=enum.Enum)
+
+
+class BaseUITools(abc.ABC, Generic[UIApplicationType]):
   """Abstract base class for device UI interaction tools.
 
   This class defines the standard methods for launching, stopping, and
@@ -50,7 +54,7 @@ class BaseUITools(abc.ABC):
     """Base exception for UI tool operations."""
 
   @abc.abstractmethod
-  def launch_app(self, app: UIApplication) -> None:
+  def launch_app(self, app: UIApplicationType) -> None:
     """Launches the UI application on the device.
 
     Args:
@@ -62,7 +66,7 @@ class BaseUITools(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def stop_app(self, app: UIApplication) -> None:
+  def stop_app(self, app: UIApplicationType) -> None:
     """Stops the UI application on the device.
 
     Args:
@@ -74,7 +78,7 @@ class BaseUITools(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def wait_app_open(self, app: UIApplication) -> bool:
+  def wait_app_open(self, app: UIApplicationType) -> bool:
     """Waits for the UI application to appear.
 
     Waits for 10 seconds for the UI application to appear.
@@ -92,7 +96,7 @@ class BaseUITools(abc.ABC):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def wait_app_close(self, app: UIApplication) -> bool:
+  def wait_app_close(self, app: UIApplicationType) -> bool:
     """Wait for the UI application to close.
 
     Waits for 10 seconds for the UI application to close.
@@ -106,5 +110,20 @@ class BaseUITools(abc.ABC):
     Raises:
       ValueError: If the UI application is not supported.
       Error: If the UI application fails to close.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def maximize_app_window(self, app: UIApplicationType) -> bool:
+    """Maximize the UI application window.
+
+    Args:
+      app: The UI application to maximize the window for.
+
+    Returns:
+      True if the UI application window was maximized, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
     """
     raise NotImplementedError

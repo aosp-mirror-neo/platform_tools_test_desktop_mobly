@@ -20,17 +20,27 @@ Android applications using adb and UI Automator.
 """
 
 import datetime
-from typing import TypeAlias
+import logging
+from typing import TypeAlias, Union
 
 from lib.pasit.base import base_ui_tools
 from mobly.controllers import android_device
 
 
-UIApplication: TypeAlias = base_ui_tools.BaseUITools.UIApplication
+BaseUIApplication: TypeAlias = base_ui_tools.BaseUITools.UIApplication
 Error: TypeAlias = base_ui_tools.BaseUITools.Error
 
 
-class AndroidUITools(base_ui_tools.BaseUITools):
+class AndroidUIApplication:
+  """Represents a UI application on the device."""
+
+  HID_SNIPPET = 'HID Snippet'
+
+
+UIApplication: TypeAlias = Union[BaseUIApplication, AndroidUIApplication]
+
+
+class AndroidUITools(base_ui_tools.BaseUITools[UIApplication]):
   """Manages UI interactions with standard Android applications on a device.
 
   This class uses a Mobly AndroidDevice controller to interact with apps
@@ -43,9 +53,14 @@ class AndroidUITools(base_ui_tools.BaseUITools):
   """
 
   _UI_APPLICATION_PACKAGE_NAME = {
-      UIApplication.SETTINGS: 'com.android.settings',
-      UIApplication.FILES: 'com.google.android.documentsui',
-      UIApplication.CAMERA: 'com.google.android.desktop.camera',
+      BaseUIApplication.SETTINGS: 'com.android.settings',
+      BaseUIApplication.FILES: 'com.google.android.documentsui',
+      BaseUIApplication.CAMERA: 'com.google.android.desktop.camera',
+      AndroidUIApplication.HID_SNIPPET: 'com.google.android.hiddevicesnippet',
+  }
+
+  _UI_APPLICATION_LABEL = {
+      AndroidUIApplication.HID_SNIPPET: 'androidx.multidex.MultiDexApplication',
   }
 
   def __init__(self, controller: android_device.AndroidDevice):
@@ -96,9 +111,62 @@ class AndroidUITools(base_ui_tools.BaseUITools):
     except Exception as e:  # pylint: disable=broad-except
       raise self.Error(f'Failed to wait for app to close: {app}') from e
 
+  def maximize_app_window(self, app: UIApplication) -> bool:
+    self._ensure_app_has_label(app)
+    button = self.controller.ui(
+        res='com.android.systemui:id/maximize_window',
+        pkg='com.android.systemui',
+        descContains=self._UI_APPLICATION_LABEL[app],
+    )
+
+    if not button.wait.exists(timeout=datetime.timedelta(seconds=5)):
+      logging.warning(
+          'Maximize button not found for the window, skipping window'
+          ' maximization.'
+      )
+      self.controller.ui.dump()
+      return False
+
+    button_text = button.description
+    if 'Restore' in button_text:
+      logging.debug('Window is already maximized.')
+      return True
+    elif 'Max' in button_text:
+      return button.click()
+    else:
+      logging.warning(
+          'Maximize button has unexpected text: %s. Skipping window'
+          ' maximization.',
+          button_text,
+      )
+      return False
+
+  def get_app_package_name(self, app: UIApplication) -> str:
+    """Returns the package name of the UI application.
+
+    Available only on Android.
+
+    Args:
+      app: The UI application to get the package name for.
+
+    Returns:
+      The package name of the UI application.
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
+    self._ensure_app_is_supported(app)
+    return self._UI_APPLICATION_PACKAGE_NAME[app]
+
   def _ensure_app_is_supported(self, app: UIApplication) -> None:
     if app not in self._UI_APPLICATION_PACKAGE_NAME:
       raise ValueError(
           f'Unsupported UI application: {app}. Supported applications:'
           f' {self._UI_APPLICATION_PACKAGE_NAME.keys()}'
+      )
+
+  def _ensure_app_has_label(self, app: UIApplication) -> None:
+    if app not in self._UI_APPLICATION_LABEL:
+      raise ValueError(
+          f'Unsupported UI application: {app}. Supported applications:'
+          f' {self._UI_APPLICATION_LABEL.keys()}'
       )
