@@ -41,7 +41,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
   def teardown_test(self):
     """Handle the teardown for the test."""
     self.dut.set_lid_open()
-    super().teardown_test()
+    super().teardown_test()  # pylint: disable=attribute-error
 
   @functools.with_dimensions(
       reboot=dut_state_manager.PowerAction.REBOOT,
@@ -70,7 +70,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
         power_action == dut_state_manager.PowerAction.REBOOT
         and connection_type == peripheral_connector.ConnectionType.DOCK
         and external_display_count > 1,
-        'b/489083801 reboot with dock_two_display failing.'
+        'b/489083801 reboot with dock_two_display failing.',
     )
     self.skip_if_servo_needed_and_not_configured(power_action)
     internal_display_id = self.helper.get_internal_display_id()
@@ -154,7 +154,6 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     self.painter.show_color_on_display(
         image.NamedColor.RED.value, internal_display_id
     )
-    self.painter.maximize_color_window()
 
     self._close_lid()
     self.verify_display_count(

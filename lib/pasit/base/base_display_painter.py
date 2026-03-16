@@ -90,12 +90,3 @@ class BaseDisplayPainter(metaclass=abc.ABCMeta):
       self.clean_color_on_display()
     except Exception as e:
       logging.error('Failed to clean color on display %s', e)
-
-  @abc.abstractmethod
-  def maximize_color_window(self):
-    """maximize the window that shows custom background color.
-
-    Raises:
-      Error: If the window cannot be maximized.
-    """
-    raise NotImplementedError

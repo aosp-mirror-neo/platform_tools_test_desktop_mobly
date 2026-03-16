@@ -35,6 +35,7 @@ class AndroidUIApplication:
   """Represents a UI application on the device."""
 
   HID_SNIPPET = 'HID Snippet'
+  COLOR_FILL_TEST_APP = 'Color Fill Test'
 
 
 UIApplication: TypeAlias = Union[BaseUIApplication, AndroidUIApplication]
@@ -57,10 +58,15 @@ class AndroidUITools(base_ui_tools.BaseUITools[UIApplication]):
       BaseUIApplication.FILES: 'com.google.android.documentsui',
       BaseUIApplication.CAMERA: 'com.google.android.desktop.camera',
       AndroidUIApplication.HID_SNIPPET: 'com.google.android.hiddevicesnippet',
+      AndroidUIApplication.COLOR_FILL_TEST_APP: (
+          'com.google.android.colorfilltestapp'
+      ),
   }
 
+  # Required for maximize_app_window method.
   _UI_APPLICATION_LABEL = {
       AndroidUIApplication.HID_SNIPPET: 'androidx.multidex.MultiDexApplication',
+      AndroidUIApplication.COLOR_FILL_TEST_APP: 'Color Fill Test',
   }
 
   def __init__(self, controller: android_device.AndroidDevice):
@@ -140,6 +146,32 @@ class AndroidUITools(base_ui_tools.BaseUITools[UIApplication]):
           button_text,
       )
       return False
+
+  def is_app_installed(self, app: UIApplication) -> bool:
+    self._ensure_app_is_supported(app)
+    package_name = self._UI_APPLICATION_PACKAGE_NAME[app]
+    output = self.controller.adb.shell([
+        'pm',
+        'list',
+        'packages',
+        package_name,
+    ])
+    return package_name in output.decode('utf-8')
+
+  def get_window_count(self, app: UIApplication) -> int:
+    self._ensure_app_is_supported(app)
+    try:
+      # Use the standard Android content view resource ID to count app
+      # windows. This is more reliable than counting all UI elements with the
+      # package name, which can include child views and lead to overcounting.
+      # This approach works for both desktop (windowed) and fullscreen
+      # instances.
+      return self.controller.ui(
+          pkg=self._UI_APPLICATION_PACKAGE_NAME[app],
+          resourceId='android:id/content',
+      ).count
+    except Exception as e:  # pylint: disable=broad-except
+      raise self.Error('Failed to get app window count') from e
 
   def get_app_package_name(self, app: UIApplication) -> str:
     """Returns the package name of the UI application.
