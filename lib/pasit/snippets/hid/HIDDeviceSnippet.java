@@ -20,6 +20,7 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.input.InputManager;
+import android.util.Log;
 import android.view.InputDevice;
 import androidx.test.platform.app.InstrumentationRegistry;
 import com.google.android.mobly.snippet.Snippet;
@@ -39,6 +40,9 @@ public class HIDDeviceSnippet implements Snippet {
   private final Instrumentation mInstrumentation;
 
   public static final List<String> mKeyLog = new ArrayList<>();
+  public static final List<String> mMouseLog = new ArrayList<>();
+
+  private static final String TAG = "HIDDeviceSnippet";
 
   public HIDDeviceSnippet() {
     mInstrumentation = InstrumentationRegistry.getInstrumentation();
@@ -101,6 +105,34 @@ public class HIDDeviceSnippet implements Snippet {
   }
 
   /**
+   * Finds and finishes the CaptureActivity instance.
+   *
+   * @return true if the activity was found and finished, false otherwise.
+   */
+  @Rpc(description = "Stops the input listening activity.")
+  public boolean stopCaptureActivity() {
+    synchronized (mKeyLog) {
+      Log.d(TAG, "stopCaptureActivity: clearing key log: " + mKeyLog);
+      mKeyLog.clear();
+    }
+    synchronized (mMouseLog) {
+      Log.d(TAG, "stopCaptureActivity: clearing mouse log: " + mMouseLog);
+      mMouseLog.clear();
+    }
+    if (CaptureActivity.instance != null) {
+      mInstrumentation.runOnMainSync(
+          new Runnable() {
+            @Override
+            public void run() {
+              CaptureActivity.instance.finish();
+            }
+          });
+      return true;
+    }
+    return false; // Activity wasn't running
+  }
+
+  /**
    * Returns the current list of captured key events and then clears the log.
    *
    * @return A List of strings, where each string is a logged key event.
@@ -116,23 +148,31 @@ public class HIDDeviceSnippet implements Snippet {
   }
 
   /**
-   * Finds and finishes the CaptureActivity instance.
+   * Returns the current list of captured mouse events and then clears the log.
    *
-   * @return true if the activity was found and finished, false otherwise.
+   * @return A List of strings, where each string is a logged mouse event.
    */
-  @Rpc(description = "Stops the input listening activity.")
-  public boolean stopCaptureActivity() {
-    if (CaptureActivity.instance != null) {
-      mInstrumentation.runOnMainSync(
-          new Runnable() {
-            @Override
-            public void run() {
-              CaptureActivity.instance.finish();
-            }
-          });
-      return true;
+  @Rpc(description = "Returns the list of captured mouse events and clears the log.")
+  public List<String> getMouseLog() {
+    // Return a copy and clear the original
+    synchronized (mMouseLog) {
+      List<String> result = new ArrayList<>(mMouseLog);
+      mMouseLog.clear();
+      return result;
     }
-    return false; // Activity wasn't running
+  }
+
+  /** Clears key and mouse logs. */
+  @Rpc(description = "Clears key and mouse logs.")
+  public void clearLogs() {
+    synchronized (mKeyLog) {
+      Log.d(TAG, "clearLogs: clearing key log: " + mKeyLog);
+      mKeyLog.clear();
+    }
+    synchronized (mMouseLog) {
+      Log.d(TAG, "clearLogs: clearing mouse log: " + mMouseLog);
+      mMouseLog.clear();
+    }
   }
 
   @Override
