@@ -65,6 +65,7 @@ class AndroidUITools(base_ui_tools.BaseUITools[UIApplication]):
 
   # Required for maximize_app_window method.
   _UI_APPLICATION_LABEL = {
+      BaseUIApplication.CAMERA: 'Camera',
       AndroidUIApplication.HID_SNIPPET: 'androidx.multidex.MultiDexApplication',
       AndroidUIApplication.COLOR_FILL_TEST_APP: 'Color Fill Test',
   }

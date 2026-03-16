@@ -16,19 +16,19 @@
 
 from collections.abc import MutableSequence
 import datetime
+from typing import TypeAlias
 
+from lib.pasit.android import android_ui_tools
 from lib.pasit.base import base_pasit_camera
 from lib.utils import retry
 from mobly.controllers import android_device
 
-CameraError = base_pasit_camera.BasePasitCamera.Error
-Mode = base_pasit_camera.BasePasitCamera.Mode
+CameraError: TypeAlias = base_pasit_camera.BasePasitCamera.Error
+Mode: TypeAlias = base_pasit_camera.BasePasitCamera.Mode
 
 
 class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
   """PasitCamera for Android devices."""
-
-  _CAMERA_APP_PACKAGE_NAME = 'com.google.android.desktop.camera'
 
   _CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION = 'Start recording'
   _CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION = 'Stop recording'
@@ -54,6 +54,13 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
       Mode.PHOTO: 'android.media.action.STILL_IMAGE_CAMERA',
   }
 
+  def __init__(self, controller: android_device.AndroidDevice):
+    super().__init__(controller)
+    self.ui_tools = android_ui_tools.AndroidUITools(self.controller)
+    self.package_name = self.ui_tools.get_app_package_name(
+        android_ui_tools.BaseUIApplication.CAMERA
+    )
+
   def launch_camera_app(
       self,
       mode: Mode = Mode.PHOTO,
@@ -63,12 +70,12 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
         'start',
         '-a',
         self._camera_app_action[mode],
-        self._CAMERA_APP_PACKAGE_NAME,
+        self.package_name,
         '--display 0',  # always launch camera app on internal display
     ])
     try:
-      return self.controller.ui(pkg=self._CAMERA_APP_PACKAGE_NAME).wait.exists(
-          timeout=datetime.timedelta(seconds=20)
+      return self.ui_tools.wait_app_open(
+          android_ui_tools.BaseUIApplication.CAMERA
       )
     except Exception as e:  # pylint: disable=broad-except
       raise CameraError('Failed to launch camera app') from e
@@ -77,9 +84,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     # Instruct the Activity Manager(am) to terminate all processes associated
     # with the camera app (uniquely identified by package name
     # com.google.android.desktop.camera).
-    self.controller.adb.shell(
-        ['am', 'force-stop', self._CAMERA_APP_PACKAGE_NAME]
-    )
+    self.ui_tools.stop_app(android_ui_tools.BaseUIApplication.CAMERA)
 
   def get_connected_cameras(self) -> MutableSequence[str]:
     return [
@@ -109,7 +114,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
 
   def switch_camera(self):
     if not self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME, desc='Switch camera'
+        pkg=self.package_name, desc='Switch camera'
     ).click():
       raise CameraError('Failed to click switch camera button')
 
@@ -128,21 +133,21 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
 
   def take_photo(self):
     if not self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        pkg=self.package_name,
         desc=self._CAMERA_APP_TAKE_PHOTO_BUTTON_DESCRIPTION,
     ).click():
       raise CameraError('Failed to click take photo button')
 
   def start_recording_video(self):
     if not self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        pkg=self.package_name,
         desc=self._CAMERA_APP_START_RECORDING_BUTTON_DESCRIPTION,
     ).click():
       raise CameraError('Failed to click start recording video button')
 
   def stop_recording_video(self):
     if not self.controller.ui(
-        pkg=self._CAMERA_APP_PACKAGE_NAME,
+        pkg=self.package_name,
         desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
     ).click():
       raise CameraError('Failed to click stop recording video button')
@@ -150,7 +155,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
   def is_recording_video(self, timeout_seconds: int = 1) -> bool:
     try:
       return self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          pkg=self.package_name,
           desc=self._CAMERA_APP_STOP_RECORDING_BUTTON_DESCRIPTION,
       ).wait.exists(timeout=datetime.timedelta(seconds=timeout_seconds))
     except Exception as e:  # pylint: disable=broad-except
@@ -179,20 +184,14 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     """
     try:
       return self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          pkg=self.package_name,
           desc=self._action_button_description[mode],
       ).wait.exists(datetime.timedelta(seconds=timeout_seconds))
     except Exception as e:  # pylint: disable=broad-except
       raise CameraError('Failed to check if mode action button exists') from e
 
   def maximize_camera_app_window(self):
-    try:
-      if not self.controller.ui(desc='Maximize Camera').click():
-        raise CameraError('Failed to click maximize camera button')
-    except Exception as e:  # pylint: disable=broad-except
-      if isinstance(e, CameraError):
-        raise
-      raise CameraError('Failed to maximize camera app window') from e
+    self.ui_tools.maximize_app_window(android_ui_tools.BaseUIApplication.CAMERA)
 
   def _click_switch_camera_button(self, mode: Mode):
     """Clicks the switch camera button.
@@ -205,7 +204,7 @@ class AndroidPasitCamera(base_pasit_camera.BasePasitCamera):
     """
     try:
       self.controller.ui(
-          pkg=self._CAMERA_APP_PACKAGE_NAME,
+          pkg=self.package_name,
           desc=self._switch_mode_button_description[mode],
       ).click()
     except Exception as e:  # pylint: disable=broad-except
