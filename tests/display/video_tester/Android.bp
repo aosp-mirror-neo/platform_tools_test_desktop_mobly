@@ -125,6 +125,26 @@ python_test_host {
 }
 
 python_test_host {
+    name: "TestDscUcd",
+    main: "test_dsc.py",
+    srcs: ["test_dsc.py"],
+    defaults: ["PASIT-defaults"],
+    test_options: {
+        unit_test: false,
+        runner: "mobly",
+        tags: ["mobly"],
+    },
+    device_common_data: [
+        // test APK module
+        ":mobly-bundled-snippets",
+        ":snippet-uiautomator",
+    ],
+    libs: [
+        "py-display-utils",
+    ],
+}
+
+python_test_host {
     name: "TestHotplugsUcd",
     main: "test_hotplugs.py",
     srcs: ["test_hotplugs.py"],
