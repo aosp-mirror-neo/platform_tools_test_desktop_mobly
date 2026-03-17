@@ -90,6 +90,14 @@ class DumpsysDisplayParser:
     display_info_line = self._get_display_info_line()
     return self._get_display_id_from_display_info_line(display_info_line)
 
+  def get_external_display_ids(self) -> list[DisplayId]:
+    """Returns the external display IDs."""
+    display_info_lines = self._get_external_display_info_lines()
+    return [
+        self._get_display_id_from_display_info_line(line)
+        for line in display_info_lines
+    ]
+
   def is_display_on(self, display_id: DisplayId | None = None) -> bool:
     """Returns True if the display is ON, False otherwise."""
     if not display_id:
@@ -170,3 +178,10 @@ class DumpsysDisplayParser:
           f' {len(display_info_lines)}'
       )
     return display_info_lines[0]
+
+  def _get_external_display_info_lines(self) -> list[str]:
+    """Returns the display info lines for all external displays."""
+    display_info_lines = self._get_base_display_info()
+    return [
+        line for line in display_info_lines if 'Built-in Screen' not in line
+    ]

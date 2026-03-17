@@ -123,6 +123,11 @@ class BasePasitDisplay(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def get_external_display_ids(self) -> list[DisplayId]:
+    """Returns the external display IDs."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def is_display_on(self, display_id: DisplayId | None = None) -> bool:
     """Returns True if the display is ON, False otherwise.
 
