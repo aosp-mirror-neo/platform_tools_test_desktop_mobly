@@ -15,6 +15,7 @@
 """Helper class for display testing tools for PASIT tests."""
 
 import logging
+from typing import Callable
 
 from lib.pasit import pasit_display
 from lib.pasit import test_policy
@@ -52,17 +53,14 @@ class DisplayHelper:
 
   def get_external_display_ids(
       self,
-      internal_display_id: pasit_display.PasitDisplay.DisplayId,
       expected_external_display_count: int,
   ) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Waits for and returns the external display IDs.
 
-    This function calculates the total expected displays (external + 1 internal)
-    and waits until that number of displays is detected. It then filters out
-    the known internal display ID.  It also ensures the display IDs are stable.
+    This function waits until the expected number of external displays is
+    detected and ensures the display IDs are stable.
 
     Args:
-      internal_display_id: The ID of the internal display to filter out.
       expected_external_display_count: The number of external displays expected.
 
     Returns:
@@ -72,13 +70,9 @@ class DisplayHelper:
       StabilizationTimeoutError: If the display IDs are not stable or the
       expected number of displays are not detected.
     """
-    expected_total_display_count = expected_external_display_count + 1
-    display_ids = self._get_stable_ids(expected_total_display_count)
-    external_display_ids = [
-        display_id
-        for display_id in display_ids
-        if display_id != internal_display_id
-    ]
+    external_display_ids = self._get_stable_ids(
+        self.display.get_external_display_ids, expected_external_display_count
+    )
     logging.debug('External display ids: %s', external_display_ids)
     return external_display_ids
 
@@ -157,7 +151,9 @@ class DisplayHelper:
       not match the expectations after stabilization, None otherwise.
     """
     try:
-      display_ids = self._get_stable_ids(expected_display_count)
+      display_ids = self._get_stable_ids(
+          self.display.get_display_ids, expected_display_count
+      )
     except retry.StabilizationTimeoutError as e:
       return (
           False,
@@ -173,13 +169,17 @@ class DisplayHelper:
     return (True, None)
 
   def _get_stable_ids(
-      self, expected_display_count: int
+      self,
+      get_display_ids_func: Callable[
+          [], list[pasit_display.PasitDisplay.DisplayId]
+      ],
+      expected_display_count: int,
   ) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Returns display IDs if stable, otherwise raises an error."""
     # TODO: b/491864518 - Replace this with retry with
     # EXPECTED_DISPLAY_COUNT_RETRY_POLICY once the bug is fixed.
     return retry.wait_for_stable_value(
-        self.display.get_display_ids,
+        get_display_ids_func,
         timeout_seconds=test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS,
         delay_seconds=test_policy.DisplayTestPolicy.STABLE_ID_POLLING_INTERVAL_SECONDS,
         required_stable_duration_seconds=test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS,

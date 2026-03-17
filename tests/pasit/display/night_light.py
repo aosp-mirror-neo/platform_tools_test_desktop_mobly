@@ -34,7 +34,7 @@ class NightLightTest(display_base_test.DisplayBaseTest):
 
   def teardown_test(self):
     """Handle the teardown for the test."""
-    super().teardown_test()
+    super().teardown_test()  # pylint: disable=attribute-error
     self.display.set_night_light_enabled(False)
 
   @functools.with_variants(
@@ -62,9 +62,7 @@ class NightLightTest(display_base_test.DisplayBaseTest):
     self.verify_display_count(external_display_count + 1, 'after plug-in')
 
     display_map = self.map_displays_to_cameras_with_retries()
-    external_ids = self.helper.get_external_display_ids(
-        internal_id, external_display_count
-    )
+    external_ids = self.helper.get_external_display_ids(external_display_count)
     all_displays = [internal_id] + external_ids
     exposure_map = {}
 

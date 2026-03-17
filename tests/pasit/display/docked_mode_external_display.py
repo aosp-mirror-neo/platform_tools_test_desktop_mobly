@@ -85,7 +85,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
     # pylint: disable=unused-variable
     external_display_ids = self.helper.get_external_display_ids(
-        internal_display_id, external_display_count
+        external_display_count
     )
 
     self._close_lid()
@@ -148,7 +148,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
 
     display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
     external_display_ids = self.helper.get_external_display_ids(
-        internal_display_id, external_display_count
+        external_display_count
     )
 
     self.painter.show_color_on_display(

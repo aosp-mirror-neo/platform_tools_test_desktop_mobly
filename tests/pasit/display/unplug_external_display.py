@@ -57,9 +57,7 @@ class UnplugExternalDisplayTest(display_base_test.DisplayBaseTest):
     display_id_to_camera_id = self.map_displays_to_cameras_with_retries()
 
     logging.info('Open red background on external display')
-    external_display_ids = self.helper.get_external_display_ids(
-        internal_display_id, 1
-    )
+    external_display_ids = self.helper.get_external_display_ids(1)
     external_display_id = external_display_ids[0]
 
     self.painter.show_color_on_display(
