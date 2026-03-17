@@ -24,6 +24,7 @@ from pasit.component import pasit_camera_test
 from pasit.component import pasit_device_test
 from pasit.component import pasit_display_test
 from pasit.component import pasit_hid_keyboard_test
+from pasit.component import pasit_hid_mouse_test
 from pasit.component import pasit_network_test
 from pasit.component import pasit_power_test
 from pasit.component import pasit_test_test
@@ -44,6 +45,7 @@ class PasitComponentSuite(base_suite.BaseSuite):
     self.add_test_class(pasit_power_test.PasitPowerTest, config)
     self.add_test_class(pasit_camera_test.PasitCameraTest, config)
     self.add_test_class(get_camera_exposure_test.GetCameraExposureTest, config)
+    self.add_test_class(pasit_hid_mouse_test.PasitHIDMouseTest, config)
 
 
 def main() -> None:
