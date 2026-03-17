@@ -63,7 +63,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     Args:
       hid: The PasitHID object to use for verifying the HID emulator devices.
     """
-    # TODO: b/490154651 - Replace this with retry with
+    # TODO: b/491864518 - Replace this with retry with
     # DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY once the bug is fixed.
     hid_emulator_devices = retry.wait_for_stable_value(
         hid.get_hid_emulator_devices,
@@ -72,6 +72,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
         required_stable_duration_seconds=test_policy.HIDTestPolicy.STABLE_REQUIRED_DURATION_SECONDS,
         criteria=lambda devices: len(devices)
         == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
+        value_name='HID emulator devices',
     )
     logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
 

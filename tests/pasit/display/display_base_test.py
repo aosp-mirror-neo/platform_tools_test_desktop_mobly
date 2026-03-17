@@ -73,15 +73,13 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     self.painter.safe_clean_color_on_display()
 
     teardown_display_count_matches_expected = True
+    error_message = None
     if hasattr(self, 'helper'):
       self.passport_host.reset()
-      display_count = self.helper.get_display_count(
-          test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      is_display_setup_correct, error_message = (
+          self.helper.is_display_setup_correct(expected_display_count=1)
       )
-      if (
-          display_count
-          != test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
-      ):
+      if not is_display_setup_correct:
         teardown_display_count_matches_expected = False
         # ensure that reboot policy is triggered if the display count is not
         # as expected.
@@ -90,13 +88,9 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
     super().teardown_test()
     # Assert for the failure after super().teardown_test() which will trigger
     # the reboot policy.
-    asserts.assert_equal(
+    asserts.assert_true(
         teardown_display_count_matches_expected,
-        test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN,
-        'Display disconnect was not detected. Display count is not as expected '
-        'after disconnecting all external displays. Expected only'
-        f' {test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN}'
-        ' (internal) display.',
+        error_message,
     )
 
   def teardown_class(self):
@@ -200,10 +194,12 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
       expected_off: A list of display IDs expected to be OFF. All other detected
         displays are expected to be ON.
     """
-    asserts.assert_equal(
-        self.helper.get_display_count(expected_count, expected_off),
-        expected_count,
-        f'Display IDs count is not {expected_count} {event_to_log}.',
+    is_display_setup_correct, error_message = (
+        self.helper.is_display_setup_correct(expected_count, expected_off)
+    )
+    asserts.assert_true(
+        is_display_setup_correct,
+        f'The display setup is not correct {event_to_log}: {error_message}',
     )
 
   def verify_captured_color(
