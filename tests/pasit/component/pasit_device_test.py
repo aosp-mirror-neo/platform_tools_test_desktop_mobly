@@ -83,6 +83,14 @@ class PasitDeviceTest(base_test.BaseTestClass):
     logging.info('Resuming device...')
     self.dut.wakeup()
 
+  def test_wakeup_routine_only(self):
+    """Tests that the device wake up can be called while the device is awake."""
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
+    logging.info('Waking up device...')
+    self.dut.wakeup(wakeup_routine_only=True)
+
   def test_disable_enable_servo_power(self):
     asserts.skip_if(
         not self.dut.is_servo_configured(), 'Servo is not configured.'
