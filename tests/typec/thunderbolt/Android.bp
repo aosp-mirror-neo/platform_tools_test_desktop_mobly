@@ -18,7 +18,7 @@ package {
 }
 
 python_test_host {
-    name: "DesktopPASITThunderboltTests",
+    name: "TestTbtEnumeration",
     main: "tbt_enumeration.py",
     srcs: ["tbt_enumeration.py"],
     defaults: ["PASIT-defaults"],
@@ -31,9 +31,5 @@ python_test_host {
         ":mobly-bundled-snippets",
         ":snippet-uiautomator",
     ],
-    libs: [
-        "py-typec-mobly-utils",
-        "py-pasit-test",
-        "py-desktop-utils",
-    ],
+    libs: ["py-typec-base"],
 }
