@@ -17,7 +17,8 @@
     package="com.google.android.hiddevicesnippet">
     <application
         android:name="androidx.multidex.MultiDexApplication"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:theme="@style/AppTheme">
         <meta-data
             android:name="mobly-snippets"
             android:value="com.google.android.hiddevicesnippet.HIDDeviceSnippet" />

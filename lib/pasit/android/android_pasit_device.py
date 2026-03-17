@@ -214,13 +214,14 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
         logging.warning('Device is not online after boot completion.')
         raise PasitDeviceError('Device is not online after wakeup.')
 
-  def wakeup(self):
-    self.request_power_on()
-    retry.retry(
-        self._wakeup_attempt,
-        policy=retry.RetryPolicy(max_tries=3, delay_seconds=2),
-        exceptions=(PasitDeviceError,),
-    )
+  def wakeup(self, wakeup_routine_only: bool = False):
+    if not wakeup_routine_only:
+      self.request_power_on()
+      retry.retry(
+          self._wakeup_attempt,
+          policy=retry.RetryPolicy(max_tries=3, delay_seconds=2),
+          exceptions=(PasitDeviceError,),
+      )
     if self.unexpected_reboots():
       raise PasitDeviceError('Device rebooted between suspend and wakeup.')
     self._restart_screen_recording()

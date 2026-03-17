@@ -51,7 +51,7 @@ class PlugInDockTest(pasit_test.PasitTestClass):
 
   def setup_class(self):
     """Handle setup: initialize connector and base logic."""
-    super().setup_class()
+    super().setup_class()  # pylint:disable=attribute-error
     self.connector = peripheral_connector.PeripheralConnector(
         self.passport_host
     )
@@ -62,17 +62,17 @@ class PlugInDockTest(pasit_test.PasitTestClass):
 
   def setup_test(self):
     """Setup steps before each test is executed."""
-    super().setup_test()
+    super().setup_test()  # pylint:disable=attribute-error
     self.dut.disable_servo_power()
 
   def teardown_test(self):
     """Handle the teardown for the test."""
-    super().teardown_test()
+    super().teardown_test()  # pylint:disable=attribute-error
     self.dut.enable_servo_power()
 
   def teardown_class(self):
     """Handle teardown: cleanup network."""
-    super().teardown_class()
+    super().teardown_class()  # pylint:disable=attribute-error
     if hasattr(self, 'network'):
       self.network.cleanup()
 
@@ -124,6 +124,7 @@ class PlugInDockTest(pasit_test.PasitTestClass):
       asserts.skip(
           f'Skipping test: No {device_name} path found on dock. Error: {e}'
       )
+      return  # even though we skip, this is to prevent linter warning
     logging.info(
         'Plugging in device via dock: %s',
         pasit_test.get_device_type_name(device_type),
@@ -152,7 +153,14 @@ class PlugInDockTest(pasit_test.PasitTestClass):
     self._verify_external_storage_mounted(
         'External storage not mounted after plugging in the Dock'
     )
-    self.helper.get_display_count(expected_display_count=2)
+    is_display_setup_correct, error_message = (
+        self.helper.is_display_setup_correct(expected_display_count=2)
+    )
+    asserts.assert_true(
+        is_display_setup_correct,
+        'Display count is not 2, expected 1 internal + 1 external displays.',
+        extras=error_message,
+    )
     self._verify_dock_ethernet_interface_is_active()
 
   def _verify_dock_ethernet_interface_is_active(self):

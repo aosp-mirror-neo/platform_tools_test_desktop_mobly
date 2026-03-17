@@ -40,9 +40,7 @@ class CameraTestPolicy:
 
 class DisplayTestPolicy:
   EXPECTED_DISPLAY_COUNT_RETRY_POLICY = retry.RetryPolicy(
-      # This short count is due to the fact that there is additional retries/
-      # logic to wait for the display IDs to stabilize.
-      max_tries=2,
+      max_tries=15,
       delay_seconds=2,
   )
   MATCH_COLOR_RETRY_POLICY = retry.RetryPolicy(
@@ -59,9 +57,8 @@ class DisplayTestPolicy:
   )
   STABLE_ID_POLLING_INTERVAL_SECONDS = 2
   STABLE_ID_REQUIRED_DURATION_SECONDS = 10
-  STABLE_ID_TIMEOUT_SECONDS = 20
+  STABLE_ID_TIMEOUT_SECONDS = 40
   REBOOT_POLICY = pasit_test_config.RebootPolicy.ON_FAIL
-  EXPECTED_DISPLAY_COUNT_ON_TEARDOWN = 1
 
 
 class StorageTestPolicy:

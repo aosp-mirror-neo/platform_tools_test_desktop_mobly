@@ -138,10 +138,15 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def wakeup(self):
+  def wakeup(self, wakeup_routine_only: bool = False):
     """Wakes up the device from suspend and waits for it to be online.
 
     Will also ensure that the device is logged in after waking up.
+
+    Args:
+      wakeup_routine_only: Whether to only perform the wakeup routine. If True,
+        this will skip powering on the device and will assume that the device is
+        already powered on.
 
     Raises:
       Implementation specific exceptions, if the device fails to wake up.

@@ -20,10 +20,13 @@ android_test_helper_app {
     package_name: "com.google.android.hiddevicesnippet",
     privileged: true,
     srcs: ["*.java"],
+    resource_dirs: ["res"],
     certificate: "platform",
     min_sdk_version: "35",
     // Specify the libraries your snippet depends on.
     static_libs: [
+        "androidx.activity_activity",
+        "androidx.appcompat_appcompat",
         "androidx.test.runner",
         "android-support-multidex",
         "mobly-snippet-lib",

@@ -15,19 +15,11 @@
 """Helper class for display testing tools for PASIT tests."""
 
 import logging
-import time
+from typing import Callable
 
 from lib.pasit import pasit_display
 from lib.pasit import test_policy
 from lib.utils import retry
-
-
-class UnexpectedDisplayCountError(Exception):
-  """Error when the number of displays detected is unexpected."""
-
-
-class DisplayIDsNotStableError(Exception):
-  """Error when the display ID is not stable."""
 
 
 class DisplayStateMismatchError(Exception):
@@ -54,20 +46,6 @@ class DisplayHelper:
     """
     self.display = display
 
-  def get_stable_display_ids(
-      self,
-  ) -> list[pasit_display.PasitDisplay.DisplayId]:
-    """Returns a list of stable display IDs.
-
-    This function polls for the display IDs until they have been stable for a
-    configured duration.
-
-    Raises:
-      DisplayIDsNotStableError: If the display IDs do not stabilize within the
-      configured timeout.
-    """
-    return self._get_stable_ids()
-
   def get_internal_display_id(self) -> pasit_display.PasitDisplay.DisplayId:
     """Returns the internal display ID."""
 
@@ -75,50 +53,26 @@ class DisplayHelper:
 
   def get_external_display_ids(
       self,
-      internal_display_id: pasit_display.PasitDisplay.DisplayId,
       expected_external_display_count: int,
   ) -> list[pasit_display.PasitDisplay.DisplayId]:
     """Waits for and returns the external display IDs.
 
-    This function calculates the total expected displays (external + 1 internal)
-    and waits until that number of displays is detected. It then filters out
-    the known internal display ID.  It also ensures the display IDs are stable.
+    This function waits until the expected number of external displays is
+    detected and ensures the display IDs are stable.
 
     Args:
-      internal_display_id: The ID of the internal display to filter out.
       expected_external_display_count: The number of external displays expected.
 
     Returns:
       A list of external display IDs.
 
     Raises:
-      UnexpectedDisplayCountError: If the final number of total or external
-      displays does not match the expected counts after the timeout.
-      DisplayIDsNotStableError: If the display IDs are not stable this error
-      will be raised.
+      StabilizationTimeoutError: If the display IDs are not stable or the
+      expected number of displays are not detected.
     """
-    expected_total_display_count = expected_external_display_count + 1
-    display_ids = retry.retry(
-        self._get_stable_ids,
-        until=lambda ids: len(ids) == expected_total_display_count,
-        exceptions=(DisplayIDsNotStableError,),
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
+    external_display_ids = self._get_stable_ids(
+        self.display.get_external_display_ids, expected_external_display_count
     )
-    if len(display_ids) != expected_total_display_count:
-      raise UnexpectedDisplayCountError(
-          f'Expected {expected_total_display_count} displays, but got'
-          f' {len(display_ids)}'
-      )
-    external_display_ids = [
-        display_id
-        for display_id in display_ids
-        if display_id != internal_display_id
-    ]
-    if len(external_display_ids) != expected_external_display_count:
-      raise UnexpectedDisplayCountError(
-          f'Expected {expected_external_display_count} external displays, but'
-          f' got {len(external_display_ids)}'
-      )
     logging.debug('External display ids: %s', external_display_ids)
     return external_display_ids
 
@@ -168,93 +122,67 @@ class DisplayHelper:
         policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
     )
 
-  def get_display_count(
+  def is_display_setup_correct(
       self,
       expected_display_count: int,
       expected_off: list[pasit_display.PasitDisplay.DisplayId] | None = None,
-  ) -> int:
-    """Returns the number of displays detected.
+  ) -> tuple[bool, str | None]:
+    """Verifies the display count and states after stabilization.
 
-    The function waits for the display IDs to be stable and returns the number
-    of displays. This will retry according to the retry policy if the display
-    count does not match the expected count. The will return the last stable
-    display count, even if it is not the expected count.  It will also ensure
-    that the displays are in the expected state (ON or OFF) based on the
-    expected_off list.
+    This method waits for the set of detected display IDs to become stable.
+    It then checks if the count of stable displays matches
+    `expected_display_count`. Finally, it verifies that all detected
+    displays are ON, except for those specified in the `expected_off` set.
+
+    Internal timeouts or state mismatches result in False.
 
     Args:
-      expected_display_count: The expected number of displays.
-      expected_off: A list of display IDs expected to be OFF. All other detected
-        displays are expected to be ON.
+      expected_display_count: The exact number of displays expected to be
+        detected and stable.
+      expected_off: A collection of display IDs that are expected to be in the
+        OFF state. All other displays found are expected to be ON. If None or
+        empty, all detected displays must be ON.
 
     Returns:
-      The number of displays detected.
-
-    Raises:
-      DisplayIDsNotStableError: If the display IDs are not stable this error
-      will be raised.
-      DisplayStateMismatchError: If the displays are not in the expected state,
-        all displays are expected to be ON except for the ones in expected_off.
+      A tuple of (bool, str | None).
+      The first element is True if the display count and states match the
+      expectations after stabilization, False otherwise.
+      The second element is the error message if the display count or states do
+      not match the expectations after stabilization, None otherwise.
     """
-    display_ids = retry.retry(
-        self._get_stable_ids,
-        until=lambda display_ids: len(display_ids) == expected_display_count,
-        exceptions=(DisplayIDsNotStableError,),
-        policy=test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_RETRY_POLICY,
-    )
-    self._wait_for_displays_on(display_ids, expected_off)
-    return len(display_ids)
-
-  def _get_stable_ids(self) -> list[pasit_display.PasitDisplay.DisplayId]:
-    """Returns display IDs if stable, otherwise Raises DisplayIDsNotStableError."""
-    start_time = time.time()
-    last_display_ids = self.display.get_display_ids()
-    stable_start_time = start_time
-    logging.debug('Waiting for display IDs to stabilize...')
-
-    while (
-        time.time() - start_time
-        < test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS
-    ):
-      time.sleep(
-          test_policy.DisplayTestPolicy.STABLE_ID_POLLING_INTERVAL_SECONDS
+    try:
+      display_ids = self._get_stable_ids(
+          self.display.get_display_ids, expected_display_count
       )
-      current_display_ids = self.display.get_display_ids()
-      logging.debug(
-          'Polling for stable display IDs. Current: %s, Last: %s',
-          current_display_ids,
-          last_display_ids,
+    except retry.StabilizationTimeoutError as e:
+      return (
+          False,
+          (
+              'Failed to get stable display IDs or display count not equal to '
+              f'expected ({expected_display_count}): {e}'
+          ),
       )
+    try:
+      self._wait_for_displays_on(display_ids, expected_off)
+    except DisplayStateMismatchError as e:
+      return (False, f'Display state mismatch: {e}')
+    return (True, None)
 
-      if set(current_display_ids) == set(last_display_ids):
-        if (
-            time.time() - stable_start_time
-            >= test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS
-        ):
-          logging.debug(
-              'Display IDs have been stable for %ds: %s',
-              test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS,
-              current_display_ids,
-          )
-          return current_display_ids
-      else:
-        if len(last_display_ids) == len(current_display_ids):
-          # Even though we have a workaround for this, it is still a DUT bug and
-          # we should be sure to surface the error and not hide it as a DEBUG
-          # only message.  We will however only log the error if the count is
-          # the same so as not to catch waiting for displays to
-          # connect/disconnect.
-          logging.error(
-              'Display IDs changed during stability check. Last: %s,'
-              ' Current: %s',
-              last_display_ids,
-              current_display_ids,
-          )
-        last_display_ids = current_display_ids
-        stable_start_time = time.time()
-
-    raise DisplayIDsNotStableError(
-        'Display IDs did not stabilize within'
-        f' {test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS}s. Last'
-        f' seen IDs: {last_display_ids}'
+  def _get_stable_ids(
+      self,
+      get_display_ids_func: Callable[
+          [], list[pasit_display.PasitDisplay.DisplayId]
+      ],
+      expected_display_count: int,
+  ) -> list[pasit_display.PasitDisplay.DisplayId]:
+    """Returns display IDs if stable, otherwise raises an error."""
+    # TODO: b/491864518 - Replace this with retry with
+    # EXPECTED_DISPLAY_COUNT_RETRY_POLICY once the bug is fixed.
+    return retry.wait_for_stable_value(
+        get_display_ids_func,
+        timeout_seconds=test_policy.DisplayTestPolicy.STABLE_ID_TIMEOUT_SECONDS,
+        delay_seconds=test_policy.DisplayTestPolicy.STABLE_ID_POLLING_INTERVAL_SECONDS,
+        required_stable_duration_seconds=test_policy.DisplayTestPolicy.STABLE_ID_REQUIRED_DURATION_SECONDS,
+        criteria=lambda ids: len(ids) == expected_display_count,
+        value_name='display IDs',
     )

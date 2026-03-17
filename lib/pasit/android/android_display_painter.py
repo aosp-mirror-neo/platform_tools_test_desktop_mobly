@@ -14,12 +14,12 @@
 
 """AndroidDisplayPainter shows colors on Android device displays for testing."""
 
-import datetime
 import logging
 import os
 import sys
 
 from lib.pasit import pasit_display
+from lib.pasit.android import android_ui_tools
 from lib.pasit.android import dumpsys_display_parser
 from lib.pasit.base import base_display_painter
 from lib.utils import image
@@ -56,15 +56,13 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
   in its __init__.
   """
 
-  COLOR_FILL_TEST_APP_PACKAGE_NAME = 'com.google.android.colorfilltestapp'
-  COLOR_FILL_TEST_APP_APK_PATH = os.path.join(
+  _COLOR_FILL_TEST_APP_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
       'ColorFillTest.apk',
   )
-  COLOR_FILL_TEST_APP_ACTIVITY_NAME = (
-      f'{COLOR_FILL_TEST_APP_PACKAGE_NAME}/.MainActivity'
+  _COLOR_FILL_TEST_APP: android_ui_tools.AndroidUIApplication = (
+      android_ui_tools.AndroidUIApplication.COLOR_FILL_TEST_APP
   )
-  COLOR_FILL_TEST_APP_WINDOW_DESCRIPTION = 'Color Fill Test'
 
   def __init__(self, controller: android_device.AndroidDevice):
     """Initializes the AndroidDisplayPainter.
@@ -75,19 +73,21 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       controller: The Android device controller.
     """
     super().__init__(controller)
+    self.ui_tools = android_ui_tools.AndroidUITools(self.controller)
+    self.package_name = self.ui_tools.get_app_package_name(
+        self._COLOR_FILL_TEST_APP
+    )
     # uninstall the app to avoid INSTALL_FAILED_UPDATE_INCOMPATIBLE error
-    apk_utils.uninstall(self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME)
+    apk_utils.uninstall(self.controller, self.package_name)
 
   def cleanup(self):
     """Cleans up after testing.
 
     Uninstalls the ColorFillTestApp when the object is garbage collected.
     """
-    self._force_stop_color_fill_test_app()
-    if self._is_color_fill_test_app_installed():
-      apk_utils.uninstall(
-          self.controller, self.COLOR_FILL_TEST_APP_PACKAGE_NAME
-      )
+    self.ui_tools.stop_app(self._COLOR_FILL_TEST_APP)
+    if self.ui_tools.is_app_installed(self._COLOR_FILL_TEST_APP):
+      apk_utils.uninstall(self.controller, self.package_name)
 
   def show_color_on_display(
       self,
@@ -110,15 +110,17 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         color will be shown on the default display.
     """
     # set screen brightness to max to ensure color is visible
-    if not self._is_color_fill_test_app_installed():
+    if not self.ui_tools.is_app_installed(self._COLOR_FILL_TEST_APP):
       apk_utils.install(
           self.controller,
-          self.COLOR_FILL_TEST_APP_APK_PATH,
+          self._COLOR_FILL_TEST_APP_APK_PATH,
           params=['-t'],  # to allow installing test packages
       )
     self._set_screen_brightness(255)
 
-    window_count_before = self._get_color_fill_test_app_window_count()
+    window_count_before = self.ui_tools.get_window_count(
+        self._COLOR_FILL_TEST_APP
+    )
     # starting the app may fail, retry a few times to ensure color is shown
     retry.retry(
         lambda: self._try_show_color_on_display(
@@ -128,7 +130,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
         policy=START_COLOR_FILL_TEST_APP_RETRY_POLICY,
     )
     # maximize the window that shows custom background color
-    self.maximize_color_window()
+    self.ui_tools.maximize_app_window(self._COLOR_FILL_TEST_APP)
 
   def clean_color_on_display(self):
     """Cleans up the color on the display.
@@ -165,7 +167,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
     # After starting the app the window may not appear immediately. So we need
     # to retry getting windowcount a few times.
     window_count = retry.retry(
-        lambda: self._get_color_fill_test_app_window_count(),
+        lambda: self.ui_tools.get_window_count(self._COLOR_FILL_TEST_APP),
         until=lambda window_count: window_count >= expected_window_count,
         policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
     )
@@ -184,14 +186,16 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
       DisplayPainterError: If the color fill test app window count did not
       decrease to 0.
     """
-    self._force_stop_color_fill_test_app()
+    self.ui_tools.stop_app(self._COLOR_FILL_TEST_APP)
 
     # wait.gone is used to prevent StaleObjectException
     # use retry because there may be more than one window
     # return False if the color fill test app is still present
     if not retry.retry(
-        self._wait_for_color_fill_test_app_window_gone,
-        until=lambda _: not self._color_fill_test_app_window_exists(),
+        lambda: self.ui_tools.wait_app_close(self._COLOR_FILL_TEST_APP),
+        until=lambda _: not self.ui_tools.wait_app_open(
+            self._COLOR_FILL_TEST_APP
+        ),
         # The policy is defined locally because it is implementation specific.
         # Wait to receive `gone` for every window
         # We expect to have no more than 3 windows (with 2 external monitors),
@@ -202,7 +206,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
 
     # wait for 0 windows count that show custom background color
     window_count = retry.retry(
-        self._get_color_fill_test_app_window_count,
+        lambda: self.ui_tools.get_window_count(self._COLOR_FILL_TEST_APP),
         until=lambda window_count: window_count == 0,
         policy=DETECT_EXPECTED_WINDOW_COUNT_RETRY_POLICY,
     )
@@ -227,7 +231,7 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
               'am',
               'start',
               '-n',
-              self.COLOR_FILL_TEST_APP_ACTIVITY_NAME,
+              f'{self.package_name}/.MainActivity',
               '-a',
               'android.intent.activity.MAIN',
               '-e',
@@ -252,123 +256,8 @@ class AndroidDisplayPainter(base_display_painter.BaseDisplayPainter):
           ) from e
       raise DisplayPainterError('Failed to start color fill test app') from e
 
-  def _force_stop_color_fill_test_app(self):
-    """Forces stop the ColorFillTestApp."""
-    self.controller.adb.shell([
-        'am',
-        'force-stop',
-        self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-    ])
-
-  def _is_color_fill_test_app_installed(self) -> bool:
-    """Checks if the ColorFillTestApp is installed."""
-    output = self.controller.adb.shell(
-        ['pm', 'list', 'packages', self.COLOR_FILL_TEST_APP_PACKAGE_NAME]
-    )
-    return self.COLOR_FILL_TEST_APP_PACKAGE_NAME in output.decode('utf-8')
-
   def _set_screen_brightness(self, brightness: int):
     """Sets the screen brightness. Max brightness is 255."""
     self.controller.adb.shell(
         ['settings', 'put', 'system', 'screen_brightness', str(brightness)]
     )
-
-  def _get_color_fill_test_app_window_count(self) -> int:
-    """Returns the number of windows that show custom background color.
-
-    Returns:
-      The number of windows that show custom background color.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window count cannot be
-      determined.
-    """
-    try:
-      # Use the standard Android content view resource ID to count app
-      # windows. This is more reliable than counting all UI elements with the
-      # package name, which can include child views and lead to overcounting.
-      # This approach works for both desktop (windowed) and fullscreen
-      # instances.
-      return self.controller.ui(
-          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME,
-          resourceId='android:id/content',
-      ).count
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to get color fill test app window count'
-      ) from e
-
-  def maximize_color_window(self) -> None:
-    """Maximizes the window that shows custom background color.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      maximized.
-    """
-    try:
-      button = self.controller.ui(res='com.android.systemui:id/maximize_window')
-      if button.wait.exists(timeout=datetime.timedelta(seconds=5)):
-        button_text = button.description
-        if 'Restore' in button_text:
-          logging.debug('Window is already maximized.')
-        elif 'Max' in button_text:
-          button.click()
-        else:
-          logging.warning(
-              'Maximize button has unexpected text: %s. Skipping window'
-              ' maximization.',
-              button_text,
-          )
-      else:
-        logging.warning(
-            'Maximize button not found for color fill test app window, skipping'
-            ' window maximization.'
-        )
-    except Exception as e:  # pylint: disable=broad-except
-      # If the window is already maximized or is in fullscreen mode (e.g. on
-      # external display), the maximize button might not be present.
-      # We log this but do not fail the test.
-      logging.warning('Failed to maximize color fill test app window: %s', e)
-
-  def _wait_for_color_fill_test_app_window_gone(
-      self, timeout_seconds: int = 10
-  ) -> bool:
-    """Waits for the color fill test app window to disappear.
-
-    Args:
-      timeout_seconds: The timeout in seconds.
-
-    Returns:
-      True if the color fill test app window is gone, False otherwise.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      determined.
-    """
-    try:
-      return self.controller.ui(
-          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
-      ).wait.gone(timeout=datetime.timedelta(seconds=timeout_seconds))
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to wait for color fill test app window to disappear'
-      ) from e
-
-  def _color_fill_test_app_window_exists(self) -> bool:
-    """Checks if the color fill test app window exists.
-
-    Returns:
-      True if the color fill test app window exists, False otherwise.
-
-    Raises:
-      DisplayPainterError: If the color fill test app window cannot be
-      determined.
-    """
-    try:
-      return self.controller.ui(
-          pkg=self.COLOR_FILL_TEST_APP_PACKAGE_NAME
-      ).exists
-    except Exception as e:  # pylint: disable=broad-except
-      raise DisplayPainterError(
-          'Failed to check if color fill test app window exists'
-      ) from e

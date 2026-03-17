@@ -162,6 +162,7 @@ def wait_for_stable_value(
     delay_seconds: int,
     required_stable_duration_seconds: int,
     criteria: Callable[[_T], bool] = lambda _: True,
+    value_name: str = 'value',
 ) -> _T | None:
   """Polls a function until its return value remains unchanged for a duration.
 
@@ -181,6 +182,8 @@ def wait_for_stable_value(
       if the value is considered stable. This criteria has to be met
       continuously for `required_stable_duration_seconds` for the function to
       return.
+    value_name: The name of the value to be checked for stability. This is used
+      for logging purposes only.
 
   Returns:
     The value returned by `func` once it has been stable for the required
@@ -195,13 +198,14 @@ def wait_for_stable_value(
 
   last_result = func()
   stable_start_time = start_time
-  logging.debug('Waiting to stabilize...')
+  logging.debug('Waiting for %s to stabilize...', value_name)
 
   while time.time() < end_time:
     time.sleep(delay_seconds)
     current_result = func()
     logging.debug(
-        'Polling for stable result. Current: %s, Last: %s',
+        'Polling for stable %s. Current: %s, Last: %s',
+        value_name,
         current_result,
         last_result,
     )
@@ -215,21 +219,23 @@ def wait_for_stable_value(
           )
       ):
         logging.debug(
-            'The result have been stable for %ds: %s',
+            'The %s have been stable for %ds: %s',
+            value_name,
             required_stable_duration_seconds,
             current_result,
         )
         return current_result
     else:
       logging.warning(
-          'Result changed or criteria not met during stability check. Last: %s,'
+          'The %s changed or criteria not met during stability check. Last: %s,'
           ' Current: %s',
+          value_name,
           last_result,
           current_result,
       )
       last_result = current_result
       stable_start_time = time.time()
   raise StabilizationTimeoutError(
-      f'Result did not stabilize within {timeout_seconds}s. Last seen result:'
-      f' {last_result}',
+      f'The {value_name} did not stabilize or meet the expected criteria within'
+      f' {timeout_seconds}s. Last seen result: {last_result}',
   )

@@ -127,3 +127,32 @@ class BaseUITools(abc.ABC, Generic[UIApplicationType]):
       ValueError: If the UI application is not supported.
     """
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def is_app_installed(self, app: UIApplicationType) -> bool:
+    """Checks if the UI application is installed.
+
+    Args:
+      app: The UI application to check if installed.
+
+    Returns:
+      True if the UI application is installed, False otherwise.
+
+    Raises:
+      ValueError: If the UI application is not supported.
+    """
+    raise NotImplementedError
+
+  def get_window_count(self, app: UIApplicationType) -> int:
+    """Returns the number of UI application windows.
+
+    Args:
+      app: The UI application to get the window count for.
+
+    Returns:
+      The number of UI application windows.
+    Raises:
+      ValueError: If the UI application is not supported.
+      Error: If the UI application window count cannot be determined.
+    """
+    raise NotImplementedError

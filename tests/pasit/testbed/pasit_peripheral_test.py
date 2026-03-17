@@ -64,16 +64,14 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       self.display.save_debug_info(self.current_test_info.output_path)
 
     teardown_display_count_matches_expected = True
+    error_message = None
     if hasattr(self, 'display'):
       self.passport_host.reset()
       helper = display_helper.DisplayHelper(self.display)
-      display_count = helper.get_display_count(
-          test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
+      is_display_setup_correct, error_message = helper.is_display_setup_correct(
+          expected_display_count=1
       )
-      if (
-          display_count
-          != test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN
-      ):
+      if not is_display_setup_correct:
         teardown_display_count_matches_expected = False
         # ensure that reboot policy is triggered if the display count is not
         # as expected.
@@ -87,13 +85,9 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
 
     # Assert for the failure after super().teardown_test() which will trigger
     # the reboot policy.
-    asserts.assert_equal(
+    asserts.assert_true(
         teardown_display_count_matches_expected,
-        test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN,
-        'Display disconnect was not detected. Display count is not as expected '
-        'after disconnecting all external displays. Expected only'
-        f' {test_policy.DisplayTestPolicy.EXPECTED_DISPLAY_COUNT_ON_TEARDOWN}'
-        ' (internal) display.',
+        error_message,
     )
 
   def _get_test_name(
@@ -174,15 +168,17 @@ class PasitPeripheralTest(pasit_test.PasitTestClass):
       # 1 external display in daisy chain mode.
       expected_display_count = 3
       delay = 20
-    display_count = helper.get_display_count(expected_display_count)
+    is_display_setup_correct, error_message = helper.is_display_setup_correct(
+        expected_display_count
+    )
     self.capture_screenshots(f'after_display_activation_{device_id}')
-    asserts.assert_equal(
-        display_count,
-        expected_display_count,
+    asserts.assert_true(
+        is_display_setup_correct,
         f'Display count is not {expected_display_count}, expected 1 internal +'
         f' {expected_display_count - 1} external displays.',
+        extras=error_message,
     )
-    logging.info('Display count is %d', display_count)
+    logging.info('Display count is %d', expected_display_count)
     time.sleep(delay)
     if test_display_mapping:
       self._check_display_mapping()

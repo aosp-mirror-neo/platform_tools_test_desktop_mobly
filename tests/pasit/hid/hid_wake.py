@@ -20,7 +20,6 @@ from android.platform.test.annotations import DesktopTest
 from lib.pasit import hid_keys
 from lib.pasit import pasit_device
 from mobly import asserts
-from mobly import records
 from mobly import test_runner
 from pasit.hid import persistent_hid_base_test
 
@@ -34,13 +33,11 @@ from pasit.hid import persistent_hid_base_test
 class HIDWakeTest(persistent_hid_base_test.PersistentHIDBaseTest):
   """Wake DUT from suspend using keyboard HID (Dock path only)."""
 
-  def on_fail(self, record: records.TestResultRecord) -> None:
-    # If the test fails, make sure the DUT is awake and online before the next
-    # test runs. The teardown_test method of the PasitTestClass is not called
-    # in the HIDBaseTest so the recovery routine is not run.
-    if hasattr(self, 'dut'):
-      self.dut.wakeup()
-    super().on_fail(record)  # pylint: disable=attribute-error
+  def teardown_test(self) -> None:
+    if not self.dut.power_on_if_offline():
+      # If the DUT was already online, perform the wakeup routine.
+      self.dut.wakeup(wakeup_routine_only=True)
+    super().teardown_test()  # pylint: disable=attribute-error
 
   def test_wake_on_keyboard_keypress(self) -> None:
     """Verify DUT wakes from suspend on key press.

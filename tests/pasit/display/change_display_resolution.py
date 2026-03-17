@@ -51,14 +51,13 @@ class ChangeDisplayResolutionTest(display_base_test.DisplayBaseTest):
       connection_type: peripheral_connector.ConnectionType,
       external_display_count: int,
   ):
-    internal_display_id = self.helper.get_internal_display_id()
     self.plug_in_external_displays(external_display_count, connection_type)
     self.verify_display_count(
         external_display_count + 1,
         'after external displays plug in',
     )
     external_display_ids = self.helper.get_external_display_ids(
-        internal_display_id, external_display_count
+        external_display_count
     )
     initial_resolutions, display_support_maps = self._get_initial_display_info(
         external_display_ids

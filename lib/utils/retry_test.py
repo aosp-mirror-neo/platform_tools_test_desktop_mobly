@@ -149,7 +149,10 @@ class WaitForStableValueTest(unittest.TestCase):
           required_stable_duration_seconds=2,
           criteria=mock_criteria,
       )
-    self.assertIn("did not stabilize within 5s", str(context.exception))
+    self.assertIn(
+        "did not stabilize or meet the expected criteria within 5s",
+        str(context.exception),
+    )
     self.assertIn("A", str(context.exception))
     self.assertEqual(mock_func.call_count, 6)
     self.assertEqual(mock_criteria.call_count, 5)
@@ -164,7 +167,10 @@ class WaitForStableValueTest(unittest.TestCase):
           delay_seconds=1,
           required_stable_duration_seconds=2,
       )
-    self.assertIn("did not stabilize within 10s", str(context.exception))
+    self.assertIn(
+        "did not stabilize or meet the expected criteria within 10s",
+        str(context.exception),
+    )
     self.assertIn("K", str(context.exception))
 
   def test_timeout_if_not_stable_long_enough(self):

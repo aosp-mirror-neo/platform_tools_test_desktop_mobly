@@ -81,6 +81,11 @@ class AndroidPasitDisplay(base_pasit_display.BasePasitDisplay):
         self.controller
     ).get_internal_display_id()
 
+  def get_external_display_ids(self) -> list[DisplayId]:
+    return dumpsys_display_parser.DumpsysDisplayParser(
+        self.controller
+    ).get_external_display_ids()
+
   def is_display_on(self, display_id: DisplayId | None = None) -> bool:
     return dumpsys_display_parser.DumpsysDisplayParser(
         self.controller
