@@ -17,18 +17,24 @@
 import logging
 import os
 import sys
-from typing import List
+from typing import List, TypeAlias
 
+from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit.android import android_ui_tools
 from lib.pasit.base import base_pasit_hid
 from mobly.controllers import android_device
 from mobly.controllers.android_device_lib import apk_utils
 
-PasitHIDError = base_pasit_hid.BasePasitHID.Error
 
-_CAPTURED_KEY_EVENT_DOWN_PREFIX = 'DOWN: '
-_CAPTURED_KEY_EVENT_UP_PREFIX = 'UP: '
+PasitHIDError: TypeAlias = base_pasit_hid.BasePasitHID.Error
+KeyboardShortcut: TypeAlias = base_pasit_hid.BasePasitHID.KeyboardShortcut
+MouseAction: TypeAlias = base_pasit_hid.BasePasitHID.MouseAction
+MouseButton: TypeAlias = base_pasit_hid.BasePasitHID.MouseButton
+
+
+_CAPTURED_EVENT_DOWN_PREFIX = 'DOWN: '
+_CAPTURED_EVENT_UP_PREFIX = 'UP: '
 
 _OVERRIDE_CAPTURED_KEY_EVENTS_MAP = {
     # Alphanumeric
@@ -94,11 +100,17 @@ _OVERRIDE_CAPTURED_KEY_EVENTS_MAP = {
     hid_keys.Media.AUDIO_VOLUME_DOWN: ['KEYCODE_VOLUME_DOWN'],
 }
 
+_OVERRIDE_CAPTURED_MOUSE_EVENTS_MAP = {
+    MouseButton.LEFT: 'PRIMARY',
+    MouseButton.RIGHT: 'SECONDARY',
+    MouseButton.MIDDLE: 'TERTIARY',
+    MouseButton.BACK: 'BACK',
+    MouseButton.FORWARD: 'KEYCODE_FORWARD',
+}
+
 
 class AndroidPasitHID(base_pasit_hid.BasePasitHID):
   """PasitHID for Android devices."""
-
-  KeyboardShortcut = base_pasit_hid.BasePasitHID.KeyboardShortcut
 
   _HID_SNIPPET_APK_PATH = os.path.join(
       os.path.dirname(os.path.abspath(sys.argv[0])),
@@ -153,17 +165,82 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
 
   def get_shortcut_combination(self, shortcut: KeyboardShortcut) -> List[str]:
     match shortcut:
-      case self.KeyboardShortcut.SCREENSHOT:
+      case KeyboardShortcut.SCREENSHOT:
         return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_S]
-      case self.KeyboardShortcut.SETTINGS:
+      case KeyboardShortcut.SETTINGS:
         return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_I]
-      case self.KeyboardShortcut.HOME:
+      case KeyboardShortcut.HOME:
         return [hid_keys.Special.META, hid_keys.Alphanumeric.KEY_H]
       case _:
         raise ValueError(f'Unsupported shortcut: {shortcut}')
 
   def start_key_capture(self) -> None:
-    """Starts the key capture activity using the Mobly snippet."""
+    self._start_capture_activity()
+
+  def stop_key_capture(self) -> None:
+    self._stop_capture_activity()
+
+  def get_captured_key_events(self) -> List[str]:
+    return self.controller.hid.getKeyLog()
+
+  def get_expected_key_events(self, key: str) -> List[str]:
+    if key in _OVERRIDE_CAPTURED_KEY_EVENTS_MAP.keys():
+      return self._get_key_events_set(_OVERRIDE_CAPTURED_KEY_EVENTS_MAP[key])
+    else:
+      return self._get_key_events_set([f'KEYCODE_{key.upper()}'])
+
+  def start_mouse_capture(self, emulator: hid_emulator.HIDEmulator) -> None:
+    self._enable_pointer_location(True)
+    self._start_capture_activity()
+    self._move_mouse_to_window(emulator)
+    self.controller.hid.clearLogs()
+
+  def stop_mouse_capture(self) -> None:
+    self._stop_capture_activity()
+    self._enable_pointer_location(False)
+
+  def get_captured_mouse_events(self) -> List[str]:
+    return self.controller.hid.getMouseLog()
+
+  def get_expected_mouse_events(
+      self, action: MouseAction, button: MouseButton | None = None
+  ) -> List[str]:
+    match action:
+      case MouseAction.MOVE:
+        return ['ACTION_HOVER_MOVE']
+      case MouseAction.CLICK:
+        if button is None:
+          raise ValueError(
+              'A mouse button must be provided for the CLICK action.'
+          )
+        return self._get_mouse_events_set(button)
+      case MouseAction.SCROLL:
+        return ['ACTION_SCROLL']
+      case _:
+        raise ValueError(f'Unsupported action: {action}')
+
+  def _get_key_events_set(self, keys: List[str]) -> List[str]:
+    """Returns the key events for the given key."""
+    return [_CAPTURED_EVENT_DOWN_PREFIX + key for key in keys] + [
+        _CAPTURED_EVENT_UP_PREFIX + key for key in keys
+    ]
+
+  def _get_mouse_events_set(self, button: MouseButton) -> List[str]:
+    """Returns the mouse events for the given mouse buttons."""
+    mouse_event = _OVERRIDE_CAPTURED_MOUSE_EVENTS_MAP[button]
+    return [_CAPTURED_EVENT_DOWN_PREFIX + mouse_event] + [
+        _CAPTURED_EVENT_UP_PREFIX
+        + (
+            # CaptureActivity logs "UNKNOWN" for most button release events,
+            # except for the BACK and FORWARD buttons.
+            mouse_event
+            if button in [MouseButton.BACK, MouseButton.FORWARD]
+            else 'UNKNOWN'
+        )
+    ]
+
+  def _start_capture_activity(self) -> None:
+    """Starts the capture activity using the Mobly snippet."""
     self.controller.hid.startCaptureActivity()
     self.ui_tools.wait_app_open(
         android_ui_tools.AndroidUIApplication.HID_SNIPPET
@@ -172,25 +249,41 @@ class AndroidPasitHID(base_pasit_hid.BasePasitHID):
         android_ui_tools.AndroidUIApplication.HID_SNIPPET
     )
 
-  def stop_key_capture(self) -> None:
-    """Stops the key capture activity using the Mobly snippet."""
+  def _stop_capture_activity(self) -> None:
+    """Stops the capture activity using the Mobly snippet."""
     self.controller.hid.stopCaptureActivity()
     self.ui_tools.wait_app_close(
         android_ui_tools.AndroidUIApplication.HID_SNIPPET
     )
 
-  def get_captured_key_events(self) -> List[str]:
-    return self.controller.hid.getKeyLog()
+  def _enable_pointer_location(self, enable: bool) -> None:
+    """Enables or disables the 'Pointer location' developer option via adb.
 
-  def get_expected_key_events(self, key: str) -> List[str]:
-    """Returns the expected key events for the given key."""
-    if key in _OVERRIDE_CAPTURED_KEY_EVENTS_MAP.keys():
-      return self._get_key_events_set(_OVERRIDE_CAPTURED_KEY_EVENTS_MAP[key])
-    else:
-      return self._get_key_events_set([f'KEYCODE_{key.upper()}'])
+    This setting overlays crosshairs and coordinates on the screen for touch
+    and mouse events, which is helpful for visually debugging pointer inputs.
 
-  def _get_key_events_set(self, keys: List[str]) -> List[str]:
-    """Returns the key events for the given key."""
-    return [_CAPTURED_KEY_EVENT_DOWN_PREFIX + key for key in keys] + [
-        _CAPTURED_KEY_EVENT_UP_PREFIX + key for key in keys
-    ]
+    Args:
+      enable: Whether to enable or disable the 'Pointer location' developer
+        option.
+    """
+    self.controller.adb.shell([
+        'settings',
+        'put',
+        'system',
+        'pointer_location',
+        '1' if enable else '0',
+    ])
+
+  def _move_mouse_to_window(self, emulator: hid_emulator.HIDEmulator) -> None:
+    """Moves the mouse to the zero position."""
+    # Move the mouse to the top left corner of the screen.
+    emulator.mouse_move(
+        -int(self.controller.ui.width), -int(self.controller.ui.height)
+    )
+    # Move the mouse down and right. The values passed to mouse_move do not
+    # correspond one-to-one with actual screen pixels, making it tricky to
+    # accurately target the center of the screen. However, since the HID Capture
+    # window is maximized, an offset of 200 is a good enough estimate to safely
+    # place the cursor inside the window while avoiding system edge gestures
+    # and status bars.
+    emulator.mouse_move(200, 200)

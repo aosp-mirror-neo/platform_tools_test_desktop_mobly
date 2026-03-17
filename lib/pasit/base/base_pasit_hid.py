@@ -44,6 +44,22 @@ class BasePasitHID(metaclass=abc.ABCMeta):
     SETTINGS = 'Open Settings'
     HOME = 'Home'
 
+  class MouseAction(enum.Enum):
+    """Represents a mouse action."""
+
+    MOVE = 'Move'
+    CLICK = 'Click'
+    SCROLL = 'Scroll'
+
+  class MouseButton(enum.Enum):
+    """Represents a mouse button."""
+
+    LEFT = 'Left'
+    RIGHT = 'Right'
+    MIDDLE = 'Middle'
+    BACK = 'Back'
+    FORWARD = 'Forward'
+
   def __init__(self, controller: Any):
     """Initializes the PasitHID."""
     self.controller = controller
@@ -114,8 +130,31 @@ class BasePasitHID(metaclass=abc.ABCMeta):
     """Returns the list of captured key events from the DUT."""
     raise NotImplementedError
 
+  @abc.abstractmethod
   def get_expected_key_events(self, key: str) -> List[str]:
     """Returns the expected key events for the given key."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def start_mouse_capture(self) -> None:
+    """Start capturing mouse events from the DUT."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_mouse_capture(self) -> None:
+    """Stops capturing mouse events from the DUT."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_captured_mouse_events(self) -> List[str]:
+    """Returns the list of captured mouse events from the DUT."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_expected_mouse_events(
+      self, action: MouseAction, button: MouseButton | None = None
+  ) -> List[str]:
+    """Returns the expected mouse events for the given mouse button."""
     raise NotImplementedError
 
   def _is_hid_emulator(self, device: DeviceInfo) -> bool:
