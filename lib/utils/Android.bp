@@ -30,6 +30,7 @@ python_library_host {
 
 python_test_host {
     name: "retry_test",
+    team: "trendy_team_desktop_peripherals",
     srcs: [
         "retry_test.py",
     ],
@@ -54,5 +55,37 @@ python_test_host {
     libs: [
         "libprotobuf-python",
         "py-desktop-utils",
+    ],
+}
+
+python_test_host {
+    name: "managed_process_test",
+    team: "trendy_team_desktop_peripherals",
+    srcs: [
+        "managed_process_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "libprotobuf-python",
+        "py-desktop-utils",
+        "mobly",
+    ],
+}
+
+python_test_host {
+    name: "process_monitor_test",
+    team: "trendy_team_desktop_peripherals",
+    srcs: [
+        "process_monitor_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "libprotobuf-python",
+        "py-desktop-utils",
+        "mobly",
     ],
 }
