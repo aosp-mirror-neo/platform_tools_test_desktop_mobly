@@ -58,6 +58,9 @@ class UcdTestBase(pasit_test.PasitTestClass):
   _CROP_RATIO_FOR_COLOR_CHECK = 0.5
 
   def setup_class(self, require_servo: bool = False):
+    self._original_dp_video_spec = None
+    self._original_dp_dsc = None
+
     super().setup_class()
     # Servo is required for DUT power cycle through servo.
     asserts.skip_if(
@@ -69,6 +72,12 @@ class UcdTestBase(pasit_test.PasitTestClass):
         self.passport_host.video_tester_client,
         self.dut,
     )
+
+    # Cache the original DP spec to restore on teardown
+    self._original_dp_video_spec, self._original_dp_dsc = (
+        self._ucd_manager.get_dp_video_spec()
+    )
+
     self._ucd_manager.unplug_all_displays(wait_for_active=True)
     # Set the max number of displays that can be tested.
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
@@ -99,6 +108,12 @@ class UcdTestBase(pasit_test.PasitTestClass):
 
   def teardown_class(self):
     self._ucd_manager.reset_ucd_displays_state_to_default()
+    if self._original_dp_video_spec is not None:
+      self._ucd_manager.set_dp_video_spec(
+          video_spec=self._original_dp_video_spec,
+          dsc=self._original_dp_dsc,
+      )
+
     self._ucd_manager.disconnect_ucd()
     super().teardown_class()
 

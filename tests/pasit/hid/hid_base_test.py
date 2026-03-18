@@ -127,6 +127,16 @@ class HIDBaseTest(pasit_test.PasitTestClass):
   ) -> None:
     """Verifies a single key is captured by the DUT."""
     self.emulator.keypress([key])
-    captured = hid.get_captured_key_events()
     expected = hid.get_expected_key_events(key)
+
+    captured = []
+    retry.retry(
+        lambda: captured.extend(hid.get_captured_key_events()),
+        until=lambda _: captured == expected,
+        # The number of retries is chosen based on the number of events expected
+        # to receive back (1 for key press and 1 for key release), the delay
+        # should be minimal (may even be 0.5 once we update delay_seconds to
+        # float).
+        policy=retry.RetryPolicy(max_tries=2, delay_seconds=1),
+    )
     asserts.assert_equal(expected, captured, f'Key events mismatch for {key}')
