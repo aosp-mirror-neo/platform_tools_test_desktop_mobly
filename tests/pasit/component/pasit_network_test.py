@@ -19,6 +19,7 @@ import logging
 from lib.pasit import network_helper
 from lib.pasit import pasit_network
 from lib.pasit import pasit_test
+from lib.pasit import pasit_test_config
 from mobly import asserts
 from mobly import test_runner
 
@@ -26,6 +27,8 @@ from mobly import test_runner
 class PasitNetworkTest(pasit_test.PasitTestClass):
   """A test that exercises PASIT Network functionality."""
 
+  screen_recording_policy = pasit_test_config.ScreenRecordingPolicy.DISABLED
+  bugreport_policy = pasit_test_config.BugReportPolicy.NONE
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_NETWORK
 
   def setup_class(self) -> None:
@@ -117,8 +120,11 @@ class PasitNetworkTest(pasit_test.PasitTestClass):
         'Found network that is not DOWN: %s, checking if connected to internet',
         iface.name,
     )
+    has_internet = self.helper.wait_for_network_connected_to_internet(
+        iface.name
+    )
     asserts.assert_true(
-        self.network.is_network_connected_to_internet(iface.name),
+        has_internet,
         f'Expected network {iface.name} to be connected to internet',
     )
 
