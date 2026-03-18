@@ -84,6 +84,7 @@ python_library_host {
         "*/android_ui_tools.py",
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
+        "*/adb_command_monitor.py",
         "*/ui_watcher.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -361,4 +362,21 @@ python_library_host {
         "py-test-policy",
     ],
     pkg_path: "lib/pasit",
+}
+
+python_test_host {
+    name: "adb_command_monitor_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/adb_command_monitor_test.py",
+    srcs: [
+        "android/adb_command_monitor_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "mobly",
+        "py-desktop-utils",
+        "py-pasit-device",
+    ],
 }
