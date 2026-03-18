@@ -27,6 +27,7 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
   """PasitNetwork implementation for Android devices."""
 
   AUTOSTART_EHIDE_PROPERTY = 'persist.vendor.ehide.autostart'
+  HWADDR_ALLOWLIST_PROPERTY = 'persist.vendor.ehide.hwaddr_allowlist'
 
   def __init__(
       self,
@@ -48,6 +49,11 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
 
   def _start_ehide(self) -> None:
     """Starts ehide on the DUT."""
+    servo_mac = self._get_servo_mac()
+    logging.info('Setting ehide MAC allowlist to %s', servo_mac)
+    self._execute_adb_command_with_glitch_handling(
+        ['setprop', self.HWADDR_ALLOWLIST_PROPERTY, servo_mac]
+    )
 
     # Starts ehide on the DUT, and makes sure that ehide is started after a
     # reboot. Need a short delay to ensure that ehide is started and the adb
@@ -68,6 +74,31 @@ class AndroidPasitNetwork(base_pasit_network.BasePasitNetwork):
           'ehide failed to start, cannot test ethernet devices without ehide'
           ' running.'
       )
+
+  def _get_servo_mac(self) -> str:
+    """Finds the servo Ethernet interface and returns its MAC address."""
+    network_infos = self.get_network_infos()
+    ethernet_interfaces = [
+        info
+        for info in network_infos.values()
+        if (
+            info.link_type == 'ether'
+            and info.state == base_pasit_network.NetworkState.UP
+            and info.lower_up
+        )
+    ]
+
+    if not ethernet_interfaces:
+      raise base_pasit_network.NetworkInfoError(
+          'No Ethernet interface found to be managed by ehide.'
+      )
+    if len(ethernet_interfaces) > 1:
+      raise base_pasit_network.NetworkInfoError(
+          f'Multiple Ethernet interfaces found: {ethernet_interfaces}. '
+          'ehide can only manage a single interface at this stage.'
+      )
+
+    return ethernet_interfaces[0].mac_address
 
   def _stop_ehide(self) -> None:
     """Stops ehide on the DUT."""

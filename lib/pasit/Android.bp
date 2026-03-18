@@ -350,6 +350,21 @@ python_test_host {
     ],
 }
 
+python_test_host {
+    name: "android_pasit_network_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/android_pasit_network_test.py",
+    srcs: [
+        "android/android_pasit_network_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-network",
+    ],
+}
+
 python_library_host {
     name: "py-network-helper",
     srcs: [
