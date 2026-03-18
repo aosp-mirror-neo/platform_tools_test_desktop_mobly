@@ -17,6 +17,7 @@
 import logging
 
 from android.platform.test.annotations import DesktopTest
+from lib.pasit import hid_emulator
 from lib.pasit import hid_keys
 from lib.pasit import pasit_device
 from mobly import asserts
@@ -54,13 +55,25 @@ class HIDWakeTest(persistent_hid_base_test.PersistentHIDBaseTest):
     self.emulator.keypress([hid_keys.ArrowPad.ARROW_LEFT])
     self.emulator.keypress([hid_keys.ArrowPad.ARROW_UP])
 
-    logging.info('Waiting for DUT to wake up from suspend...')
+    self._verify_dut_woke_up('keyboard key press')
+
+  def test_wake_on_mouse_click(self) -> None:
+    """Verify DUT wakes from suspend on mouse click."""
+    logging.info('Suspending DUT')
+    self.dut.suspend()
+
+    self.emulator.mouse_click(hid_emulator.MouseButton.LEFT)
+    # need subsequent mouse-clicks to wake DUT from suspend
+    self.emulator.mouse_click(hid_emulator.MouseButton.RIGHT)
+
+    self._verify_dut_woke_up('mouse click')
+
+  def _verify_dut_woke_up(self, action: str) -> None:
     try:
       self.dut.wait_for_device_online()
+      logging.info('DUT woke up from suspend on %s', action)
     except pasit_device.PasitDeviceError:
-      asserts.fail('DUT failed to wake on keyboard key press')
-
-    logging.info('DUT woke up from suspend on keyboard key press')
+      asserts.fail(f'DUT failed to wake on {action}')
 
 
 if __name__ == '__main__':
