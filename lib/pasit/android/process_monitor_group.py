@@ -14,8 +14,6 @@
 
 """Manages a collection of process monitors for an Android device."""
 
-from typing import Type
-
 from lib.pasit.android import adb_command_monitor
 from mobly.controllers import android_device
 
@@ -38,14 +36,13 @@ class ProcessMonitorGroup:
     self._process_monitors = dict()
 
   def start(
-      self, monitor_class: Type[adb_command_monitor.AdbCommandMonitor]
+      self, monitor_class: type[adb_command_monitor.AdbCommandMonitor]
   ) -> None:
     """Starts a process monitor for the given class.
 
     Instantiates the monitor class with the group's AndroidDevice controller
     if an instance of this class is not already being managed. Then, starts
-    the monitor. If a monitor of the same class is already in the group,
-    this method does nothing.
+    the monitor.
 
     Args:
       monitor_class: The class of the process monitor to instantiate and start.
@@ -58,7 +55,7 @@ class ProcessMonitorGroup:
 
   def stop(
       self,
-      monitor_class: Type[adb_command_monitor.AdbCommandMonitor],
+      monitor_class: type[adb_command_monitor.AdbCommandMonitor],
       host_output_path: str | None = None,
   ) -> None:
     """Stops a specific process monitor.
@@ -76,17 +73,17 @@ class ProcessMonitorGroup:
     if monitor_class in self._process_monitors:
       self._process_monitors[monitor_class].stop(host_output_path)
 
-  def pause(self) -> None:
+  def pause_all(self) -> None:
     """Stops all active process monitors in the group.
 
     This method iterates through all managed monitor instances and calls
     their stop() method. The monitors remain in the group and can be restarted
-    using resume().
+    using resume_all().
     """
     for monitor in self._process_monitors.values():
       monitor.stop()
 
-  def resume(self) -> None:
+  def resume_all(self) -> None:
     """Restarts all process monitors currently held in the group.
 
     This method iterates through all managed monitor instances and calls

@@ -148,15 +148,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # ensure that boot ID is cleared before reboot to avoid false positives
     # if the device fails to boot completely after a reboot.
     self._boot_id = None
-    self._process_monitor_group.pause()
+    self._process_monitor_group.pause_all()
     self.controller.reboot()
-    self._process_monitor_group.resume()
+    self._process_monitor_group.resume_all()
     self._update_boot_id()
     self._user_tools.login()
 
   def cold_reset(self):
     self._boot_id = None
-    self._process_monitor_group.pause()
+    self._process_monitor_group.pause_all()
     try:
       self._stop_services()
     except Exception as e:  # pylint: disable=broad-except
@@ -175,7 +175,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _power_on_routine(self, login: bool = True):
     self._wait_for_boot_completion()
-    self._process_monitor_group.resume()
+    self._process_monitor_group.resume_all()
     self._update_boot_id()
     self.controller.root_adb()
     # for consistency across all runs, switch to the login screen user first
@@ -188,7 +188,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       self._user_tools.login()
 
   def power_off(self):
-    self._process_monitor_group.pause()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self.request_power_off()
     logging.debug('Waiting for device to power off...')
@@ -196,7 +196,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._boot_id = None
 
   def suspend(self):
-    self._process_monitor_group.pause()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self._suspend()
 
@@ -225,7 +225,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       )
     if self.unexpected_reboots():
       raise PasitDeviceError('Device rebooted between suspend and wakeup.')
-    self._process_monitor_group.resume()
+    self._process_monitor_group.resume_all()
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -242,7 +242,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f'Wakeup timeout {wakeup_timeout_seconds} is less than the minimum'
           f' sleep timer {self.MIN_WAKEUP_TIMEOUT_SECONDS}.'
       )
-    self._process_monitor_group.pause()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self._set_wakup_timeout(wakeup_timeout_seconds)
     wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
@@ -251,7 +251,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
     wakeup_timer.join()
     self._wait_for_boot_completion()
-    self._process_monitor_group.resume()
+    self._process_monitor_group.resume_all()
     self._start_services()
 
   def is_device_online(self) -> bool:
