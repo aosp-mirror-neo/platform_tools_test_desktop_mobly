@@ -85,6 +85,7 @@ python_library_host {
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
         "*/adb_command_monitor.py",
+        "*/process_monitor_group.py",
         "*/ui_watcher.py",
     ],
     exclude_srcs: ["passport/*"],
