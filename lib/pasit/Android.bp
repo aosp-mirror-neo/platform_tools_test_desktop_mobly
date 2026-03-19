@@ -396,3 +396,20 @@ python_test_host {
         "py-pasit-device",
     ],
 }
+
+python_test_host {
+    name: "process_monitor_group_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/process_monitor_group_test.py",
+    srcs: [
+        "android/process_monitor_group_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "mobly",
+        "py-desktop-utils",
+        "py-pasit-device",
+    ],
+}
