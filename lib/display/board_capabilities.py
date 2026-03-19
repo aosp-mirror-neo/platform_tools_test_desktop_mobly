@@ -37,6 +37,22 @@ class BoardDisplayCapabilities:
     self.dsc = dsc
 
 
+class BoardKnownIssues:
+  """Stores the known issues of a board."""
+
+  def __init__(
+      self,
+      bug_ids: list[str],
+      disable_dsc: bool = False,
+  ):
+    asserts.assert_true(
+        bug_ids,
+        'bug_ids must be provided for any known issue configuration.',
+    )
+    self.bug_ids = bug_ids
+    self.disable_dsc = disable_dsc
+
+
 board_display_capabilities: Dict[str, BoardDisplayCapabilities] = {
     'brya': BoardDisplayCapabilities(
         edid_for_max_mode=edid_for_max_supported_modes.edid_8k_30Hz_Timings,
@@ -60,6 +76,13 @@ board_display_capabilities: Dict[str, BoardDisplayCapabilities] = {
     ),
 }
 
+board_known_issues: Dict[str, BoardKnownIssues] = {
+    'fatcat': BoardKnownIssues(
+        bug_ids=['b/491484276'],
+        disable_dsc=True,
+    ),
+}
+
 
 def get_board_display_capabilities(
     board_name: str,
@@ -80,3 +103,17 @@ def get_board_display_capabilities(
       ' board_display_capabilities',
   )
   return board_caps
+
+
+def get_board_known_issues(
+    board_name: str,
+) -> 'BoardKnownIssues | None':
+  """Returns the BoardKnownIssues object for a given board name.
+
+  Args:
+    board_name: The name of the board (e.g., "fatcat", "brya").
+
+  Returns:
+    The BoardKnownIssues object or None if the board is not found.
+  """
+  return board_known_issues.get(board_name)
