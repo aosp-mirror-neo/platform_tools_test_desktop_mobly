@@ -100,6 +100,10 @@ class HIDTestPolicy:
       max_tries=30,
       delay_seconds=2,
   )
+  DETECT_UNPLUGGED_HID_DEVICES_RETRY_POLICY = retry.RetryPolicy(
+      max_tries=5,
+      delay_seconds=2,
+  )
   NUM_HID_DEVICES_EXPECTED = 3
   STABLE_POLLING_INTERVAL_SECONDS = 2
   STABLE_REQUIRED_DURATION_SECONDS = 10

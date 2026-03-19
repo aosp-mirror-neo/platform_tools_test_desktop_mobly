@@ -19,7 +19,9 @@ import logging
 from android.platform.test.annotations import DesktopTest
 from lib.pasit import dut_state_manager
 from lib.pasit import pasit_hid
+from lib.pasit import test_policy
 from lib.utils import functools
+from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
 from pasit.hid import hid_base_test
@@ -68,14 +70,21 @@ class UnplugHIDTest(hid_base_test.HIDBaseTest):
       logging.info('Unplugging HID emulator from DUT')
       self.unplug_hid_emulator()
 
-    hid_devices = self.hid.get_hid_emulator_devices()
+    hid_devices = retry.retry(
+        self.hid.get_hid_emulator_devices,
+        until=lambda hids: len(hids) == 0,
+        policy=test_policy.HIDTestPolicy.DETECT_UNPLUGGED_HID_DEVICES_RETRY_POLICY,
+    )
+
     asserts.assert_equal(
-        0, len(hid_devices),
+        0,
+        len(hid_devices),
         'Expected 0 HID devices after unplugging, but found:'
         f' {len(hid_devices)}',
     )
     logging.info('HID is no longer detected.')
 
+    # Re-plug and verify functionality
     self.plug_in_hid_emulator_and_verify(self.hid)
 
     logging.info('Verifying Keyboard operability')
