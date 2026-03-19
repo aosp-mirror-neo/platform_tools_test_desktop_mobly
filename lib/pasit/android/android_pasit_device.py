@@ -23,6 +23,7 @@ import time
 from lib.pasit.android import android_ui_tools
 from lib.pasit.android import android_user_tools
 from lib.pasit.android import dumpsys_battery_parser
+from lib.pasit.android import input_recorder
 from lib.pasit.android import process_monitor_group
 from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
@@ -354,6 +355,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._process_monitor_group.stop(
         screen_recorder.ScreenRecorder, output_path
     )
+
+  def start_input_recording(self):
+    self._process_monitor_group.start(input_recorder.InputRecorder)
+
+  def stop_input_recording(self, output_path: str):
+    self._process_monitor_group.stop(input_recorder.InputRecorder, output_path)
 
   @property
   def user_tools(self) -> base_user_tools.BaseUserTools:

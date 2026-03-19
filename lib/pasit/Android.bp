@@ -84,6 +84,7 @@ python_library_host {
         "*/android_ui_tools.py",
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
+        "*/input_recorder.py",
         "*/adb_command_monitor.py",
         "*/process_monitor_group.py",
         "*/ui_watcher.py",
