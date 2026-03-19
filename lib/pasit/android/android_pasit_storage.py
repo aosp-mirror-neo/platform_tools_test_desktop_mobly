@@ -59,8 +59,14 @@ class AndroidPasitStorage(base_pasit_storage.BasePasitStorage):
     ]
 
   def get_external_storage_blkdevs(self) -> MutableSequence[str]:
-    disks = self.controller.adb.shell(['sm', 'list-disks'])
-    return disks.decode().splitlines()
+    cmd = ['find', '/dev/block/vold', '-name', 'disk*']
+    output = self.controller.adb.shell(cmd)
+    if not output:
+      return []
+    decoded_output = output.decode('utf-8', errors='ignore').strip()
+    return list({
+        line.strip() for line in decoded_output.splitlines() if line.strip()
+    })
 
   def get_external_mount_point(self) -> str:
     volumes = self._get_volume_info()
