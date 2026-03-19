@@ -19,8 +19,10 @@ import os
 import time
 
 from chromiumos.test.lab.api.passport import video_tester_service_pb2
+from display.utils import board_capabilities
 from display.utils import interface_types
 from display.utils import modetest_helper
+from display.utils import platform_info_helper
 from display.utils import ucd_manager
 from lib.pasit import display_helper
 from lib.pasit import pasit_display
@@ -62,24 +64,52 @@ class UcdTestBase(pasit_test.PasitTestClass):
     self._original_dp_dsc = None
 
     super().setup_class()
-    # Servo is required for DUT power cycle through servo.
+
+    self._check_servo_configuration(require_servo)
+    self._connect_to_ucd()
+    self._apply_known_issues()
+
+    self._ucd_manager.unplug_all_displays(wait_for_active=True)
+    self._calculate_max_tested_displays()
+    self._setup_display_helpers()
+
+  def _check_servo_configuration(self, require_servo: bool):
+    """Checks if servo is configured when required."""
     asserts.skip_if(
         require_servo and not self.dut.is_servo_configured(),
         "Servo is not configured.",
     )
-    # Set the UCD.
+
+  def _connect_to_ucd(self):
+    """Connects to UCD and caches original DP spec."""
     self._ucd_manager = ucd_manager.UcdManager.connect_to_ucd(
         self.passport_host.video_tester_client,
         self.dut,
     )
-
     # Cache the original DP spec to restore on teardown
     self._original_dp_video_spec, self._original_dp_dsc = (
         self._ucd_manager.get_dp_video_spec()
     )
 
-    self._ucd_manager.unplug_all_displays(wait_for_active=True)
-    # Set the max number of displays that can be tested.
+  def _apply_known_issues(self):
+    """Applies known issues workarounds."""
+    board_name = platform_info_helper.get_current_device_name(self.dut)
+    known_issues = board_capabilities.get_board_known_issues(board_name)
+    if known_issues:
+      if known_issues.disable_dsc:
+        logging.warning(
+            "Disabling DSC for device %s due to known issues: %s - please"
+            " update the code when the bug(s) are resolved.",
+            board_name,
+            ", ".join(known_issues.bug_ids),
+        )
+        self._ucd_manager.set_dp_video_spec(
+            video_spec=self._original_dp_video_spec,
+            dsc=not known_issues.disable_dsc,
+        )
+
+  def _calculate_max_tested_displays(self):
+    """Calculates and sets the maximum number of tested displays."""
     max_crtc_on_dut = modetest_helper.get_crtcs_count(self.dut)
     theoritical_max_connected_displays = max_crtc_on_dut - 1  # 1 is used by eDP
     self.max_tested_displays = min(
@@ -94,6 +124,9 @@ class UcdTestBase(pasit_test.PasitTestClass):
         f" {max_crtc_on_dut}, max_supported_displays:"
         f" {self._ucd_manager.max_supported_displays}",
     )
+
+  def _setup_display_helpers(self):
+    """Sets up display helpers."""
     self.display = self.create(pasit_display)
     self.helper = display_helper.DisplayHelper(self.display)
     self.internal_display_id = self.helper.get_internal_display_id()

@@ -19,25 +19,27 @@ from lib.pasit import pasit_device
 from mobly import asserts
 
 
-def get_current_board_name(dut: pasit_device.PasitDevice) -> str | None:
-  """Gets the board name (e.g., "brya", "fatcat").
+def get_current_device_name(dut: pasit_device.PasitDevice) -> str | None:
+  """Gets the device name (e.g., "redrix", "fatcat").
 
   Args:
       dut: The Pasit DUT.
 
   Returns:
-      str or None: The current board name if the command is successful,
+      str or None: The current device name if the command is successful,
           otherwise None.
   """
   try:
     cmd = "getprop ro.product.device"
-    board_name = dut.shell(cmd.split()).decode("utf-8", errors="ignore").strip()
-    logging.info("Current board under test model name is: %s", board_name)
-    asserts.assert_true(
-        board_name,
-        "Could not get the current board name",
+    device_name = (
+        dut.shell(cmd.split()).decode("utf-8", errors="ignore").strip()
     )
-    return board_name
+    logging.debug("Current board under test device name is: %s", device_name)
+    asserts.assert_true(
+        device_name,
+        "Could not get the current device name",
+    )
+    return device_name
   except RuntimeError:
     return None
 
@@ -65,6 +67,8 @@ def get_current_model_name(dut: pasit_device.PasitDevice) -> str | None:
     return None
 
 
+# TODO(b/485856853): We can no longer query board, device is now the mode.
+# Drop this from Compliance tests.
 def get_current_board_model_names(
     dut: pasit_device.PasitDevice,
 ) -> tuple[str, str]:
@@ -76,6 +80,6 @@ def get_current_board_model_names(
   Returns:
       tuple[str, str]: A tuple containing the board and model names.
   """
-  board_name = get_current_board_name(dut)
+  device_name = get_current_device_name(dut)
   model_name = get_current_model_name(dut)
-  return board_name, model_name
+  return device_name, model_name
