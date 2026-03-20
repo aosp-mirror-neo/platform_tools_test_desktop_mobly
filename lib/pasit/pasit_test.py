@@ -65,6 +65,10 @@ class PasitTestClass(base_test.BaseTestClass):
   screen_recording_policy: pasit_test_config.ScreenRecordingPolicy = (
       pasit_test_config.ScreenRecordingPolicy.ENABLED
   )
+  camera_recording_policy: pasit_test_config.CameraRecordingPolicy = (
+      pasit_test_config.CameraRecordingPolicy.ON_FAIL
+  )
+  camera_recording_duration_seconds: int = 10
   _test_failed: bool = False
 
   def setup_class(self):
@@ -85,6 +89,7 @@ class PasitTestClass(base_test.BaseTestClass):
         self.user_params.get('on_fail_pause_seconds', '0')
     )
     self._setup_failure_policy()
+    self._setup_camera_recording_policy()
     self._apply_retry_and_repeat_to_all_tests()
 
     self.dut = pasit_device.create(self)
@@ -113,6 +118,23 @@ class PasitTestClass(base_test.BaseTestClass):
             'Invalid bugreport policy in user_params: '
             f'{self.user_params["bugreport"]}'
         ) from e
+
+  def _setup_camera_recording_policy(self):
+    """Sets up the camera recording policy based on user parameters."""
+    if 'camera_recording' in self.user_params:
+      try:
+        self.camera_recording_policy = pasit_test_config.CameraRecordingPolicy(
+            self.user_params['camera_recording']
+        )
+      except ValueError as e:
+        raise signals.TestError(
+            'Invalid camera recording policy in user_params: '
+            f'{self.user_params["camera_recording"]}'
+        ) from e
+    if 'camera_recording_duration_seconds' in self.user_params:
+      self.camera_recording_duration_seconds = int(
+          self.user_params['camera_recording_duration_seconds']
+      )
 
   def _setup_failure_policy(self):
     """Sets up the failure policy based on user parameters and class attributes."""
@@ -360,6 +382,22 @@ class PasitTestClass(base_test.BaseTestClass):
     except Exception as e:  # pylint: disable=broad-except
       logging.warning('Failed to capture images from all cameras: %s', e)
 
+  def _try_capture_camera_recordings(self) -> None:
+    """Captures camera recordings from all cameras."""
+    if not self.camera_recording_policy.should_record(self._test_failed):
+      return
+    try:
+      logging.info('Capturing camera recordings on test failure.')
+      self.passport_host.capture_video_from_all_cameras(
+          self.current_test_info.output_path,
+          'on_test_failure',
+          self.camera_recording_duration_seconds,
+      )
+    except Exception as e:  # pylint: disable=broad-except
+      # Recording video is not critical so just log error, don't raise any
+      # exceptions.
+      logging.warning('Failed to capture camera recordings: %s', e)
+
   def _apply_retry_and_repeat_to_all_tests(self):
     """Applies retry and repeat decorators to all tests if retry_count is set.
 
@@ -427,6 +465,7 @@ class PasitTestClass(base_test.BaseTestClass):
       except Exception as e:
         self._test_failed = True
         self._stop_screen_recording()
+        self._try_capture_camera_recordings()
         self._capture_bugreport(True)
         self._try_capture_screenshots()
         self._try_capture_images_from_all_cameras()
