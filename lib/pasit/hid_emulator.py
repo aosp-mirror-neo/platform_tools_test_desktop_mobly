@@ -50,7 +50,7 @@ class HIDEmulator:
       Error: If exactly one HID device is not found connected to the Passport
         host.
     """
-    hid_devices = self.passport.hid_client.get_hid_devices()
+    hid_devices = self.get_hid_emulator_devices()
     logging.info('Passport HID devices: %s', hid_devices)
     if len(hid_devices) != 1:
       raise self.Error(
@@ -60,6 +60,10 @@ class HIDEmulator:
           ' Passport host.'
       )
     self.device_id = hid_devices[0]
+
+  def get_hid_emulator_devices(self) -> list[str]:
+    """Returns the HID emulator devices connected to the Passport host."""
+    return self.passport.hid_client.get_hid_devices()
 
   def keypress(self, keys: list[str]) -> None:
     """Emulates a keypress on the HID emulator.
