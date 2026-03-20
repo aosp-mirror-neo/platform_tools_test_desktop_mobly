@@ -43,26 +43,28 @@ MOBLY_CONTROLLER_CONFIG_NAME = 'PassportHost'
 
 def update_passport_host_config(config: config_parser.TestRunConfig):
   """Updates the Passport host config in the test run config."""
+  update_passport_host_params(config.user_params, config.controller_configs)
+
+
+def update_passport_host_params(
+    user_params: dict[str, Any], controller_configs: dict[str, Any]
+):
+  """Updates the Passport host config in the controller configs."""
   user_param_host = 'passport_host'
   user_param_port = 'passport_port'
 
-  if (
-      user_param_host not in config.user_params
-      or user_param_port not in config.user_params
-  ):
+  if user_param_host not in user_params or user_param_port not in user_params:
     return
 
-  host = config.user_params[user_param_host]
-  port = config.user_params[user_param_port]
+  host = user_params[user_param_host]
+  port = user_params[user_param_port]
 
   logging.info(
       'Configuring Passport host address from user params: %s:%s',
       host,
       port,
   )
-  passport_host_configs = config.controller_configs[
-      MOBLY_CONTROLLER_CONFIG_NAME
-  ]
+  passport_host_configs = controller_configs[MOBLY_CONTROLLER_CONFIG_NAME]
   for passport_host_config in passport_host_configs:
     passport_host_config['service_host'] = host
     passport_host_config['service_port'] = port
