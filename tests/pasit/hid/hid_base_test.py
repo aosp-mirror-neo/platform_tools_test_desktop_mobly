@@ -83,7 +83,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     # TODO: b/491864518 - Replace this with retry with
     # DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY once the bug is fixed.
     hid_emulator_devices = retry.wait_for_stable_value(
-        hid.get_hid_emulator_devices,
+        lambda: self._get_hid_emulator_devices(hid),
         timeout_seconds=test_policy.HIDTestPolicy.STABLE_TIMEOUT_SECONDS,
         delay_seconds=test_policy.HIDTestPolicy.STABLE_POLLING_INTERVAL_SECONDS,
         required_stable_duration_seconds=test_policy.HIDTestPolicy.STABLE_REQUIRED_DURATION_SECONDS,
@@ -92,6 +92,13 @@ class HIDBaseTest(pasit_test.PasitTestClass):
         value_name='HID emulator devices',
     )
     logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
+
+  def _get_hid_emulator_devices(self, hid: pasit_hid.PasitHID) -> list[str]:
+    """Returns the HID emulator devices connected to the DUT."""
+    logging.debug(
+        'Passport HID devices: %s', self.emulator.get_hid_emulator_devices()
+    )
+    return hid.get_hid_emulator_devices()
 
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
