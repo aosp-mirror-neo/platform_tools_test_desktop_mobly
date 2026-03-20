@@ -137,3 +137,37 @@ class PassportCameraServiceClient:
       raise PassportCameraClientError(
           f'Failed to analyze HSV for camera {camera_id}.'
       ) from e
+
+  def capture_video(
+      self,
+      camera_ids: list[str],
+      duration_seconds: int,
+  ) -> tuple[bytes, str]:
+    """Captures a video from the specified cameras.
+
+    Args:
+      camera_ids: The unique IDs of the cameras to record.
+      duration_seconds: The duration of the video to capture in seconds.
+
+    Returns:
+      A tuple of (video_bytes, file_extension).
+    Raises:
+      PassportCameraClientError: If the RPC fails.
+    """
+    request = camera_service_pb2.CaptureVideoRequest(
+        device_ids=camera_ids,
+        duration_seconds=duration_seconds,
+    )
+    try:
+      response_iterator = self.stub.CaptureVideo(request)
+      video_bytes = []
+      file_extension = ''
+      for response in response_iterator:
+        video_bytes.append(response.video)
+        if response.file_extension:
+          file_extension = response.file_extension
+      return b''.join(video_bytes), file_extension
+    except grpc.RpcError as e:
+      raise PassportCameraClientError(
+          f'Failed to capture video from cameras {camera_ids}.'
+      ) from e

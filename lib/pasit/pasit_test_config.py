@@ -74,3 +74,22 @@ class ScreenRecordingPolicy(enum.Enum):
         return True
       case ScreenRecordingPolicy.DISABLED:
         return False
+
+
+class CameraRecordingPolicy(str, enum.Enum):
+  """Camera recording policy for the fixture.
+
+  The string value represents the value used in the test config and allows for
+  overriding the policy via the mobly config at runtime.
+  """
+
+  NONE = 'none'
+  ON_FAIL = 'on_fail'
+
+  def should_record(self, test_failed: bool) -> bool:
+    """Returns whether a camera recording should be captured."""
+    match self:
+      case CameraRecordingPolicy.ON_FAIL:
+        return test_failed
+      case CameraRecordingPolicy.NONE:
+        return False

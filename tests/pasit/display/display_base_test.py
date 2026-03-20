@@ -38,6 +38,9 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
   peripheral_connector: peripheral_connector.PeripheralConnector
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_MONITOR
   reboot_policy = test_policy.DisplayTestPolicy.REBOOT_POLICY
+  camera_recording_policy = (
+      test_policy.DisplayTestPolicy.CAMERA_RECORDING_POLICY
+  )
 
   def setup_class(self):
     """Handle the setup for the test.

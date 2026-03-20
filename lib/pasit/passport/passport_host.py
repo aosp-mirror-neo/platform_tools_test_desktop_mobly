@@ -763,6 +763,68 @@ class PassportHost:
           camera_exposure_time_us,
       )
 
+  def capture_video(
+      self,
+      camera_ids: list[str],
+      log_dir: str,
+      video_name_suffix: str,
+      duration_seconds: int,
+  ) -> None:
+    """Captures a video from the specified cameras and saves it.
+
+    Video is saved to the logs directory with the given suffix and a timestamp.
+
+    Args:
+      camera_ids: The unique IDs of the cameras to record.
+      log_dir: The directory to save the video to.
+      video_name_suffix: The suffix of the created video filename.
+      duration_seconds: The duration of the video to capture in seconds.
+    """
+    logging.debug(
+        'Capturing video from cameras %s to directory with duration %d'
+        ' seconds',
+        camera_ids,
+        duration_seconds,
+    )
+    video_bytes, file_extension = self.camera_client.capture_video(
+        camera_ids, duration_seconds
+    )
+    if not video_bytes:
+      self.log.warning(
+          'No video bytes received, video will not be saved to %s.',
+          log_dir,
+      )
+      return
+
+    time_str = mobly_logger.get_log_file_timestamp()
+    video_path = os.path.join(
+        log_dir,
+        f'{time_str}_{video_name_suffix.replace("/", "_")}.{file_extension}',
+    )
+    with open(video_path, 'wb') as f:
+      f.write(video_bytes)
+    logging.debug('Video saved to %s', video_path)
+
+  def capture_video_from_all_cameras(
+      self,
+      output_path: str,
+      video_suffix: str,
+      duration_seconds: int = 10,
+  ) -> None:
+    """Captures a video from each camera connected to the PassportHost.
+
+    Args:
+      output_path: The directory to save the videos to.
+      video_suffix: The suffix for the video file names.
+      duration_seconds: The duration of the video to capture in seconds.
+    """
+    self.capture_video(
+        self.get_cameras(),
+        output_path,
+        f'{video_suffix}_all_cameras',
+        duration_seconds,
+    )
+
   def get_average_pixel(
       self,
       camera_id: str,
@@ -906,8 +968,8 @@ class PassportHost:
     ranges (blue, cyan).
 
     Args:
-      camera_id: The unique ID of the camera to capture an image and
-        calculate warmth score.
+      camera_id: The unique ID of the camera to capture an image and calculate
+        warmth score.
       log_dir: The directory to save the image to, should be the mobly log
         directory or a subdirectory of it.  Must be specified if
         image_name_suffix is specified.
@@ -924,15 +986,19 @@ class PassportHost:
     """
     warm_masks = {
         'warm': image.HSVMask(
-            image.HSV(h=300, s=0.15, v=0.2), image.HSV(h=70, s=1.0, v=1.0)),
+            image.HSV(h=300, s=0.15, v=0.2), image.HSV(h=70, s=1.0, v=1.0)
+        ),
         'cold': image.HSVMask(
-            image.HSV(h=100, s=0.15, v=0.2), image.HSV(h=280, s=1.0, v=1.0)),
+            image.HSV(h=100, s=0.15, v=0.2), image.HSV(h=280, s=1.0, v=1.0)
+        ),
     }
     results = self.analyze_hsv(
         camera_id, warm_masks, log_dir, image_name_suffix, exposure_time_us
     )
-    logging.debug('Warm values for %s : %s', image_name_suffix,
-                  results.get('warm', 0.0))
-    logging.debug('Cold values for %s : %s', image_name_suffix,
-                  results.get('cold', 0.0))
+    logging.debug(
+        'Warm values for %s : %s', image_name_suffix, results.get('warm', 0.0)
+    )
+    logging.debug(
+        'Cold values for %s : %s', image_name_suffix, results.get('cold', 0.0)
+    )
     return results.get('warm', 0.0) - results.get('cold', 0.0)
