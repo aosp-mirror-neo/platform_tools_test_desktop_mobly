@@ -59,6 +59,7 @@ class DisplayTestPolicy:
   STABLE_ID_REQUIRED_DURATION_SECONDS = 10
   STABLE_ID_TIMEOUT_SECONDS = 40
   REBOOT_POLICY = pasit_test_config.RebootPolicy.ON_FAIL
+  CAMERA_RECORDING_POLICY = pasit_test_config.CameraRecordingPolicy.ON_FAIL
 
 
 class StorageTestPolicy:
