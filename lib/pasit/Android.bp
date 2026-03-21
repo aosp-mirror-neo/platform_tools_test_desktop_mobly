@@ -84,7 +84,9 @@ python_library_host {
         "*/android_ui_tools.py",
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
+        "*/input_recorder.py",
         "*/adb_command_monitor.py",
+        "*/process_monitor_group.py",
         "*/ui_watcher.py",
     ],
     exclude_srcs: ["passport/*"],
@@ -385,6 +387,23 @@ python_test_host {
     main: "android/adb_command_monitor_test.py",
     srcs: [
         "android/adb_command_monitor_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "mobly",
+        "py-desktop-utils",
+        "py-pasit-device",
+    ],
+}
+
+python_test_host {
+    name: "process_monitor_group_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/process_monitor_group_test.py",
+    srcs: [
+        "android/process_monitor_group_test.py",
     ],
     test_options: {
         unit_test: true,

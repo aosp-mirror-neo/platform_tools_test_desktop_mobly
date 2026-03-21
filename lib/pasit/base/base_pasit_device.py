@@ -238,6 +238,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Stops screen recording on the device."""
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def start_input_recording(self):
+    """Starts input recording on the device."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def stop_input_recording(self, output_path: str):
+    """Stops input recording on the device."""
+    raise NotImplementedError
+
   @property
   @abc.abstractmethod
   def user_tools(self) -> base_user_tools.BaseUserTools:

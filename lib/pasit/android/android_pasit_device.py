@@ -23,6 +23,8 @@ import time
 from lib.pasit.android import android_ui_tools
 from lib.pasit.android import android_user_tools
 from lib.pasit.android import dumpsys_battery_parser
+from lib.pasit.android import input_recorder
+from lib.pasit.android import process_monitor_group
 from lib.pasit.android import screen_recorder
 from lib.pasit.android import snippet_tools
 from lib.pasit.android import ui_watcher
@@ -79,12 +81,12 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     android_device.TAKE_SCREENSHOT_TIMEOUT_SECOND = 20
 
     self._snippets = snippet_tools.SnippetTools(self.controller)
-    self._screen_recorder = screen_recorder.ScreenRecorder(self.controller)
-    self._screen_recording_started = False
     self._ui_watcher = ui_watcher.UIWatcher(self.controller)
     self._user_tools = android_user_tools.AndroidUserTools(self.controller)
     self._ui_tools = android_ui_tools.AndroidUITools(self.controller)
-
+    self._process_monitor_group = process_monitor_group.ProcessMonitorGroup(
+        self.controller
+    )
     # must bypass setup wizard before switch to login screen user
     self.controller.root_adb()
     self._test_settings()
@@ -147,15 +149,15 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     # ensure that boot ID is cleared before reboot to avoid false positives
     # if the device fails to boot completely after a reboot.
     self._boot_id = None
-    self._pause_screen_recording()
+    self._process_monitor_group.pause_all()
     self.controller.reboot()
-    self._restart_screen_recording()
+    self._process_monitor_group.resume_all()
     self._update_boot_id()
     self._user_tools.login()
 
   def cold_reset(self):
     self._boot_id = None
-    self._pause_screen_recording()
+    self._process_monitor_group.pause_all()
     try:
       self._stop_services()
     except Exception as e:  # pylint: disable=broad-except
@@ -174,7 +176,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _power_on_routine(self, login: bool = True):
     self._wait_for_boot_completion()
-    self._restart_screen_recording()
+    self._process_monitor_group.resume_all()
     self._update_boot_id()
     self.controller.root_adb()
     # for consistency across all runs, switch to the login screen user first
@@ -187,7 +189,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       self._user_tools.login()
 
   def power_off(self):
-    self._pause_screen_recording()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self.request_power_off()
     logging.debug('Waiting for device to power off...')
@@ -195,7 +197,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     self._boot_id = None
 
   def suspend(self):
-    self._pause_screen_recording()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self._suspend()
 
@@ -224,7 +226,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       )
     if self.unexpected_reboots():
       raise PasitDeviceError('Device rebooted between suspend and wakeup.')
-    self._restart_screen_recording()
+    self._process_monitor_group.resume_all()
     self._start_services()
     # if device was previously suspended ensure that the wakelocks are restored
     self._set_wakup_timeout(0)
@@ -241,7 +243,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
           f'Wakeup timeout {wakeup_timeout_seconds} is less than the minimum'
           f' sleep timer {self.MIN_WAKEUP_TIMEOUT_SECONDS}.'
       )
-    self._pause_screen_recording()
+    self._process_monitor_group.pause_all()
     self._stop_services()
     self._set_wakup_timeout(wakeup_timeout_seconds)
     wakeup_timer = threading.Timer(wakeup_timeout_seconds, lambda: None)
@@ -250,7 +252,7 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
     wakeup_timer.join()
     self._wait_for_boot_completion()
-    self._restart_screen_recording()
+    self._process_monitor_group.resume_all()
     self._start_services()
 
   def is_device_online(self) -> bool:
@@ -347,20 +349,18 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
       ) from e
 
   def start_screen_recording(self):
-    self._screen_recorder.start()
-    self._screen_recording_started = True
+    self._process_monitor_group.start(screen_recorder.ScreenRecorder)
 
   def stop_screen_recording(self, output_path: str):
-    self._screen_recorder.stop(output_path)
-    self._screen_recording_started = False
+    self._process_monitor_group.stop(
+        screen_recorder.ScreenRecorder, output_path
+    )
 
-  def _pause_screen_recording(self):
-    if self._screen_recording_started:
-      self._screen_recorder.stop()
+  def start_input_recording(self):
+    self._process_monitor_group.start(input_recorder.InputRecorder)
 
-  def _restart_screen_recording(self):
-    if self._screen_recording_started:
-      self._screen_recorder.start()
+  def stop_input_recording(self, output_path: str):
+    self._process_monitor_group.stop(input_recorder.InputRecorder, output_path)
 
   @property
   def user_tools(self) -> base_user_tools.BaseUserTools:

@@ -43,6 +43,23 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     super().setup_class()
     self.emulator = hid_emulator.HIDEmulator(self.passport_host)
 
+  def setup_test(self):
+    """Handle the setup for the test."""
+    super().setup_test()
+    self.dut.start_input_recording()
+
+  def teardown_test(self):
+    """Handle the teardown for the test."""
+    self.dut.stop_input_recording(self.current_test_info.output_path)
+    super().teardown_test()
+
+  def teardown_class(self):
+    """Handle the teardown for the class."""
+    if hasattr(self, 'dut'):
+      # stop the input recording here in case teardown_test was not executed
+      self.dut.stop_input_recording(self.root_output_path)
+    super().teardown_class()
+
   def initialize_hid_emulator(self) -> None:
     """Initializes the HID emulator.
 
