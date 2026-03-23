@@ -85,6 +85,7 @@ python_library_host {
         "*/dumpsys_battery_parser.py",
         "*/screen_recorder.py",
         "*/ui_watcher.py",
+        "*/device_state_parser.py",
     ],
     exclude_srcs: ["passport/*"],
     libs: [
@@ -297,6 +298,22 @@ python_test_host {
     },
     libs: [
         "py-pasit-device",
+    ],
+}
+
+python_test_host {
+    name: "device_state_parser_test",
+    team: "trendy_team_desktop_peripherals",
+    main: "android/device_state_parser_test.py",
+    srcs: [
+        "android/device_state_parser_test.py",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    libs: [
+        "py-pasit-device",
+        "py-pasit-test",
     ],
 }
 
