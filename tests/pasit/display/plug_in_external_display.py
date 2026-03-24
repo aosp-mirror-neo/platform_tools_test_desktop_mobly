@@ -83,6 +83,43 @@ class PlugInExternalDisplayTest(display_base_test.DisplayBaseTest):
         'External display should have red color.',
     )
 
+  @functools.with_dimensions(
+      reboot=dut_state_manager.PowerAction.REBOOT,
+      suspend=dut_state_manager.PowerAction.SUSPEND,
+      shutdown=dut_state_manager.PowerAction.SHUTDOWN,
+  )
+  @functools.with_dimensions(
+      one_display_dock=(1, peripheral_connector.ConnectionType.DOCK),
+      one_display_dockless=(1, peripheral_connector.ConnectionType.DOCKLESS),
+      two_displays_dock=(2, peripheral_connector.ConnectionType.DOCK),
+      two_displays_daisychain=(
+          2,
+          peripheral_connector.ConnectionType.DAISY_CHAIN,
+      ),
+  )
+  def test_plug_in_display_then(
+      self,
+      target_action: dut_state_manager.PowerAction,
+      external_display_count: int,
+      connection_type: peripheral_connector.ConnectionType,
+  ):
+    """Tests display persistence across different power actions."""
+
+    self.skip_if_servo_needed_and_not_configured(target_action)
+
+    self.plug_in_external_displays(external_display_count, connection_type)
+    dut_state_manager.execute_power_action(self.dut, target_action)
+
+    self.verify_display_count(
+        external_display_count + 1, f'after {target_action.name}'
+    )
+    display_map = self.map_displays_to_cameras_with_retries()
+    external_display_ids = self.helper.get_external_display_ids(
+        external_display_count
+    )
+
+    self._verify_external_display_colors(display_map, external_display_ids)
+
 
 if __name__ == '__main__':
   test_runner.main()
