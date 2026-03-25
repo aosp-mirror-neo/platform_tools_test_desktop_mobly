@@ -15,9 +15,11 @@
 """Manages a monitored ADB command process for Android devices."""
 
 import os
+import pathlib
 from typing import Callable
 
 from lib.utils import process_monitor
+from lib.utils import retry
 from mobly.controllers import android_device
 
 
@@ -74,7 +76,9 @@ class AdbCommandMonitor(process_monitor.ProcessMonitor):
     Ensures the device-side output directory exists before delegating
     to the superclass's start method to launch the watcher thread.
     """
+    self._wait_for_output_directory()
     self.controller.adb.shell(['mkdir', '-p', self._output_path])
+
     super().start()  # pylint: disable=attribute-error
 
   def stop(self, host_output_path: str | None = None) -> None:
@@ -130,6 +134,35 @@ class AdbCommandMonitor(process_monitor.ProcessMonitor):
     except android_device.adb.AdbTimeoutError:
       return False
     return True
+
+  def _wait_for_output_directory(self) -> None:
+    """Waits for the storage mount on the device to be available.
+
+    Retries the ADB command to check if the output directory parent exists up to
+    5 times with a 5 second delay between each attempt.
+
+    Note: this method is executed in the ProcessMonitor watcher thread.
+
+    Raises:
+      adb.AdbError: If the output directory parent does not exist after 5
+        attempts.
+    """
+    parent_path = pathlib.PurePosixPath(self._output_path).parent
+    retry.retry(
+        # 'test -d <path>' command exits with 0 if the path exists and is a
+        # directory, and non-zero otherwise. adb.shell raises an AdbError for
+        # non-zero exit codes.
+        lambda: self.controller.adb.shell([
+            'test',
+            '-d',
+            str(parent_path),
+        ]),
+        exceptions=(android_device.adb.AdbError,),
+        policy=retry.RetryPolicy(
+            max_tries=5,
+            delay_seconds=5,
+        ),
+    )
 
   def _copy_captured_files(
       self, captured_files: list[str], host_output_path: str
