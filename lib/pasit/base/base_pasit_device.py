@@ -16,6 +16,7 @@
 
 import abc
 from collections.abc import Iterable
+import enum
 import logging
 from typing import Any, Callable
 
@@ -58,6 +59,21 @@ class ServoNotConfiguredError(Exception):
 
 class PasitDeviceError(Exception):
   """Error when performing an action on a PASIT device."""
+
+
+class FormFactor(enum.StrEnum):
+  CONVERTIBLE = 'CONVERTIBLE'
+  CLAMSHELL = 'CLAMSHELL'
+  DETACHABLE = 'DETACHABLE'
+  UNKNOWN = 'UNKNOWN'
+
+
+class DeviceState(enum.StrEnum):
+  CLOSED = 'CLOSED'
+  DOCKED = 'DOCKED'
+  OPEN = 'OPEN'
+  TABLET = 'TABLET'
+  UNKNOWN = 'UNKNOWN'
 
 
 class BasePasitDevice(metaclass=abc.ABCMeta):
@@ -260,6 +276,16 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
     """Returns the UI tools instance for the device."""
     raise NotImplementedError
 
+  @abc.abstractmethod
+  def get_form_factor(self) -> FormFactor:
+    """Returns the DUT form factor as an enum."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_device_state(self) -> DeviceState:
+    """Returns the current DeviceState enum."""
+    raise NotImplementedError
+
   def wait_for_device_online(self):
     """Waits for the device to be online.
 
@@ -431,3 +457,28 @@ class BasePasitDevice(metaclass=abc.ABCMeta):
           'Failed to reset device, device may be in a bad state: %s', e
       )
       return False
+
+  def set_tablet_mode(self, enabled: bool) -> None:
+    """Sets the tablet mode state of the device via Servo.
+
+    Args:
+      enabled: Whether to enable (True) or disable (False) tablet mode.
+
+    Raises:
+      ServoNotConfiguredError: If the servo client is not initialized.
+      PasitDeviceError: If the servo set operation fails.
+    """
+    if not self._servo:
+      raise ServoNotConfiguredError(
+          'Failed to set tablet mode: Servo not found.'
+      )
+
+    state = 'on' if enabled else 'off'
+    logging.info('Setting tablet mode to %s', state)
+
+    try:
+      self._servo.set_tablet_mode(enabled)
+    except Exception as e:
+      raise PasitDeviceError(
+          f'Failed to set tablet mode to {state}: {e}'
+      ) from e

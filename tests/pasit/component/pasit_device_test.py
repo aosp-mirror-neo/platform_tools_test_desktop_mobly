@@ -17,6 +17,8 @@
 import logging
 
 from lib.pasit import pasit_device
+from lib.pasit.android import device_state_parser
+from lib.pasit.base import base_pasit_device
 from lib.utils import functools
 from mobly import asserts
 from mobly import base_test
@@ -188,6 +190,34 @@ class PasitDeviceTest(base_test.BaseTestClass):
     self.dut.ui_tools.stop_app(app)
     asserts.assert_true(
         self.dut.ui_tools.wait_app_close(app), 'App did not close.'
+    )
+
+  def test_enable_disable_tablet_mode(self):
+    """Verifies hardware-to-software sync when toggling tablet mode."""
+    asserts.skip_if(
+        self.dut.get_form_factor() == base_pasit_device.FormFactor.CLAMSHELL,
+        'DUT is not a convertible.',
+    )
+    asserts.skip_if(
+        not self.dut.is_servo_configured(), 'Servo is not configured.'
+    )
+
+    logging.info('Enabling Tablet Mode via Servo..')
+    self.dut.set_tablet_mode(enabled=True)
+
+    asserts.assert_equal(
+        device_state_parser.DeviceState.TABLET,
+        self.dut.get_device_state(),
+        'OS state did not transition to TABLET.',
+    )
+
+    logging.info('Disabling Tablet Mode via Servo...')
+    self.dut.set_tablet_mode(enabled=False)
+
+    asserts.assert_not_equal(
+        device_state_parser.DeviceState.TABLET,
+        self.dut.get_device_state(),
+        'OS state did not transition out of TABLET mode.',
     )
 
 

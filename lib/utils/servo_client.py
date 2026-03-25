@@ -42,6 +42,7 @@ PD_ROLE_SINK = 'snk'
 PD_ROLE_SOURCE = 'src'
 
 LID_OPEN = 'lid_open'
+EC_UART_CMD = 'ec_uart_cmd'
 
 YES_VALUE = 'yes'
 NO_VALUE = 'no'
@@ -99,6 +100,15 @@ class ServoBase(abc.ABC):
       lid_open: True if the lid is open, False if the lid is closed.
     """
     self._set_servod_value(LID_OPEN, YES_VALUE if lid_open else NO_VALUE)
+
+  def set_tablet_mode(self, enabled: bool):
+    """Sets the Tablet Mode (On or Off) of the DUT via Servod.
+
+    Args:
+      enabled: True for 'tabletmode on', False for 'tabletmode off'
+    """
+    command = 'tabletmode on' if enabled else 'tabletmode off'
+    self._set_servod_value(EC_UART_CMD, command)
 
   @abc.abstractmethod
   def _set_servod_value(self, name: str, value: str) -> None:

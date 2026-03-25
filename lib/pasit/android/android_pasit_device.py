@@ -22,6 +22,7 @@ import time
 
 from lib.pasit.android import android_ui_tools
 from lib.pasit.android import android_user_tools
+from lib.pasit.android import device_state_parser
 from lib.pasit.android import dumpsys_battery_parser
 from lib.pasit.android import input_recorder
 from lib.pasit.android import process_monitor_group
@@ -448,3 +449,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
     return self.controller.adb.shell(
         ['su', f'{user_id}'] + cmd,
     )
+
+  def get_form_factor(self) -> base_pasit_device.FormFactor:
+    """Returns the DUT form factor as an enum."""
+    return device_state_parser.FormFactorParser(self.controller).form_factor
+
+  def get_device_state(self) -> base_pasit_device.DeviceState:
+    """Returns the current DeviceState enum."""
+    return device_state_parser.DeviceStateParser(self.controller).current_state
