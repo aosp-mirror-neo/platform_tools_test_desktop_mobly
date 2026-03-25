@@ -111,7 +111,7 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     # are swapped after the lid is closed. Inactive display IDs are still
     # being returned alongside active ones, causing the camera mapping
     # to become stale.
-    # self._verify_external_display_colors_after_lid_closed(
+    # self._verify_external_display_colors(
     #     display_id_to_camera_id, external_display_ids
     # )
 
@@ -189,34 +189,6 @@ class DockedModeExternalDisplayTest(display_base_test.DisplayBaseTest):
     """Closes the lid of the DUT to enter docked mode."""
     logging.info('Closing lid to enter docked mode.')
     self.dut.set_lid_closed()
-
-  def _verify_external_display_colors_after_lid_closed(
-      self,
-      display_id_to_camera_id: dict[pasit_display.PasitDisplay.DisplayId, str],
-      external_display_ids: list[pasit_display.PasitDisplay.DisplayId],
-  ):
-    """Test that external display shows correct color after lid is closed."""
-
-    colors = [
-        image.NamedColor.RED,
-        image.NamedColor.GREEN,
-        image.NamedColor.BLUE,
-    ]
-
-    display_id_to_color = dict(zip(external_display_ids, colors))
-    for display_id, color in display_id_to_color.items():
-      self.painter.show_color_on_display(color.value, display_id)
-      self.capture_screenshots(
-          f'external_display_{display_id}_shows_{color.name}_after_lid_close'
-      )
-
-    for display_id, color in display_id_to_color.items():
-      self.verify_captured_color(
-          display_id_to_camera_id[display_id],
-          color,
-          f'{color}_on_external_{display_id}',
-          f'External display {display_id} failed to show {color}.',
-      )
 
   def _verify_internal_display_is_blank(
       self,

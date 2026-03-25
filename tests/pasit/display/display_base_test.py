@@ -255,3 +255,40 @@ class DisplayBaseTest(pasit_test.PasitTestClass):
         policy=test_policy.DisplayTestPolicy.MAP_DISPLAYS_TO_CAMERAS_RETRY_POLICY,
         exceptions=(display_camera_mapper.MapDisplaysToCamerasError,),
     )
+
+  def _verify_external_display_colors(
+      self,
+      display_id_to_camera_id: dict[pasit_display.PasitDisplay.DisplayId, str],
+      external_display_ids: list[pasit_display.PasitDisplay.DisplayId],
+  ) -> None:
+    """Verifies that external displays show the correct colors.
+
+    Displays a sequence of colors on the provided external
+    displays and uses the corresponding cameras to verify the output.
+
+    Args:
+      display_id_to_camera_id: Mapping of display IDs to their camera IDs.
+      external_display_ids: List of external display IDs to be tested.
+    """
+
+    logging.info('Verifying background color on external display')
+    colors = [
+        image.NamedColor.RED,
+        image.NamedColor.GREEN,
+        image.NamedColor.BLUE,
+    ]
+
+    display_id_to_color = dict(zip(external_display_ids, colors))
+    for display_id, color in display_id_to_color.items():
+      self.painter.show_color_on_display(color.value, display_id)
+      self.capture_screenshots(
+          f'external_display_{display_id}_shows_{color.name}_after_lid_close'
+      )
+
+    for display_id, color in display_id_to_color.items():
+      self.verify_captured_color(
+          display_id_to_camera_id[display_id],
+          color,
+          f'{color}_on_external_{display_id}',
+          f'External display {display_id} failed to show {color}.',
+      )
