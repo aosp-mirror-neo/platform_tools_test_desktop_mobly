@@ -44,6 +44,20 @@ python_library_host {
 }
 
 python_library_host {
+    name: "py-hid-helper",
+    srcs: [
+        "hid_helper.py",
+    ],
+    libs: [
+        "mobly",
+        "py-desktop-utils",
+        "py-pasit-hid",
+        "py-test-policy",
+    ],
+    pkg_path: "lib/pasit",
+}
+
+python_library_host {
     name: "py-display-camera-mapper",
     srcs: [
         "display_camera_mapper.py",
@@ -232,6 +246,7 @@ python_test_host {
     },
     libs: [
         "py-display-helper",
+        "py-hid-helper",
         "py-display-camera-mapper",
         "py-display-painter",
         "py-pasit-camera",
