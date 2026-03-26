@@ -24,6 +24,7 @@ from lib.mobly.typec import utc_params
 from lib.pasit import pasit_device
 from lib.pasit.passport import passport_host
 from lib.pasit.passport import passport_usb_service_client as usb
+from mobly import asserts
 from mobly import base_test
 from mobly.controllers import android_device
 
@@ -68,8 +69,19 @@ class UtcBaseTest(base_test.BaseTestClass):
 
   def setup_class(self):
     super().setup_class()
+    self.passport = None
+    self.servo = None
+
     # Setup the UTC-274.
     self.passport = self.register_controller(passport_host)[0]
+
+    asserts.skip_if(
+        not self.passport.get_device_ids_by_type(
+            pasit_host_pb2.PasitHost.Device.Type.USB_TESTER
+        ),
+        'No USB tester found in the topology.',
+    )
+
     self.utc = self.passport.usb_tester_client
 
     # Set the tester's initial state.
@@ -98,8 +110,9 @@ class UtcBaseTest(base_test.BaseTestClass):
 
   def teardown_class(self):
     # Teardown the passport host and UTC-274.
-    self.passport.teardown()
-    if self.servo:
+    if getattr(self, 'passport', None):
+      self.passport.teardown()
+    if getattr(self, 'servo', None):
       self.servo.enable_servo_power()
     super().teardown_class()
 
