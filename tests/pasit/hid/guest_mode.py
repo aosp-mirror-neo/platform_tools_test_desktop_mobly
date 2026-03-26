@@ -37,7 +37,7 @@ class GuestModeTest(hid_base_test.HIDBaseTest):
     """
     super().setup_test()  # pylint: disable=attribute-error
     self.plug_in_hid_emulator()
-    self.initialize_hid_emulator()
+    self.helper.initialize_hid_emulator()
 
   def teardown_test(self):
     """Unplugs the HID emulator and unloads the HID snippet."""
@@ -54,7 +54,7 @@ class GuestModeTest(hid_base_test.HIDBaseTest):
     self.emulator.keypress([hid_keys.Function.ESCAPE])
     # hid snippet needs to be loaded after guest mode is enabled
     self.hid = self.create(pasit_hid)
-    self.verify_hid_emulator_devices(self.hid)
+    self.helper.wait_for_hid_connected(self.hid)
     self.validate_keyboard_input(self.hid)
 
 

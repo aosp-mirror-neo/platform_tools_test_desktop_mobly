@@ -37,6 +37,7 @@ python_test_host {
         "py-pasit-file",
         "py-pasit-hid",
         "py-peripheral-connector",
+        "py-hid-helper",
     ],
     pkg_path: "pasit/hid",
 }

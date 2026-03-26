@@ -15,51 +15,23 @@
 
 from lib.pasit import hid_emulator
 from lib.pasit import pasit_hid
-from lib.pasit import pasit_test
-from lib.pasit import test_policy
 from lib.utils import functools
-from lib.utils import retry
 from mobly import asserts
 from mobly import test_runner
+from pasit.component import pasit_hid_base_test
 
 
 @functools.generate_tests
-class PasitHIDMouseTest(pasit_test.PasitTestClass):
+class PasitHIDMouseTest(pasit_hid_base_test.PasitHIDBaseTest):
   """A test that exercises PASIT HID mouse functionality."""
 
-  hid: pasit_hid.PasitHID
-  emulator: hid_emulator.HIDEmulator
-  requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_HID
-
-  def setup_class(self):
-    super().setup_class()
-    self.hid = self.create(pasit_hid)
-    self.passport_host.activate_device_by_type(self.DEVICE_TYPE_HID)
-    self.emulator = hid_emulator.HIDEmulator(self.passport_host)
-    retry.retry(
-        self.emulator.initialize,
-        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
-        exceptions=(hid_emulator.HIDEmulator.Error,),
-    )
-    retry.wait_for_stable_value(
-        self.hid.get_hid_emulator_devices,
-        timeout_seconds=test_policy.HIDTestPolicy.STABLE_TIMEOUT_SECONDS,
-        delay_seconds=test_policy.HIDTestPolicy.STABLE_POLLING_INTERVAL_SECONDS,
-        required_stable_duration_seconds=test_policy.HIDTestPolicy.STABLE_REQUIRED_DURATION_SECONDS,
-        criteria=lambda devices: len(devices)
-        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-    )
-
   def setup_test(self):
-    """Handle the setup for the test."""
     super().setup_test()
     self.hid.start_mouse_capture(self.emulator)
 
   def teardown_test(self):
-    """Handle the teardown for the test."""
     self.hid.stop_mouse_capture()
-    # avoid passport reset in PasitTestClass.teardown_test
-    # super().teardown_test()
+    super().teardown_test()
 
   @functools.with_variants(
       left=(hid_emulator.MouseButton.LEFT, pasit_hid.PasitHID.MouseButton.LEFT),

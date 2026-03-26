@@ -18,10 +18,10 @@ import enum
 import logging
 
 from lib.pasit import hid_emulator
+from lib.pasit import hid_helper
 from lib.pasit import hid_keys
 from lib.pasit import pasit_hid
 from lib.pasit import pasit_test
-from lib.pasit import test_policy
 from lib.utils import retry
 from mobly import asserts
 
@@ -35,6 +35,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
   """
 
   emulator: hid_emulator.HIDEmulator
+  helper: hid_helper.HIDHelper
 
   requires_device_type = pasit_test.PasitTestClass.DEVICE_TYPE_HID
 
@@ -42,6 +43,7 @@ class HIDBaseTest(pasit_test.PasitTestClass):
     """Handle the setup for the test."""
     super().setup_class()
     self.emulator = hid_emulator.HIDEmulator(self.passport_host)
+    self.helper = hid_helper.HIDHelper(self.emulator)
 
   def setup_test(self):
     """Handle the setup for the test."""
@@ -60,46 +62,6 @@ class HIDBaseTest(pasit_test.PasitTestClass):
       self.dut.stop_input_recording(self.root_output_path)
     super().teardown_class()
 
-  def initialize_hid_emulator(self) -> None:
-    """Initializes the HID emulator.
-
-    Retries the initialization based on the retry policy until successful.
-
-    Raises:
-      hid_emulator.HIDEmulator.Error: If the HID emulator fails to initialize.
-    """
-    retry.retry(
-        self.emulator.initialize,
-        policy=test_policy.HIDTestPolicy.DETECT_HID_EMULATOR_RETRY_POLICY,
-        exceptions=(hid_emulator.HIDEmulator.Error,),
-    )
-
-  def verify_hid_emulator_devices(self, hid: pasit_hid.PasitHID) -> None:
-    """Verifies the HID emulator devices are seen by the DUT.
-
-    Args:
-      hid: The PasitHID object to use for verifying the HID emulator devices.
-    """
-    # TODO: b/491864518 - Replace this with retry with
-    # DETECT_EXTERNAL_HID_DEVICES_RETRY_POLICY once the bug is fixed.
-    hid_emulator_devices = retry.wait_for_stable_value(
-        lambda: self._get_hid_emulator_devices(hid),
-        timeout_seconds=test_policy.HIDTestPolicy.STABLE_TIMEOUT_SECONDS,
-        delay_seconds=test_policy.HIDTestPolicy.STABLE_POLLING_INTERVAL_SECONDS,
-        required_stable_duration_seconds=test_policy.HIDTestPolicy.STABLE_REQUIRED_DURATION_SECONDS,
-        criteria=lambda devices: len(devices)
-        == test_policy.HIDTestPolicy.NUM_HID_DEVICES_EXPECTED,
-        value_name='HID emulator devices',
-    )
-    logging.info('HID emulator devices seen by DUT: %s', hid_emulator_devices)
-
-  def _get_hid_emulator_devices(self, hid: pasit_hid.PasitHID) -> list[str]:
-    """Returns the HID emulator devices connected to the DUT."""
-    logging.debug(
-        'Passport HID devices: %s', self.emulator.get_hid_emulator_devices()
-    )
-    return hid.get_hid_emulator_devices()
-
   def plug_in_hid_emulator(self) -> None:
     """Plugs in the HID emulator to the DUT."""
     logging.info('Plugging in HID emulator to DUT')
@@ -112,8 +74,8 @@ class HIDBaseTest(pasit_test.PasitTestClass):
 
   def initialize_and_verify_hid_emulator(self, hid: pasit_hid.PasitHID) -> None:
     """Initializes and verifies the HID emulator."""
-    self.initialize_hid_emulator()
-    self.verify_hid_emulator_devices(hid)
+    self.helper.initialize_hid_emulator()
+    self.helper.wait_for_hid_connected(hid)
 
   def plug_in_hid_emulator_and_verify(self, hid: pasit_hid.PasitHID) -> None:
     """Plugs in the HID emulator to the DUT and initializes it."""

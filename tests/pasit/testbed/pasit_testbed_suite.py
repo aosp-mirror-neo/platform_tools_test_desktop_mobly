@@ -21,6 +21,7 @@ from mobly import suite_runner
 from pasit.testbed import pasit_peripheral_test
 from pasit.testbed import pasit_servo_test
 from pasit.testbed import passport_host_test
+from pasit.testbed import typec_utc_smoke_test
 
 
 class PasitTestbedSuite(base_suite.BaseSuite):
@@ -36,6 +37,7 @@ class PasitTestbedSuite(base_suite.BaseSuite):
     self.add_test_class(passport_host_test.PassportHostTest, config)
     self.add_test_class(pasit_servo_test.ServoTest, config)
     self.add_test_class(pasit_peripheral_test.PasitPeripheralTest, config)
+    self.add_test_class(typec_utc_smoke_test.UtcSmokeTest, config)
 
 
 def main() -> None:

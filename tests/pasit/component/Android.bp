@@ -45,6 +45,7 @@ python_test_host {
         "py-peripheral-connector",
         "py-pasit-camera",
         "py-display-camera-mapper",
+        "py-hid-helper",
     ],
     pkg_path: "pasit/component",
 }
