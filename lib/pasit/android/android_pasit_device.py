@@ -177,9 +177,11 @@ class AndroidPasitDevice(base_pasit_device.BasePasitDevice):
 
   def _power_on_routine(self, login: bool = True):
     self._wait_for_boot_completion()
-    self._process_monitor_group.resume_all()
     self._update_boot_id()
     self.controller.root_adb()
+    # resume process monitors after root_adb
+    self._process_monitor_group.resume_all()
+
     # for consistency across all runs, switch to the login screen user first
     # and to make sure that mbs is installed under the login screen user
     # TODO: b/nobug - check if logout is still needed here
